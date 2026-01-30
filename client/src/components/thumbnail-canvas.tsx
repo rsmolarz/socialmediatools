@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
-import type { ThumbnailConfig, TextOverlay } from "@shared/schema";
+import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects } from "@shared/schema";
 
 interface ThumbnailCanvasProps {
   config: ThumbnailConfig;
@@ -12,6 +12,19 @@ export interface ThumbnailCanvasRef {
   downloadImage: () => void;
   getDataUrl: () => string | null;
 }
+
+const ACCENT_COLORS = {
+  orange: "#f97316",
+  blue: "#22d3ee", 
+  purple: "#9333ea",
+};
+
+const TINT_COLORS = {
+  none: null,
+  purple: "rgba(147, 51, 234, 0.3)",
+  blue: "rgba(34, 211, 238, 0.3)",
+  orange: "rgba(249, 115, 22, 0.3)",
+};
 
 export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasProps>(
   ({ config, onTextSelect, selectedTextId, onTextMove }, ref) => {
@@ -72,16 +85,19 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
         img.crossOrigin = "anonymous";
         img.onload = () => {
           ctx.drawImage(img, 0, 0, config.width, config.height);
+          drawBackgroundEffects(ctx);
           drawOverlays(ctx);
         };
         img.onerror = () => {
           // Fallback to background color if image fails
           drawBackgroundColor(ctx);
+          drawBackgroundEffects(ctx);
           drawOverlays(ctx);
         };
         img.src = config.backgroundImage;
       } else {
         drawBackgroundColor(ctx);
+        drawBackgroundEffects(ctx);
         drawOverlays(ctx);
       }
     };
@@ -100,7 +116,102 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
       ctx.fillRect(0, 0, config.width, config.height);
     };
 
+    const drawBackgroundEffects = (ctx: CanvasRenderingContext2D) => {
+      const effects = config.backgroundEffects;
+      if (!effects) return;
+
+      // Dark overlay
+      if (effects.darkOverlay > 0) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${effects.darkOverlay / 100})`;
+        ctx.fillRect(0, 0, config.width, config.height);
+      }
+
+      // Color tint
+      const tintColor = TINT_COLORS[effects.colorTint];
+      if (tintColor) {
+        ctx.fillStyle = tintColor;
+        ctx.fillRect(0, 0, config.width, config.height);
+      }
+
+      // Vignette effect
+      if (effects.vignetteIntensity > 0) {
+        const centerX = config.width / 2;
+        const centerY = config.height / 2;
+        const radius = Math.max(config.width, config.height) * 0.8;
+        
+        const gradient = ctx.createRadialGradient(centerX, centerY, radius * 0.3, centerX, centerY, radius);
+        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        gradient.addColorStop(1, `rgba(0, 0, 0, ${effects.vignetteIntensity / 100})`);
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, config.width, config.height);
+      }
+    };
+
+    const drawTextLines = (ctx: CanvasRenderingContext2D) => {
+      const lines = config.textLines;
+      if (!lines || lines.length === 0) return;
+
+      const accentColor = ACCENT_COLORS[config.accentColor || "orange"];
+      const fontSize = 80;
+      const lineHeight = fontSize * 1.4;
+      const padding = 12;
+
+      ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+      ctx.textBaseline = "middle";
+
+      // Calculate total height for centering
+      const totalHeight = lines.length * lineHeight;
+      let startY = (config.height - totalHeight) / 2 + lineHeight / 2;
+
+      // Adjust based on layout
+      let textAlign: CanvasTextAlign = "center";
+      let startX = config.width / 2;
+
+      if (config.layout === "left-aligned") {
+        textAlign = "left";
+        startX = 100;
+      } else if (config.layout === "stacked") {
+        textAlign = "left";
+        startX = 100;
+      }
+
+      ctx.textAlign = textAlign;
+
+      lines.forEach((line, index) => {
+        const y = startY + index * lineHeight;
+        const metrics = ctx.measureText(line.text);
+        const textWidth = metrics.width;
+
+        // Draw highlight background if enabled
+        if (line.highlight) {
+          let boxX = startX;
+          if (textAlign === "center") {
+            boxX = startX - textWidth / 2 - padding;
+          } else if (textAlign === "left") {
+            boxX = startX - padding;
+          }
+
+          ctx.fillStyle = accentColor;
+          ctx.fillRect(boxX, y - fontSize / 2 - padding / 2, textWidth + padding * 2, fontSize + padding);
+        }
+
+        // Draw text
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText(line.text, startX, y);
+        ctx.shadowColor = "transparent";
+      });
+    };
+
     const drawOverlays = (ctx: CanvasRenderingContext2D) => {
+      // Draw text lines first (new format)
+      drawTextLines(ctx);
+      
+      // Then draw legacy overlays
       config.overlays.forEach((overlay) => {
         drawTextOverlay(ctx, overlay, overlay.id === selectedTextId);
       });

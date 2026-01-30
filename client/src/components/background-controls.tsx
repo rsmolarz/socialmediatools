@@ -1,15 +1,27 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ImageIcon, Palette, X, Upload } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImageIcon, Palette, X, Upload, Rocket } from "lucide-react";
 import { useRef } from "react";
+import type { BackgroundEffects } from "@shared/schema";
 
 interface BackgroundControlsProps {
   backgroundColor: string;
   backgroundImage?: string;
+  backgroundEffects?: BackgroundEffects;
   onColorChange: (color: string) => void;
   onImageChange: (imageUrl: string | undefined) => void;
+  onEffectsChange?: (effects: BackgroundEffects) => void;
 }
+
+const COLOR_TINTS = [
+  { value: "none", label: "None" },
+  { value: "purple", label: "Purple" },
+  { value: "blue", label: "Blue" },
+  { value: "orange", label: "Orange" },
+] as const;
 
 const PRESET_COLORS = [
   { value: "#1a1a2e", label: "Dark Navy" },
@@ -33,13 +45,30 @@ const GRADIENT_PRESETS = [
   { value: "linear-gradient(135deg, #0c0c0c 0%, #1e1e1e 100%)", label: "Dark Void" },
 ];
 
+const DEFAULT_EFFECTS: BackgroundEffects = {
+  darkOverlay: 40,
+  vignetteIntensity: 50,
+  colorTint: "none",
+};
+
 export function BackgroundControls({
   backgroundColor,
   backgroundImage,
+  backgroundEffects = DEFAULT_EFFECTS,
   onColorChange,
   onImageChange,
+  onEffectsChange,
 }: BackgroundControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const updateEffect = <K extends keyof BackgroundEffects>(
+    key: K,
+    value: BackgroundEffects[K]
+  ) => {
+    if (onEffectsChange) {
+      onEffectsChange({ ...backgroundEffects, [key]: value });
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -170,6 +199,64 @@ export function BackgroundControls({
           />
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Rocket className="h-4 w-4" />
+            Preset Backgrounds
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Dark Overlay</Label>
+              <span className="text-sm text-muted-foreground">{backgroundEffects.darkOverlay}%</span>
+            </div>
+            <Slider
+              value={[backgroundEffects.darkOverlay]}
+              onValueChange={([value]) => updateEffect("darkOverlay", value)}
+              max={100}
+              step={1}
+              className="w-full"
+              data-testid="slider-dark-overlay"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Vignette Intensity</Label>
+              <span className="text-sm text-muted-foreground">{backgroundEffects.vignetteIntensity}%</span>
+            </div>
+            <Slider
+              value={[backgroundEffects.vignetteIntensity]}
+              onValueChange={([value]) => updateEffect("vignetteIntensity", value)}
+              max={100}
+              step={1}
+              className="w-full"
+              data-testid="slider-vignette"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm">Color Tint</Label>
+            <div className="flex gap-2">
+              {COLOR_TINTS.map((tint) => (
+                <Button
+                  key={tint.value}
+                  variant={backgroundEffects.colorTint === tint.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => updateEffect("colorTint", tint.value)}
+                  className="flex-1"
+                  data-testid={`button-tint-${tint.value}`}
+                >
+                  {tint.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

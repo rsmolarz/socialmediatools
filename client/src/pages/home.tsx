@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ThumbnailCanvas, ThumbnailCanvasRef } from "@/components/thumbnail-canvas";
 import { TextControls } from "@/components/text-controls";
+import { TextLineControls } from "@/components/text-line-controls";
 import { BackgroundControls } from "@/components/background-controls";
 import { SavedThumbnails } from "@/components/saved-thumbnails";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -23,17 +24,33 @@ import {
   Sparkles,
   Layers,
 } from "lucide-react";
-import type { ThumbnailConfig, TextOverlay, Thumbnail, InsertThumbnail } from "@shared/schema";
+import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail } from "@shared/schema";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
 
+const DEFAULT_TEXT_LINES: TextLine[] = [
+  { id: "line1", text: "the future of", highlight: true },
+  { id: "line2", text: "physician", highlight: false },
+  { id: "line3", text: "wealth", highlight: false },
+];
+
+const DEFAULT_EFFECTS: BackgroundEffects = {
+  darkOverlay: 40,
+  vignetteIntensity: 50,
+  colorTint: "none",
+};
+
 const DEFAULT_CONFIG: ThumbnailConfig = {
-  backgroundColor: "#1a1a2e",
+  backgroundColor: "#000000",
   overlays: [],
   width: 1280,
   height: 720,
+  textLines: DEFAULT_TEXT_LINES,
+  layout: "centered",
+  accentColor: "orange",
+  backgroundEffects: DEFAULT_EFFECTS,
 };
 
 export default function Home() {
@@ -340,25 +357,22 @@ export default function Home() {
 
               <TabsContent value="text" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
-                  {selectedOverlay ? (
-                    <TextControls
-                      overlay={selectedOverlay}
-                      onUpdate={(updates) => updateTextOverlay(selectedOverlay.id, updates)}
-                      onDelete={() => deleteTextOverlay(selectedOverlay.id)}
-                    />
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Type className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">Select a text layer to edit</p>
-                      <p className="text-xs mt-1">or add a new text layer</p>
-                      <Button
-                        className="mt-4"
-                        onClick={addTextOverlay}
-                        data-testid="button-add-text-empty"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Text
-                      </Button>
+                  <TextLineControls
+                    lines={config.textLines || []}
+                    layout={config.layout || "centered"}
+                    accentColor={config.accentColor || "orange"}
+                    onLinesChange={(lines) => setConfig((prev) => ({ ...prev, textLines: lines }))}
+                    onLayoutChange={(layout) => setConfig((prev) => ({ ...prev, layout }))}
+                    onAccentColorChange={(accentColor) => setConfig((prev) => ({ ...prev, accentColor }))}
+                  />
+                  
+                  {selectedOverlay && (
+                    <div className="mt-4">
+                      <TextControls
+                        overlay={selectedOverlay}
+                        onUpdate={(updates) => updateTextOverlay(selectedOverlay.id, updates)}
+                        onDelete={() => deleteTextOverlay(selectedOverlay.id)}
+                      />
                     </div>
                   )}
                 </ScrollArea>
@@ -369,11 +383,15 @@ export default function Home() {
                   <BackgroundControls
                     backgroundColor={config.backgroundColor}
                     backgroundImage={config.backgroundImage}
+                    backgroundEffects={config.backgroundEffects}
                     onColorChange={(color) =>
                       setConfig((prev) => ({ ...prev, backgroundColor: color }))
                     }
                     onImageChange={(image) =>
                       setConfig((prev) => ({ ...prev, backgroundImage: image }))
+                    }
+                    onEffectsChange={(effects) =>
+                      setConfig((prev) => ({ ...prev, backgroundEffects: effects }))
                     }
                   />
                 </ScrollArea>

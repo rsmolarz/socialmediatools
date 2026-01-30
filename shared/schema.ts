@@ -3,7 +3,16 @@ import { pgTable, text, varchar, jsonb, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Text overlay configuration
+// Text line configuration (Line 1, 2, 3 format)
+export const textLineSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  highlight: z.boolean().default(false),
+});
+
+export type TextLine = z.infer<typeof textLineSchema>;
+
+// Text overlay configuration (for legacy support)
 export const textOverlaySchema = z.object({
   id: z.string(),
   text: z.string(),
@@ -20,6 +29,15 @@ export const textOverlaySchema = z.object({
 
 export type TextOverlay = z.infer<typeof textOverlaySchema>;
 
+// Background effects configuration
+export const backgroundEffectsSchema = z.object({
+  darkOverlay: z.number().min(0).max(100).default(40),
+  vignetteIntensity: z.number().min(0).max(100).default(50),
+  colorTint: z.enum(["none", "purple", "blue", "orange"]).default("none"),
+});
+
+export type BackgroundEffects = z.infer<typeof backgroundEffectsSchema>;
+
 // Thumbnail configuration
 export const thumbnailConfigSchema = z.object({
   backgroundColor: z.string(),
@@ -27,6 +45,11 @@ export const thumbnailConfigSchema = z.object({
   overlays: z.array(textOverlaySchema),
   width: z.number().default(1280),
   height: z.number().default(720),
+  // New features
+  textLines: z.array(textLineSchema).optional(),
+  layout: z.enum(["centered", "left-aligned", "stacked"]).default("centered"),
+  accentColor: z.enum(["orange", "blue", "purple"]).default("orange"),
+  backgroundEffects: backgroundEffectsSchema.optional(),
 });
 
 export type ThumbnailConfig = z.infer<typeof thumbnailConfigSchema>;
