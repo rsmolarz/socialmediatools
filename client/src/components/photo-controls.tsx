@@ -2,8 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Camera, X, User, Users } from "lucide-react";
-import { useRef } from "react";
+import { Camera, X, User, Users, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export interface PhotoConfig {
   url: string | null;
@@ -19,6 +20,21 @@ interface PhotoControlsProps {
   onGuestPhotoChange: (photo: PhotoConfig) => void;
 }
 
+async function removeBackground(imageData: string): Promise<string> {
+  const response = await fetch("/api/remove-background", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageData }),
+  });
+  
+  if (!response.ok) {
+    throw new Error("Failed to remove background");
+  }
+  
+  const data = await response.json();
+  return `data:image/png;base64,${data.b64_json}`;
+}
+
 export function PhotoControls({
   hostPhoto,
   guestPhoto,
@@ -27,30 +43,85 @@ export function PhotoControls({
 }: PhotoControlsProps) {
   const hostInputRef = useRef<HTMLInputElement>(null);
   const guestInputRef = useRef<HTMLInputElement>(null);
+  const [hostProcessing, setHostProcessing] = useState(false);
+  const [guestProcessing, setGuestProcessing] = useState(false);
+  const { toast } = useToast();
 
-  const handleHostUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHostUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
+        const originalUrl = event.target?.result as string;
+        
+        // Set the original photo first
         onHostPhotoChange({
           ...hostPhoto,
-          url: event.target?.result as string,
+          url: originalUrl,
         });
+        
+        // Then process for background removal
+        setHostProcessing(true);
+        try {
+          const processedUrl = await removeBackground(originalUrl);
+          onHostPhotoChange({
+            ...hostPhoto,
+            url: processedUrl,
+          });
+          toast({
+            title: "Background removed",
+            description: "Your photo has been processed successfully.",
+          });
+        } catch (error) {
+          console.error("Background removal failed:", error);
+          toast({
+            title: "Background removal failed",
+            description: "Using original photo. You can try again later.",
+            variant: "destructive",
+          });
+        } finally {
+          setHostProcessing(false);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleGuestUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGuestUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
+        const originalUrl = event.target?.result as string;
+        
+        // Set the original photo first
         onGuestPhotoChange({
           ...guestPhoto,
-          url: event.target?.result as string,
+          url: originalUrl,
         });
+        
+        // Then process for background removal
+        setGuestProcessing(true);
+        try {
+          const processedUrl = await removeBackground(originalUrl);
+          onGuestPhotoChange({
+            ...guestPhoto,
+            url: processedUrl,
+          });
+          toast({
+            title: "Background removed",
+            description: "Guest photo has been processed successfully.",
+          });
+        } catch (error) {
+          console.error("Background removal failed:", error);
+          toast({
+            title: "Background removal failed",
+            description: "Using original photo. You can try again later.",
+            variant: "destructive",
+          });
+        } finally {
+          setGuestProcessing(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -93,16 +164,22 @@ export function PhotoControls({
               variant="outline"
               className="flex-1"
               onClick={() => hostInputRef.current?.click()}
+              disabled={hostProcessing}
               data-testid="button-upload-host"
             >
-              <Camera className="h-4 w-4 mr-2" />
-              Upload Your Photo
+              {hostProcessing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4 mr-2" />
+              )}
+              {hostProcessing ? "Removing background..." : "Upload Your Photo"}
             </Button>
             {hostPhoto.url && (
               <Button
                 variant="destructive"
                 size="icon"
                 onClick={clearHostPhoto}
+                disabled={hostProcessing}
                 data-testid="button-clear-host"
               >
                 <X className="h-4 w-4" />
@@ -113,12 +190,21 @@ export function PhotoControls({
           {hostPhoto.url && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <img
-                  src={hostPhoto.url}
-                  alt="Host"
-                  className="w-12 h-12 object-cover rounded-lg border-2 border-primary"
-                />
-                <span className="text-xs text-muted-foreground">Photo uploaded</span>
+                <div className="relative">
+                  <img
+                    src={hostPhoto.url}
+                    alt="Host"
+                    className={`w-12 h-12 object-cover rounded-lg border-2 border-primary ${hostProcessing ? "opacity-50" : ""}`}
+                  />
+                  {hostProcessing && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {hostProcessing ? "Processing..." : "Photo uploaded"}
+                </span>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -184,16 +270,22 @@ export function PhotoControls({
               variant="secondary"
               className="flex-1"
               onClick={() => guestInputRef.current?.click()}
+              disabled={guestProcessing}
               data-testid="button-upload-guest"
             >
-              <Camera className="h-4 w-4 mr-2" />
-              Upload Guest Photo
+              {guestProcessing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4 mr-2" />
+              )}
+              {guestProcessing ? "Removing background..." : "Upload Guest Photo"}
             </Button>
             {guestPhoto.url && (
               <Button
                 variant="destructive"
                 size="icon"
                 onClick={clearGuestPhoto}
+                disabled={guestProcessing}
                 data-testid="button-clear-guest"
               >
                 <X className="h-4 w-4" />
@@ -204,12 +296,21 @@ export function PhotoControls({
           {guestPhoto.url && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <img
-                  src={guestPhoto.url}
-                  alt="Guest"
-                  className="w-12 h-12 object-cover rounded-lg border-2 border-cyan-500"
-                />
-                <span className="text-xs text-muted-foreground">Photo uploaded</span>
+                <div className="relative">
+                  <img
+                    src={guestPhoto.url}
+                    alt="Guest"
+                    className={`w-12 h-12 object-cover rounded-lg border-2 border-cyan-500 ${guestProcessing ? "opacity-50" : ""}`}
+                  />
+                  {guestProcessing && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-cyan-500" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {guestProcessing ? "Processing..." : "Photo uploaded"}
+                </span>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

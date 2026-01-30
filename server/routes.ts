@@ -107,6 +107,37 @@ export async function registerRoutes(
     }
   });
 
+  // Remove background from an image using AI
+  app.post("/api/remove-background", async (req, res) => {
+    try {
+      const { imageData } = req.body;
+
+      if (!imageData) {
+        return res.status(400).json({ error: "Image data is required" });
+      }
+
+      // Use OpenAI's image editing capability to remove background
+      const response = await openai.images.edit({
+        model: "gpt-image-1",
+        image: Buffer.from(imageData.replace(/^data:image\/\w+;base64,/, ""), "base64"),
+        prompt: "Remove the background completely, making it fully transparent. Keep only the person/subject in the foreground with clean edges. Output with transparent background.",
+        size: "1024x1024",
+      });
+
+      // gpt-image-1 returns base64 by default
+      const b64_json = response.data[0]?.b64_json;
+      
+      if (!b64_json) {
+        throw new Error("No image data in response");
+      }
+
+      res.json({ b64_json });
+    } catch (error) {
+      console.error("Error removing background:", error);
+      res.status(500).json({ error: "Failed to remove background" });
+    }
+  });
+
   // Analyze podcast transcript and generate thumbnail suggestions
   app.post("/api/analyze-transcript", async (req, res) => {
     try {
