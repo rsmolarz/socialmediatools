@@ -280,33 +280,55 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
       const hostPhoto = config.hostPhoto;
       const guestPhoto = config.guestPhoto;
 
-      // Draw photo using cached image
+      // Draw photo using cached image with proper aspect ratio (cover style)
       const drawPhoto = (photo: PhotoConfig | undefined, cachedImg: HTMLImageElement | null, side: "left" | "right") => {
         if (!photo?.url || !cachedImg) return;
 
         const scale = (photo.scale || 100) / 100;
-        const photoWidth = config.width * 0.3 * scale;
-        const photoHeight = config.height * 0.8 * scale;
+        const targetWidth = config.width * 0.3 * scale;
+        const targetHeight = config.height * 0.8 * scale;
         
         let x = side === "left" 
           ? config.width * 0.08 + (photo.offsetX || 0)
-          : config.width * 0.92 - photoWidth + (photo.offsetX || 0);
-        let y = config.height - photoHeight + (photo.offsetY || 0);
+          : config.width * 0.92 - targetWidth + (photo.offsetX || 0);
+        let y = config.height - targetHeight + (photo.offsetY || 0);
 
         ctx.save();
         
         // Create rounded top rectangle clip for photo
-        const radius = photoWidth * 0.5;
+        const radius = targetWidth * 0.5;
         ctx.beginPath();
-        ctx.moveTo(x, y + photoHeight);
+        ctx.moveTo(x, y + targetHeight);
         ctx.lineTo(x, y + radius);
         ctx.arcTo(x, y, x + radius, y, radius);
-        ctx.arcTo(x + photoWidth, y, x + photoWidth, y + radius, radius);
-        ctx.lineTo(x + photoWidth, y + photoHeight);
+        ctx.arcTo(x + targetWidth, y, x + targetWidth, y + radius, radius);
+        ctx.lineTo(x + targetWidth, y + targetHeight);
         ctx.closePath();
         ctx.clip();
         
-        ctx.drawImage(cachedImg, x, y, photoWidth, photoHeight);
+        // Calculate "cover" style dimensions to maintain aspect ratio
+        const imgWidth = cachedImg.naturalWidth;
+        const imgHeight = cachedImg.naturalHeight;
+        const imgAspect = imgWidth / imgHeight;
+        const targetAspect = targetWidth / targetHeight;
+        
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (imgAspect > targetAspect) {
+          // Image is wider - fit by height, crop sides
+          drawHeight = targetHeight;
+          drawWidth = targetHeight * imgAspect;
+          drawX = x - (drawWidth - targetWidth) / 2;
+          drawY = y;
+        } else {
+          // Image is taller - fit by width, crop top/bottom
+          drawWidth = targetWidth;
+          drawHeight = targetWidth / imgAspect;
+          drawX = x;
+          drawY = y - (drawHeight - targetHeight) / 2;
+        }
+        
+        ctx.drawImage(cachedImg, drawX, drawY, drawWidth, drawHeight);
         ctx.restore();
       };
 
