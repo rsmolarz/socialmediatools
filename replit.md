@@ -52,7 +52,15 @@ Key entities:
 
 ## Recent Changes
 
-### Latest Updates
+### Latest Updates (January 30, 2026)
+- **Transcript Analyzer**: New AI-powered feature to analyze podcast transcripts and generate:
+  - Key themes detection (3-5 topics extracted from content)
+  - Auto-generated headlines for thumbnail text lines
+  - AI background generation based on transcript themes
+- **Updated Tab Layout**: Changed from (Text, BG, SEO, Saved) to (Text, Photos, BG, Saved)
+- **Removed YouTube SEO Optimizer**: Replaced with Transcript Analyzer feature
+
+### Previous Updates
 - **Layout Options**: Updated from (centered, left-aligned, stacked) to (centered, twoFace, soloLeft, soloRight) with backward compatibility for legacy values
 - **Quick Headlines**: Added 8 preset headline options for rapid content creation
 - **AI Background Generator**: Enhanced with additional styles (Futuristic, Abstract, Cosmic, Cyberpunk, Medical, Financial) and moods (Luxurious, Tech-focused, Trustworthy, Urgent)

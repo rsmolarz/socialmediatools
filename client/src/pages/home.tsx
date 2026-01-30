@@ -17,7 +17,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MobilePreview } from "@/components/mobile-preview";
 import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
-import { VideoSeoOptimizer } from "@/components/video-seo-optimizer";
+import { TranscriptAnalyzer } from "@/components/transcript-analyzer";
 import {
   Plus,
   Download,
@@ -28,7 +28,7 @@ import {
   Sparkles,
   Layers,
   RotateCcw,
-  Youtube,
+  Users,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
@@ -272,6 +272,61 @@ export default function Home() {
     });
   };
 
+  // Handle transcript analysis results
+  const handleTranscriptAnalysis = (analysis: {
+    themes: string[];
+    backgroundPrompt: string;
+    style: string;
+    mood: string;
+    suggestedHeadline: string[];
+  }) => {
+    // Update text lines with suggested headlines
+    if (analysis.suggestedHeadline && analysis.suggestedHeadline.length >= 3) {
+      const newLines = [...(config.textLines || DEFAULT_TEXT_LINES)];
+      if (newLines[0]) newLines[0] = { ...newLines[0], text: analysis.suggestedHeadline[0] };
+      if (newLines[1]) newLines[1] = { ...newLines[1], text: analysis.suggestedHeadline[1] };
+      if (newLines[2]) newLines[2] = { ...newLines[2], text: analysis.suggestedHeadline[2] };
+      setConfig((prev) => ({ ...prev, textLines: newLines }));
+    }
+    
+    toast({
+      title: "Transcript Analyzed",
+      description: `Detected ${analysis.themes.length} themes. Headlines updated!`,
+    });
+  };
+
+  // Generate AI background from transcript analysis
+  const handleGenerateFromTranscript = async (prompt: string, style: string, mood: string) => {
+    try {
+      const fullPrompt = `${prompt}, ${style} style, ${mood} mood, abstract background for podcast thumbnail, no text, no people, vibrant colors`;
+      
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: fullPrompt, size: "1024x1024" }),
+      });
+      
+      if (!response.ok) throw new Error("Failed to generate image");
+      
+      const data = await response.json();
+      const imageUrl = `data:image/png;base64,${data.b64_json}`;
+      
+      setConfig((prev) => ({ ...prev, backgroundImage: imageUrl }));
+      
+      toast({
+        title: "Background Generated",
+        description: "AI background created from transcript themes!",
+      });
+    } catch (error) {
+      console.error("Background generation error:", error);
+      toast({
+        title: "Generation Failed",
+        description: "Could not generate background. Try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleExport = () => {
     const dataUrl = canvasRef.current?.getDataUrl();
     if (dataUrl) {
@@ -423,13 +478,13 @@ export default function Home() {
                   <Type className="h-4 w-4 mr-2" />
                   Text
                 </TabsTrigger>
+                <TabsTrigger value="photos" data-testid="tab-photos">
+                  <Users className="h-4 w-4 mr-2" />
+                  Photos
+                </TabsTrigger>
                 <TabsTrigger value="background" data-testid="tab-background">
                   <ImageIcon className="h-4 w-4 mr-2" />
                   BG
-                </TabsTrigger>
-                <TabsTrigger value="seo" data-testid="tab-seo">
-                  <Youtube className="h-4 w-4 mr-2" />
-                  SEO
                 </TabsTrigger>
                 <TabsTrigger value="saved" data-testid="tab-saved">
                   <FolderOpen className="h-4 w-4 mr-2" />
@@ -448,12 +503,6 @@ export default function Home() {
                       onLayoutChange={(layout) => setConfig((prev) => ({ ...prev, layout }))}
                       onAccentColorChange={(accentColor) => setConfig((prev) => ({ ...prev, accentColor }))}
                     />
-                    <PhotoControls
-                      hostPhoto={config.hostPhoto || DEFAULT_PHOTO}
-                      guestPhoto={config.guestPhoto || DEFAULT_PHOTO}
-                      onHostPhotoChange={(photo) => setConfig((prev) => ({ ...prev, hostPhoto: photo }))}
-                      onGuestPhotoChange={(photo) => setConfig((prev) => ({ ...prev, guestPhoto: photo }))}
-                    />
                   </div>
                   
                   {selectedOverlay && (
@@ -468,9 +517,26 @@ export default function Home() {
                 </ScrollArea>
               </TabsContent>
 
+              <TabsContent value="photos" className="mt-4">
+                <ScrollArea className="h-[calc(100vh-340px)]">
+                  <div className="space-y-4">
+                    <PhotoControls
+                      hostPhoto={config.hostPhoto || DEFAULT_PHOTO}
+                      guestPhoto={config.guestPhoto || DEFAULT_PHOTO}
+                      onHostPhotoChange={(photo) => setConfig((prev) => ({ ...prev, hostPhoto: photo }))}
+                      onGuestPhotoChange={(photo) => setConfig((prev) => ({ ...prev, guestPhoto: photo }))}
+                    />
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
               <TabsContent value="background" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
                   <div className="space-y-4">
+                    <TranscriptAnalyzer
+                      onAnalysisComplete={handleTranscriptAnalysis}
+                      onGenerateBackground={handleGenerateFromTranscript}
+                    />
                     <BackgroundControls
                       backgroundColor={config.backgroundColor}
                       backgroundImage={config.backgroundImage}
@@ -495,43 +561,6 @@ export default function Home() {
                 </ScrollArea>
               </TabsContent>
 
-              <TabsContent value="seo" className="mt-4">
-                <ScrollArea className="h-[calc(100vh-340px)]">
-                  <VideoSeoOptimizer
-                    onTitleSelect={(title) => {
-                      const words = title.split(/\s+/).filter(w => w.length > 0);
-                      const existingLines = config.textLines || DEFAULT_TEXT_LINES;
-                      
-                      const newLines = existingLines.map((line, index) => {
-                        if (index < words.length) {
-                          return {
-                            ...line,
-                            text: words[index].toLowerCase(),
-                          };
-                        }
-                        return line;
-                      });
-                      
-                      if (words.length > existingLines.length) {
-                        for (let i = existingLines.length; i < Math.min(words.length, 5); i++) {
-                          newLines.push({
-                            id: generateId(),
-                            text: words[i].toLowerCase(),
-                            highlight: false,
-                          });
-                        }
-                      }
-                      
-                      setConfig((prev) => ({ ...prev, textLines: newLines }));
-                      toast({
-                        title: "Title Applied",
-                        description: "Video title has been applied to thumbnail text lines.",
-                      });
-                    }}
-                  />
-                </ScrollArea>
-              </TabsContent>
-
               <TabsContent value="saved" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
                   <SavedThumbnails
@@ -547,11 +576,11 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer hint */}
+      {/* Footer hint for future features */}
       <footer className="fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur py-3">
         <div className="container mx-auto px-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Youtube className="h-4 w-4 text-red-500" />
-          <span>Video SEO Optimizer is live! Check the SEO tab to optimize your videos.</span>
+          <Sparkles className="h-4 w-4" />
+          <span>Description & Tags Optimizer coming soon!</span>
         </div>
       </footer>
     </div>

@@ -4,8 +4,12 @@ import { storage } from "./storage";
 import { insertThumbnailSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
-import { fetchYouTubeVideos, updateYouTubeVideo, checkYouTubeConnection } from "./youtube";
 import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -103,136 +107,64 @@ export async function registerRoutes(
     }
   });
 
-  // YouTube Integration Routes
-  
-  // Check YouTube connection status
-  app.get("/api/youtube/status", async (_req, res) => {
+  // Analyze podcast transcript and generate thumbnail suggestions
+  app.post("/api/analyze-transcript", async (req, res) => {
     try {
-      const connected = await checkYouTubeConnection();
-      res.json({ connected });
-    } catch (error) {
-      res.json({ connected: false });
-    }
-  });
+      const { transcript } = req.body;
 
-  // Fetch YouTube videos
-  app.get("/api/youtube/videos", async (req, res) => {
-    try {
-      const maxResults = parseInt(req.query.maxResults as string) || 10;
-      const daysBack = parseInt(req.query.daysBack as string) || 30;
-      const result = await fetchYouTubeVideos(maxResults, daysBack);
-      res.json(result);
-    } catch (error) {
-      console.error("Error fetching YouTube videos:", error);
-      res.status(500).json({ error: "Failed to fetch YouTube videos. Make sure YouTube is connected." });
-    }
-  });
-
-  // Update YouTube video
-  const updateVideoSchema = z.object({
-    title: z.string().min(1, "Title is required"),
-    description: z.string().min(1, "Description is required"),
-    tags: z.array(z.string()).optional().default([]),
-    categoryId: z.string().optional(),
-  });
-
-  app.patch("/api/youtube/videos/:videoId", async (req, res) => {
-    try {
-      const { videoId } = req.params;
-      const parsed = updateVideoSchema.safeParse(req.body);
-      
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request data", details: parsed.error.errors });
+      if (!transcript) {
+        return res.status(400).json({ error: "Transcript is required" });
       }
-      
-      const { title, description, tags, categoryId } = parsed.data;
-      
-      const result = await updateYouTubeVideo(
-        videoId,
-        title,
-        description,
-        tags,
-        categoryId
-      );
-      
-      if (result.success) {
-        res.json(result);
-      } else {
-        res.status(500).json(result);
-      }
-    } catch (error) {
-      console.error("Error updating YouTube video:", error);
-      res.status(500).json({ error: "Failed to update YouTube video" });
-    }
-  });
 
-  // AI SEO Optimization endpoint
-  const optimizeSeoSchema = z.object({
-    title: z.string().min(1, "Video title is required"),
-    description: z.string().optional().default(""),
-    tags: z.array(z.string()).optional().default([]),
-  });
+      // Truncate to ~3000 chars for efficiency
+      const truncatedTranscript = transcript.substring(0, 3000);
 
-  app.post("/api/youtube/optimize-seo", async (req, res) => {
-    try {
-      const parsed = optimizeSeoSchema.safeParse(req.body);
-      
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request data", details: parsed.error.errors });
-      }
-      
-      const { title, description, tags } = parsed.data;
+      const systemPrompt = `You are an expert at analyzing podcast transcripts and creating compelling YouTube thumbnail copy for "The Medicine & Money Show" - a podcast about physician finance, investing, and entrepreneurship.
 
-      const openai = new OpenAI({
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-      });
+Analyze the transcript and return a JSON object with:
+1. "themes" - Array of 3-5 key themes/topics (short phrases, 2-4 words each)
+2. "backgroundPrompt" - A vivid image generation prompt for a podcast thumbnail background (describe colors, mood, abstract imagery, NO text or people)
+3. "style" - One of: cinematic, neon, minimalist, abstract, gradient, professional, dramatic, vintage, futuristic, nature, urban, tech, medical, finance
+4. "mood" - One of: energetic, calm, professional, dramatic, inspiring, mysterious, bold, warm, cool, neutral
+5. "suggestedHeadline" - Array of exactly 3 strings for thumbnail text lines:
+   - Line 1: Short hook/question (3-5 words, attention-grabbing)
+   - Line 2: Key topic/benefit (4-6 words)
+   - Line 3: Call-to-action or result (3-5 words)
 
-      const prompt = `You are an expert YouTube SEO specialist. Analyze the following video and generate optimized content for better discoverability and engagement.
+Focus on finance, medicine, investing, entrepreneurship, and wealth-building themes. Make headlines punchy and clickable.
 
-**Video Title:** ${title}
+Return ONLY valid JSON, no markdown or explanation.`;
 
-**Current Description:**
-${description || "(No description)"}
-
-**Current Tags:**
-${tags?.length > 0 ? tags.join(", ") : "(No tags)"}
-
-Please provide:
-1. An optimized description that:
-   - Has a compelling hook in the first 2-3 lines (visible before "Show more")
-   - Includes relevant keywords naturally
-   - Has clear formatting with line breaks
-   - Includes a call-to-action (subscribe, like, comment)
-   - Is between 200-500 words for optimal SEO
-
-2. A list of 15-25 optimized tags that:
-   - Include broad and specific topic tags
-   - Use relevant long-tail keywords
-   - Cover variations and synonyms of key terms
-
-Respond with valid JSON in this exact format:
-{
-  "optimizedDescription": "your optimized description here",
-  "optimizedTags": ["tag1", "tag2", "tag3", ...]
-}`;
-
-      const completion = await openai.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Analyze this podcast transcript:\n\n${truncatedTranscript}` }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7,
       });
 
-      const responseText = completion.choices[0]?.message?.content || "{}";
-      const optimized = JSON.parse(responseText);
+      const content = response.choices[0]?.message?.content || "";
+      
+      // Parse JSON from response (handle potential markdown wrapping)
+      let analysis;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysis = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("No JSON found in response");
+        }
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", content);
+        return res.status(500).json({ error: "Failed to parse analysis" });
+      }
 
-      res.json({
-        optimizedDescription: optimized.optimizedDescription || description,
-        optimizedTags: optimized.optimizedTags || tags || [],
-      });
+      res.json(analysis);
     } catch (error) {
-      console.error("Error optimizing SEO:", error);
-      res.status(500).json({ error: "Failed to generate SEO optimization" });
+      console.error("Error analyzing transcript:", error);
+      res.status(500).json({ error: "Failed to analyze transcript" });
     }
   });
 
