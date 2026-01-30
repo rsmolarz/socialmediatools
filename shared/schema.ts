@@ -52,6 +52,7 @@ export type PhotoConfig = z.infer<typeof photoConfigSchema>;
 export const thumbnailConfigSchema = z.object({
   backgroundColor: z.string(),
   backgroundImage: z.string().optional(),
+  backgroundOpacity: z.number().min(0).max(100).default(50),
   overlays: z.array(textOverlaySchema),
   width: z.number().default(1280),
   height: z.number().default(720),

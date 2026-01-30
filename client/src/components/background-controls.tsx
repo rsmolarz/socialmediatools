@@ -11,10 +11,12 @@ import { AIBackgroundGenerator } from "./ai-background-generator";
 interface BackgroundControlsProps {
   backgroundColor: string;
   backgroundImage?: string;
+  backgroundOpacity?: number;
   backgroundEffects?: BackgroundEffects;
   elementOpacity?: number;
   onColorChange: (color: string) => void;
   onImageChange: (imageUrl: string | undefined) => void;
+  onBackgroundOpacityChange?: (opacity: number) => void;
   onEffectsChange?: (effects: BackgroundEffects) => void;
   onElementOpacityChange?: (opacity: number) => void;
 }
@@ -57,10 +59,12 @@ const DEFAULT_EFFECTS: BackgroundEffects = {
 export function BackgroundControls({
   backgroundColor,
   backgroundImage,
+  backgroundOpacity = 50,
   backgroundEffects = DEFAULT_EFFECTS,
   elementOpacity = 70,
   onColorChange,
   onImageChange,
+  onBackgroundOpacityChange,
   onEffectsChange,
   onElementOpacityChange,
 }: BackgroundControlsProps) {
@@ -203,6 +207,27 @@ export function BackgroundControls({
             data-testid="input-background-image-url"
           />
         </div>
+
+        {backgroundImage && (
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Background Opacity</Label>
+              <span className="text-xs text-muted-foreground">{backgroundOpacity}%</span>
+            </div>
+            <Slider
+              value={[backgroundOpacity]}
+              onValueChange={(values) => onBackgroundOpacityChange?.(values[0])}
+              min={10}
+              max={100}
+              step={5}
+              className="w-full"
+              data-testid="slider-background-opacity"
+            />
+            <p className="text-xs text-muted-foreground">
+              Lower values show more black background behind the image
+            </p>
+          </div>
+        )}
       </div>
 
       <AIBackgroundGenerator onImageGenerated={onImageChange} />

@@ -130,10 +130,18 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
 
       // Draw background
       if (config.backgroundImage) {
+        // First fill with black background
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, config.width, config.height);
+        
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
+          // Apply background opacity
+          const bgOpacity = (config.backgroundOpacity ?? 50) / 100;
+          ctx.globalAlpha = bgOpacity;
           ctx.drawImage(img, 0, 0, config.width, config.height);
+          ctx.globalAlpha = 1.0; // Reset alpha
           drawBackgroundEffects(ctx);
           drawOverlays(ctx);
         };
@@ -525,10 +533,18 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
 
         // Draw background
         if (config.backgroundImage) {
+          // First fill with black background
+          tempCtx.fillStyle = "#000000";
+          tempCtx.fillRect(0, 0, config.width, config.height);
+          
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.onload = () => {
+            // Apply background opacity
+            const bgOpacity = (config.backgroundOpacity ?? 50) / 100;
+            tempCtx.globalAlpha = bgOpacity;
             tempCtx.drawImage(img, 0, 0, config.width, config.height);
+            tempCtx.globalAlpha = 1.0; // Reset alpha
             config.overlays.forEach((overlay) => {
               drawTextOverlay(tempCtx, overlay, false);
             });

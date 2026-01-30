@@ -57,6 +57,7 @@ const DEFAULT_PHOTO: PhotoConfigType = {
 
 const DEFAULT_CONFIG: ThumbnailConfig = {
   backgroundColor: "#000000",
+  backgroundOpacity: 50,
   overlays: [],
   width: 1280,
   height: 720,
@@ -540,6 +541,7 @@ export default function Home() {
                     <BackgroundControls
                       backgroundColor={config.backgroundColor}
                       backgroundImage={config.backgroundImage}
+                      backgroundOpacity={config.backgroundOpacity}
                       backgroundEffects={config.backgroundEffects}
                       elementOpacity={config.elementOpacity}
                       onColorChange={(color) =>
@@ -547,6 +549,9 @@ export default function Home() {
                       }
                       onImageChange={(image) =>
                         setConfig((prev) => ({ ...prev, backgroundImage: image }))
+                      }
+                      onBackgroundOpacityChange={(opacity) =>
+                        setConfig((prev) => ({ ...prev, backgroundOpacity: opacity }))
                       }
                       onEffectsChange={(effects) =>
                         setConfig((prev) => ({ ...prev, backgroundEffects: effects }))
