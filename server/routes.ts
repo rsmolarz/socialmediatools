@@ -129,20 +129,29 @@ export async function registerRoutes(
   });
 
   // Update YouTube video
+  const updateVideoSchema = z.object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().min(1, "Description is required"),
+    tags: z.array(z.string()).optional().default([]),
+    categoryId: z.string().optional(),
+  });
+
   app.patch("/api/youtube/videos/:videoId", async (req, res) => {
     try {
       const { videoId } = req.params;
-      const { title, description, tags, categoryId } = req.body;
+      const parsed = updateVideoSchema.safeParse(req.body);
       
-      if (!title || !description) {
-        return res.status(400).json({ error: "Title and description are required" });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request data", details: parsed.error.errors });
       }
+      
+      const { title, description, tags, categoryId } = parsed.data;
       
       const result = await updateYouTubeVideo(
         videoId,
         title,
         description,
-        tags || [],
+        tags,
         categoryId
       );
       
@@ -158,13 +167,21 @@ export async function registerRoutes(
   });
 
   // AI SEO Optimization endpoint
+  const optimizeSeoSchema = z.object({
+    title: z.string().min(1, "Video title is required"),
+    description: z.string().optional().default(""),
+    tags: z.array(z.string()).optional().default([]),
+  });
+
   app.post("/api/youtube/optimize-seo", async (req, res) => {
     try {
-      const { title, description, tags } = req.body;
+      const parsed = optimizeSeoSchema.safeParse(req.body);
       
-      if (!title) {
-        return res.status(400).json({ error: "Video title is required" });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request data", details: parsed.error.errors });
       }
+      
+      const { title, description, tags } = parsed.data;
 
       const openai = new OpenAI({
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,

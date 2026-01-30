@@ -499,16 +499,34 @@ export default function Home() {
                 <ScrollArea className="h-[calc(100vh-340px)]">
                   <VideoSeoOptimizer
                     onTitleSelect={(title) => {
-                      const firstLine = config.textLines?.[0];
-                      if (firstLine) {
-                        const words = title.split(" ");
-                        const newLines = words.slice(0, 3).map((word, i) => ({
-                          id: `line${i + 1}`,
-                          text: word.toLowerCase(),
-                          highlight: i === 0,
-                        }));
-                        setConfig((prev) => ({ ...prev, textLines: newLines }));
+                      const words = title.split(/\s+/).filter(w => w.length > 0);
+                      const existingLines = config.textLines || DEFAULT_TEXT_LINES;
+                      
+                      const newLines = existingLines.map((line, index) => {
+                        if (index < words.length) {
+                          return {
+                            ...line,
+                            text: words[index].toLowerCase(),
+                          };
+                        }
+                        return line;
+                      });
+                      
+                      if (words.length > existingLines.length) {
+                        for (let i = existingLines.length; i < Math.min(words.length, 5); i++) {
+                          newLines.push({
+                            id: generateId(),
+                            text: words[i].toLowerCase(),
+                            highlight: false,
+                          });
+                        }
                       }
+                      
+                      setConfig((prev) => ({ ...prev, textLines: newLines }));
+                      toast({
+                        title: "Title Applied",
+                        description: "Video title has been applied to thumbnail text lines.",
+                      });
                     }}
                   />
                 </ScrollArea>

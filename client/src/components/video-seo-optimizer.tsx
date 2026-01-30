@@ -148,14 +148,14 @@ export function VideoSeoOptimizer({ onTitleSelect }: VideoSeoOptimizerProps) {
 
   if (!connectionStatus?.connected) {
     return (
-      <Card className="border-dashed">
+      <Card className="border-dashed" data-testid="card-youtube-disconnected">
         <CardContent className="py-6">
           <div className="flex flex-col items-center justify-center text-center space-y-3">
-            <Youtube className="h-10 w-10 text-muted-foreground" />
+            <Youtube className="h-10 w-10 text-muted-foreground" data-testid="icon-youtube-disconnected" />
             <div>
-              <p className="font-medium">YouTube Not Connected</p>
-              <p className="text-sm text-muted-foreground">
-                Connect your YouTube account to optimize video SEO
+              <p className="font-medium" data-testid="text-youtube-status">YouTube Not Connected</p>
+              <p className="text-sm text-muted-foreground" data-testid="text-youtube-help">
+                Connect your YouTube account using Replit's integrations panel to optimize video SEO
               </p>
             </div>
           </div>
@@ -175,7 +175,7 @@ export function VideoSeoOptimizer({ onTitleSelect }: VideoSeoOptimizerProps) {
           <Youtube className="h-5 w-5 text-red-500" />
           <h3 className="font-semibold">Video SEO Optimizer</h3>
         </div>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" data-testid="button-toggle-expand">
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
       </div>
@@ -223,14 +223,15 @@ export function VideoSeoOptimizer({ onTitleSelect }: VideoSeoOptimizerProps) {
                         src={video.thumbnailUrl}
                         alt={video.title}
                         className="w-24 h-14 object-cover rounded"
+                        data-testid={`img-video-thumbnail-${video.videoId}`}
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{video.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-medium text-sm truncate" data-testid={`text-video-title-${video.videoId}`}>{video.title}</p>
+                      <p className="text-xs text-muted-foreground" data-testid={`text-video-date-${video.videoId}`}>
                         {new Date(video.publishedAt).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground" data-testid={`text-video-tags-count-${video.videoId}`}>
                         {video.tags.length} tags
                       </p>
                     </div>
@@ -285,9 +286,10 @@ export function VideoSeoOptimizer({ onTitleSelect }: VideoSeoOptimizerProps) {
                         variant="secondary"
                         className="cursor-pointer"
                         onClick={() => handleRemoveTag(tag)}
+                        data-testid={`badge-tag-${index}`}
                       >
                         {tag}
-                        <X className="h-3 w-3 ml-1" />
+                        <X className="h-3 w-3 ml-1" data-testid={`icon-remove-tag-${index}`} />
                       </Badge>
                     ))}
                   </div>
