@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { TextLineControls } from "@/components/text-line-controls";
 import { BackgroundControls } from "@/components/background-controls";
 import { SavedThumbnails } from "@/components/saved-thumbnails";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MobilePreview } from "@/components/mobile-preview";
+import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import {
   Plus,
   Download,
@@ -23,6 +25,7 @@ import {
   FolderOpen,
   Sparkles,
   Layers,
+  RotateCcw,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail } from "@shared/schema";
 
@@ -51,6 +54,7 @@ const DEFAULT_CONFIG: ThumbnailConfig = {
   layout: "centered",
   accentColor: "orange",
   backgroundEffects: DEFAULT_EFFECTS,
+  elementOpacity: 70,
 };
 
 export default function Home() {
@@ -61,6 +65,18 @@ export default function Home() {
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [thumbnailTitle, setThumbnailTitle] = useState("My Thumbnail");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [canvasDataUrl, setCanvasDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const updatePreview = () => {
+      const dataUrl = canvasRef.current?.getDataUrl();
+      if (dataUrl) {
+        setCanvasDataUrl(dataUrl);
+      }
+    };
+    const timer = setTimeout(updatePreview, 100);
+    return () => clearTimeout(timer);
+  }, [config]);
 
   const { data: thumbnails = [], isLoading: thumbnailsLoading } = useQuery<Thumbnail[]>({
     queryKey: ["/api/thumbnails"],
@@ -216,6 +232,48 @@ export default function Home() {
     setSelectedTextId(null);
   };
 
+  const handleResetToDefault = () => {
+    setConfig(DEFAULT_CONFIG);
+    toast({
+      title: "Reset Complete",
+      description: "All settings have been reset to defaults.",
+    });
+  };
+
+  const handlePresetBackground = (background: string) => {
+    if (background.startsWith("linear-gradient")) {
+      setConfig((prev) => ({ 
+        ...prev, 
+        backgroundImage: undefined,
+        backgroundColor: background,
+      }));
+    } else {
+      setConfig((prev) => ({ 
+        ...prev, 
+        backgroundImage: undefined,
+        backgroundColor: background,
+      }));
+    }
+    toast({
+      title: "Background Applied",
+      description: "Preset background has been applied.",
+    });
+  };
+
+  const handleExport = () => {
+    const dataUrl = canvasRef.current?.getDataUrl();
+    if (dataUrl) {
+      const link = document.createElement("a");
+      link.download = `${thumbnailTitle.replace(/\s+/g, "_")}_1280x720.png`;
+      link.href = dataUrl;
+      link.click();
+      toast({
+        title: "Exported!",
+        description: "Thumbnail exported at 1280×720 resolution.",
+      });
+    }
+  };
+
   const selectedOverlay = config.overlays.find((o) => o.id === selectedTextId);
 
   return (
@@ -244,11 +302,19 @@ export default function Home() {
             </Button>
             <Button
               variant="outline"
-              onClick={handleDownload}
-              data-testid="button-download"
+              onClick={handleResetToDefault}
+              data-testid="button-reset"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              data-testid="button-export"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download
+              Export 1280×720
             </Button>
             <Button
               onClick={handleSave}
@@ -380,20 +446,28 @@ export default function Home() {
 
               <TabsContent value="background" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
-                  <BackgroundControls
-                    backgroundColor={config.backgroundColor}
-                    backgroundImage={config.backgroundImage}
-                    backgroundEffects={config.backgroundEffects}
-                    onColorChange={(color) =>
-                      setConfig((prev) => ({ ...prev, backgroundColor: color }))
-                    }
-                    onImageChange={(image) =>
-                      setConfig((prev) => ({ ...prev, backgroundImage: image }))
-                    }
-                    onEffectsChange={(effects) =>
-                      setConfig((prev) => ({ ...prev, backgroundEffects: effects }))
-                    }
-                  />
+                  <div className="space-y-4">
+                    <BackgroundControls
+                      backgroundColor={config.backgroundColor}
+                      backgroundImage={config.backgroundImage}
+                      backgroundEffects={config.backgroundEffects}
+                      elementOpacity={config.elementOpacity}
+                      onColorChange={(color) =>
+                        setConfig((prev) => ({ ...prev, backgroundColor: color }))
+                      }
+                      onImageChange={(image) =>
+                        setConfig((prev) => ({ ...prev, backgroundImage: image }))
+                      }
+                      onEffectsChange={(effects) =>
+                        setConfig((prev) => ({ ...prev, backgroundEffects: effects }))
+                      }
+                      onElementOpacityChange={(opacity) =>
+                        setConfig((prev) => ({ ...prev, elementOpacity: opacity }))
+                      }
+                    />
+                    <PresetBackgrounds onSelect={handlePresetBackground} />
+                    <MobilePreview canvasDataUrl={canvasDataUrl} />
+                  </div>
                 </ScrollArea>
               </TabsContent>
 

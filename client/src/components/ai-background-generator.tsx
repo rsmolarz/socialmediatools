@@ -18,6 +18,12 @@ const STYLE_OPTIONS = [
   { value: "vibrant", label: "Vibrant" },
   { value: "dark", label: "Dark & Moody" },
   { value: "gradient", label: "Gradient Abstract" },
+  { value: "futuristic", label: "Futuristic" },
+  { value: "abstract", label: "Abstract" },
+  { value: "cosmic", label: "Cosmic" },
+  { value: "cyberpunk", label: "Cyberpunk" },
+  { value: "medical", label: "Medical" },
+  { value: "financial", label: "Financial" },
 ];
 
 const MOOD_OPTIONS = [
@@ -27,6 +33,10 @@ const MOOD_OPTIONS = [
   { value: "calm", label: "Calm" },
   { value: "bold", label: "Bold" },
   { value: "mysterious", label: "Mysterious" },
+  { value: "luxurious", label: "Luxurious" },
+  { value: "techy", label: "Tech-focused" },
+  { value: "trustworthy", label: "Trustworthy" },
+  { value: "urgent", label: "Urgent" },
 ];
 
 export function AIBackgroundGenerator({ onImageGenerated }: AIBackgroundGeneratorProps) {

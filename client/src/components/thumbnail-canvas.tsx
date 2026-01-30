@@ -164,16 +164,25 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
       const totalHeight = lines.length * lineHeight;
       let startY = (config.height - totalHeight) / 2 + lineHeight / 2;
 
-      // Adjust based on layout
+      // Normalize legacy layout values and adjust based on layout
       let textAlign: CanvasTextAlign = "center";
       let startX = config.width / 2;
+      const normalizedLayout = config.layout === "left-aligned" ? "soloLeft" 
+        : config.layout === "stacked" ? "centered" 
+        : config.layout;
 
-      if (config.layout === "left-aligned") {
+      if (normalizedLayout === "centered") {
+        textAlign = "center";
+        startX = config.width / 2;
+      } else if (normalizedLayout === "twoFace") {
+        textAlign = "center";
+        startX = config.width / 2;
+      } else if (normalizedLayout === "soloLeft") {
         textAlign = "left";
-        startX = 100;
-      } else if (config.layout === "stacked") {
-        textAlign = "left";
-        startX = 100;
+        startX = config.width * 0.55;
+      } else if (normalizedLayout === "soloRight") {
+        textAlign = "right";
+        startX = config.width * 0.45;
       }
 
       ctx.textAlign = textAlign;
@@ -190,10 +199,17 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
             boxX = startX - textWidth / 2 - padding;
           } else if (textAlign === "left") {
             boxX = startX - padding;
+          } else if (textAlign === "right") {
+            boxX = startX - textWidth - padding;
           }
 
+          // Apply element opacity to highlight background
+          const opacity = (config.elementOpacity ?? 70) / 100;
+          ctx.save();
+          ctx.globalAlpha = opacity;
           ctx.fillStyle = accentColor;
           ctx.fillRect(boxX, y - fontSize / 2 - padding / 2, textWidth + padding * 2, fontSize + padding);
+          ctx.restore();
         }
 
         // Draw text

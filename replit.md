@@ -50,6 +50,18 @@ Key entities:
 - **Production**: Custom build script (`script/build.ts`) using esbuild for server and Vite for client
 - **Output**: Combined into `dist/` directory with server bundle and static client files
 
+## Recent Changes
+
+### Latest Updates
+- **Layout Options**: Updated from (centered, left-aligned, stacked) to (centered, twoFace, soloLeft, soloRight) with backward compatibility for legacy values
+- **Quick Headlines**: Added 8 preset headline options for rapid content creation
+- **AI Background Generator**: Enhanced with additional styles (Futuristic, Abstract, Cosmic, Cyberpunk, Medical, Financial) and moods (Luxurious, Tech-focused, Trustworthy, Urgent)
+- **Element Opacity**: Added slider control to adjust highlight background transparency (0-100%)
+- **Preset Backgrounds**: Added grid of 12 preset gradients and solid colors
+- **Mobile Feed Preview**: Added component showing how thumbnail appears in mobile feeds
+- **Export 1280×720**: Added dedicated export button for full-resolution PNG output
+- **Reset to Default**: Added button to reset all settings to defaults
+
 ## External Dependencies
 
 ### Database

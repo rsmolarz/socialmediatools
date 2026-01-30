@@ -3,17 +3,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText } from "lucide-react";
+import { FileText, Target } from "lucide-react";
 import type { TextLine } from "@shared/schema";
+
+const QUICK_HEADLINES = [
+  { line1: "the future of", line2: "physician", line3: "wealth" },
+  { line1: "how doctors", line2: "build", line3: "wealth" },
+  { line1: "real estate", line2: "for", line3: "doctors" },
+  { line1: "passive income", line2: "secrets", line3: "revealed" },
+  { line1: "retire early", line2: "as a", line3: "doctor" },
+  { line1: "financial", line2: "freedom", line3: "guide" },
+  { line1: "tax strategies", line2: "for", line3: "physicians" },
+  { line1: "investing", line2: "like a", line3: "pro" },
+];
+
+type LayoutType = "centered" | "twoFace" | "soloLeft" | "soloRight" | "left-aligned" | "stacked";
 
 interface TextLineControlsProps {
   lines: TextLine[];
-  layout: "centered" | "left-aligned" | "stacked";
+  layout: LayoutType;
   accentColor: "orange" | "blue" | "purple";
   onLinesChange: (lines: TextLine[]) => void;
-  onLayoutChange: (layout: "centered" | "left-aligned" | "stacked") => void;
+  onLayoutChange: (layout: LayoutType) => void;
   onAccentColorChange: (color: "orange" | "blue" | "purple") => void;
 }
+
+const normalizeLayout = (layout: LayoutType): "centered" | "twoFace" | "soloLeft" | "soloRight" => {
+  if (layout === "left-aligned") return "soloLeft";
+  if (layout === "stacked") return "centered";
+  return layout as "centered" | "twoFace" | "soloLeft" | "soloRight";
+};
 
 const ACCENT_COLORS = {
   orange: { bg: "bg-orange-500", name: "Orange" },
@@ -40,6 +59,16 @@ export function TextLineControls({
     if (line) {
       updateLine(id, { highlight: !line.highlight });
     }
+  };
+
+  const applyQuickHeadline = (headline: typeof QUICK_HEADLINES[0]) => {
+    const newLines = lines.map((line, index) => {
+      if (index === 0) return { ...line, text: headline.line1 };
+      if (index === 1) return { ...line, text: headline.line2 };
+      if (index === 2) return { ...line, text: headline.line3 };
+      return line;
+    });
+    onLinesChange(newLines);
   };
 
   return (
@@ -96,9 +125,11 @@ export function TextLineControls({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="centered">Centered Text</SelectItem>
-                  <SelectItem value="left-aligned">Left Aligned</SelectItem>
-                  <SelectItem value="stacked">Stacked</SelectItem>
+                  <SelectItem value="twoFace">Two Faces (Guest)</SelectItem>
+                  <SelectItem value="soloLeft">Solo Left</SelectItem>
+                  <SelectItem value="soloRight">Solo Right</SelectItem>
                 </SelectContent>
+                {/* Note: legacy "left-aligned" and "stacked" values are auto-normalized */}
               </Select>
             </div>
 
@@ -118,6 +149,31 @@ export function TextLineControls({
                 ))}
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Quick Headlines
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2">
+            {QUICK_HEADLINES.map((headline, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                className="text-xs text-left justify-start h-auto py-2 px-3"
+                onClick={() => applyQuickHeadline(headline)}
+                data-testid={`button-headline-${index}`}
+              >
+                <span className="truncate">{headline.line1} {headline.line2}</span>
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>

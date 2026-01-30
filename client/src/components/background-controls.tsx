@@ -12,9 +12,11 @@ interface BackgroundControlsProps {
   backgroundColor: string;
   backgroundImage?: string;
   backgroundEffects?: BackgroundEffects;
+  elementOpacity?: number;
   onColorChange: (color: string) => void;
   onImageChange: (imageUrl: string | undefined) => void;
   onEffectsChange?: (effects: BackgroundEffects) => void;
+  onElementOpacityChange?: (opacity: number) => void;
 }
 
 const COLOR_TINTS = [
@@ -56,9 +58,11 @@ export function BackgroundControls({
   backgroundColor,
   backgroundImage,
   backgroundEffects = DEFAULT_EFFECTS,
+  elementOpacity = 70,
   onColorChange,
   onImageChange,
   onEffectsChange,
+  onElementOpacityChange,
 }: BackgroundControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -257,6 +261,24 @@ export function BackgroundControls({
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Element Opacity</Label>
+              <span className="text-sm text-muted-foreground">{elementOpacity}%</span>
+            </div>
+            <Slider
+              value={[elementOpacity]}
+              onValueChange={([value]) => onElementOpacityChange?.(value)}
+              max={100}
+              step={1}
+              className="w-full"
+              data-testid="slider-element-opacity"
+            />
+            <p className="text-xs text-muted-foreground">
+              Controls the opacity of text highlight backgrounds
+            </p>
           </div>
         </CardContent>
       </Card>

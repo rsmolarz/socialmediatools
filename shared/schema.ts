@@ -47,9 +47,10 @@ export const thumbnailConfigSchema = z.object({
   height: z.number().default(720),
   // New features
   textLines: z.array(textLineSchema).optional(),
-  layout: z.enum(["centered", "left-aligned", "stacked"]).default("centered"),
+  layout: z.enum(["centered", "twoFace", "soloLeft", "soloRight", "left-aligned", "stacked"]).default("centered"),
   accentColor: z.enum(["orange", "blue", "purple"]).default("orange"),
   backgroundEffects: backgroundEffectsSchema.optional(),
+  elementOpacity: z.number().min(0).max(100).default(70),
 });
 
 export type ThumbnailConfig = z.infer<typeof thumbnailConfigSchema>;
