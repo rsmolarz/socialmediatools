@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { insertThumbnailSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
+import { Readable } from "stream";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -116,11 +117,21 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Image data is required" });
       }
 
+      // Extract base64 data and convert to buffer
+      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      
+      // Create a readable stream from the buffer
+      const stream = Readable.from(imageBuffer);
+      
+      // Convert to file format the API expects
+      const imageFile = await toFile(stream, "input.png", { type: "image/png" });
+
       // Use OpenAI's image editing capability to remove background
       const response = await openai.images.edit({
         model: "gpt-image-1",
-        image: Buffer.from(imageData.replace(/^data:image\/\w+;base64,/, ""), "base64"),
-        prompt: "Remove the background completely, making it fully transparent. Keep only the person/subject in the foreground with clean edges. Output with transparent background.",
+        image: imageFile,
+        prompt: "Remove the background completely, making it fully transparent. Keep only the person/subject in the foreground with clean edges. The output must have a transparent background (PNG with alpha channel). Preserve the exact appearance of the subject.",
         size: "1024x1024",
       });
 
@@ -132,9 +143,9 @@ export async function registerRoutes(
       }
 
       res.json({ b64_json });
-    } catch (error) {
-      console.error("Error removing background:", error);
-      res.status(500).json({ error: "Failed to remove background" });
+    } catch (error: any) {
+      console.error("Error removing background:", error?.message || error);
+      res.status(500).json({ error: "Failed to remove background", details: error?.message });
     }
   });
 
@@ -150,13 +161,19 @@ export async function registerRoutes(
       // Truncate to ~3000 chars for efficiency
       const truncatedTranscript = transcript.substring(0, 3000);
 
-      const systemPrompt = `You are an expert at analyzing podcast transcripts and creating compelling YouTube thumbnail copy for "The Medicine & Money Show" - a podcast about physician finance, investing, and entrepreneurship.
+      const systemPrompt = `You are an expert at analyzing podcast transcripts and creating compelling YouTube thumbnail backgrounds for "The Medicine & Money Show" - a podcast about physician finance, investing, and entrepreneurship.
 
 Analyze the transcript and return a JSON object with:
 1. "themes" - Array of 3-5 key themes/topics (short phrases, 2-4 words each)
-2. "backgroundPrompt" - A vivid image generation prompt for a podcast thumbnail background (describe colors, mood, abstract imagery, NO text or people)
-3. "style" - One of: cinematic, neon, minimalist, abstract, gradient, professional, dramatic, vintage, futuristic, nature, urban, tech, medical, finance
-4. "mood" - One of: energetic, calm, professional, dramatic, inspiring, mysterious, bold, warm, cool, neutral
+2. "backgroundPrompt" - A vivid image generation prompt for a futuristic podcast thumbnail background. CRITICAL: Include REAL, TANGIBLE OBJECTS related to the topic - NOT abstract art or gradients. Examples:
+   - For gut health: realistic 3D rendered intestines, gut microbiome visualization, anatomical digestive system
+   - For investing: realistic gold bars, stock charts on screens, luxury watches, stacks of cash
+   - For real estate: modern skyscrapers, luxury homes, property keys, building blueprints
+   - For medicine: stethoscopes, medical equipment, pharmaceutical pills, brain MRI scans
+   - For wealth: sports cars, private jets, diamond jewelry, luxury lifestyle items
+   The background should be dark/black with dramatic lighting on the real objects. Futuristic, cinematic, hyper-realistic 3D style. NO text, NO people, NO abstract patterns.
+3. "style" - One of: futuristic, cinematic, medical, finance, tech, dramatic
+4. "mood" - One of: dramatic, professional, bold, mysterious, luxurious
 5. "suggestedHeadline" - Array of exactly 3 strings for thumbnail text lines:
    - Line 1: Short hook/question (3-5 words, attention-grabbing)
    - Line 2: Key topic/benefit (4-6 words)
