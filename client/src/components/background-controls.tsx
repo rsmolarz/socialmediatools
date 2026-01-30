@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageIcon, Palette, X, Upload, Rocket } from "lucide-react";
 import { useRef } from "react";
 import type { BackgroundEffects } from "@shared/schema";
+import { AIBackgroundGenerator } from "./ai-background-generator";
 
 interface BackgroundControlsProps {
   backgroundColor: string;
@@ -200,11 +201,13 @@ export function BackgroundControls({
         </div>
       </div>
 
+      <AIBackgroundGenerator onImageGenerated={onImageChange} />
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Rocket className="h-4 w-4" />
-            Preset Backgrounds
+            Background Effects
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

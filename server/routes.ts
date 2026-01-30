@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertThumbnailSchema } from "@shared/schema";
 import { z } from "zod";
+import { generateImageBuffer } from "./replit_integrations/image";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -78,6 +79,25 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting thumbnail:", error);
       res.status(500).json({ error: "Failed to delete thumbnail" });
+    }
+  });
+
+  // Generate AI background image
+  app.post("/api/generate-image", async (req, res) => {
+    try {
+      const { prompt, size = "1024x1024" } = req.body;
+
+      if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required" });
+      }
+
+      const imageBuffer = await generateImageBuffer(prompt, size as "1024x1024" | "512x512" | "256x256");
+      const b64_json = imageBuffer.toString("base64");
+
+      res.json({ b64_json });
+    } catch (error) {
+      console.error("Error generating image:", error);
+      res.status(500).json({ error: "Failed to generate image" });
     }
   });
 
