@@ -1,5 +1,5 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
-import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects } from "@shared/schema";
+import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from "react";
+import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, PhotoConfig } from "@shared/schema";
 
 interface ThumbnailCanvasProps {
   config: ThumbnailConfig;
@@ -33,6 +33,55 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
     const isDragging = useRef(false);
     const dragStartPos = useRef({ x: 0, y: 0 });
     const dragTextId = useRef<string | null>(null);
+    
+    // Cache for loaded images with URL tracking to prevent stale callbacks
+    const hostImageRef = useRef<HTMLImageElement | null>(null);
+    const guestImageRef = useRef<HTMLImageElement | null>(null);
+    const hostUrlRef = useRef<string | null>(null);
+    const guestUrlRef = useRef<string | null>(null);
+    const [imagesLoaded, setImagesLoaded] = useState(0);
+
+    // Preload and cache host photo with URL tracking
+    useEffect(() => {
+      const url = config.hostPhoto?.url || null;
+      hostUrlRef.current = url;
+      
+      if (url) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          // Only update if URL hasn't changed since we started loading
+          if (hostUrlRef.current === url) {
+            hostImageRef.current = img;
+            setImagesLoaded((n) => n + 1);
+          }
+        };
+        img.src = url;
+      } else {
+        hostImageRef.current = null;
+      }
+    }, [config.hostPhoto?.url]);
+
+    // Preload and cache guest photo with URL tracking
+    useEffect(() => {
+      const url = config.guestPhoto?.url || null;
+      guestUrlRef.current = url;
+      
+      if (url) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          // Only update if URL hasn't changed since we started loading
+          if (guestUrlRef.current === url) {
+            guestImageRef.current = img;
+            setImagesLoaded((n) => n + 1);
+          }
+        };
+        img.src = url;
+      } else {
+        guestImageRef.current = null;
+      }
+    }, [config.guestPhoto?.url]);
 
     const parseGradient = (gradientStr: string, ctx: CanvasRenderingContext2D): CanvasGradient | null => {
       // Parse linear-gradient(angle, color1, color2)
@@ -223,8 +272,59 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
       });
     };
 
+    const drawPhotos = (ctx: CanvasRenderingContext2D) => {
+      const normalizedLayout = config.layout === "left-aligned" ? "soloLeft" 
+        : config.layout === "stacked" ? "centered" 
+        : config.layout;
+
+      const hostPhoto = config.hostPhoto;
+      const guestPhoto = config.guestPhoto;
+
+      // Draw photo using cached image
+      const drawPhoto = (photo: PhotoConfig | undefined, cachedImg: HTMLImageElement | null, side: "left" | "right") => {
+        if (!photo?.url || !cachedImg) return;
+
+        const scale = (photo.scale || 100) / 100;
+        const photoWidth = config.width * 0.3 * scale;
+        const photoHeight = config.height * 0.8 * scale;
+        
+        let x = side === "left" 
+          ? config.width * 0.08 + (photo.offsetX || 0)
+          : config.width * 0.92 - photoWidth + (photo.offsetX || 0);
+        let y = config.height - photoHeight + (photo.offsetY || 0);
+
+        ctx.save();
+        
+        // Create rounded top rectangle clip for photo
+        const radius = photoWidth * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y + photoHeight);
+        ctx.lineTo(x, y + radius);
+        ctx.arcTo(x, y, x + radius, y, radius);
+        ctx.arcTo(x + photoWidth, y, x + photoWidth, y + radius, radius);
+        ctx.lineTo(x + photoWidth, y + photoHeight);
+        ctx.closePath();
+        ctx.clip();
+        
+        ctx.drawImage(cachedImg, x, y, photoWidth, photoHeight);
+        ctx.restore();
+      };
+
+      if (normalizedLayout === "twoFace") {
+        drawPhoto(hostPhoto, hostImageRef.current, "left");
+        drawPhoto(guestPhoto, guestImageRef.current, "right");
+      } else if (normalizedLayout === "soloLeft") {
+        drawPhoto(hostPhoto, hostImageRef.current, "right");
+      } else if (normalizedLayout === "soloRight") {
+        drawPhoto(hostPhoto, hostImageRef.current, "left");
+      }
+    };
+
     const drawOverlays = (ctx: CanvasRenderingContext2D) => {
-      // Draw text lines first (new format)
+      // Draw photos first (behind text)
+      drawPhotos(ctx);
+      
+      // Draw text lines (new format)
       drawTextLines(ctx);
       
       // Then draw legacy overlays
@@ -444,7 +544,7 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
 
     useEffect(() => {
       drawCanvas();
-    }, [config, selectedTextId]);
+    }, [config, selectedTextId, imagesLoaded]);
 
     return (
       <div

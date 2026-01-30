@@ -38,6 +38,16 @@ export const backgroundEffectsSchema = z.object({
 
 export type BackgroundEffects = z.infer<typeof backgroundEffectsSchema>;
 
+// Photo configuration schema
+export const photoConfigSchema = z.object({
+  url: z.string().nullable().default(null),
+  scale: z.number().min(50).max(200).default(100),
+  offsetX: z.number().min(-200).max(200).default(0),
+  offsetY: z.number().min(-200).max(200).default(0),
+});
+
+export type PhotoConfig = z.infer<typeof photoConfigSchema>;
+
 // Thumbnail configuration
 export const thumbnailConfigSchema = z.object({
   backgroundColor: z.string(),
@@ -51,6 +61,8 @@ export const thumbnailConfigSchema = z.object({
   accentColor: z.enum(["orange", "blue", "purple"]).default("orange"),
   backgroundEffects: backgroundEffectsSchema.optional(),
   elementOpacity: z.number().min(0).max(100).default(70),
+  hostPhoto: photoConfigSchema.optional(),
+  guestPhoto: photoConfigSchema.optional(),
 });
 
 export type ThumbnailConfig = z.infer<typeof thumbnailConfigSchema>;

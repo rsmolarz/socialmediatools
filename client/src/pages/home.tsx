@@ -16,6 +16,7 @@ import { SavedThumbnails } from "@/components/saved-thumbnails";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobilePreview } from "@/components/mobile-preview";
 import { PresetBackgrounds } from "@/components/preset-backgrounds";
+import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
 import {
   Plus,
   Download,
@@ -27,7 +28,7 @@ import {
   Layers,
   RotateCcw,
 } from "lucide-react";
-import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail } from "@shared/schema";
+import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -45,6 +46,13 @@ const DEFAULT_EFFECTS: BackgroundEffects = {
   colorTint: "none",
 };
 
+const DEFAULT_PHOTO: PhotoConfigType = {
+  url: null,
+  scale: 100,
+  offsetX: 0,
+  offsetY: 0,
+};
+
 const DEFAULT_CONFIG: ThumbnailConfig = {
   backgroundColor: "#000000",
   overlays: [],
@@ -55,6 +63,8 @@ const DEFAULT_CONFIG: ThumbnailConfig = {
   accentColor: "orange",
   backgroundEffects: DEFAULT_EFFECTS,
   elementOpacity: 70,
+  hostPhoto: DEFAULT_PHOTO,
+  guestPhoto: DEFAULT_PHOTO,
 };
 
 export default function Home() {
@@ -423,14 +433,22 @@ export default function Home() {
 
               <TabsContent value="text" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
-                  <TextLineControls
-                    lines={config.textLines || []}
-                    layout={config.layout || "centered"}
-                    accentColor={config.accentColor || "orange"}
-                    onLinesChange={(lines) => setConfig((prev) => ({ ...prev, textLines: lines }))}
-                    onLayoutChange={(layout) => setConfig((prev) => ({ ...prev, layout }))}
-                    onAccentColorChange={(accentColor) => setConfig((prev) => ({ ...prev, accentColor }))}
-                  />
+                  <div className="space-y-4">
+                    <TextLineControls
+                      lines={config.textLines || []}
+                      layout={config.layout || "centered"}
+                      accentColor={config.accentColor || "orange"}
+                      onLinesChange={(lines) => setConfig((prev) => ({ ...prev, textLines: lines }))}
+                      onLayoutChange={(layout) => setConfig((prev) => ({ ...prev, layout }))}
+                      onAccentColorChange={(accentColor) => setConfig((prev) => ({ ...prev, accentColor }))}
+                    />
+                    <PhotoControls
+                      hostPhoto={config.hostPhoto || DEFAULT_PHOTO}
+                      guestPhoto={config.guestPhoto || DEFAULT_PHOTO}
+                      onHostPhotoChange={(photo) => setConfig((prev) => ({ ...prev, hostPhoto: photo }))}
+                      onGuestPhotoChange={(photo) => setConfig((prev) => ({ ...prev, guestPhoto: photo }))}
+                    />
+                  </div>
                   
                   {selectedOverlay && (
                     <div className="mt-4">
