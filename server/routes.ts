@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { insertThumbnailSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
+import { fetchYouTubeVideos, updateYouTubeVideo, checkYouTubeConnection } from "./youtube";
+import OpenAI from "openai";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -98,6 +100,122 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating image:", error);
       res.status(500).json({ error: "Failed to generate image" });
+    }
+  });
+
+  // YouTube Integration Routes
+  
+  // Check YouTube connection status
+  app.get("/api/youtube/status", async (_req, res) => {
+    try {
+      const connected = await checkYouTubeConnection();
+      res.json({ connected });
+    } catch (error) {
+      res.json({ connected: false });
+    }
+  });
+
+  // Fetch YouTube videos
+  app.get("/api/youtube/videos", async (req, res) => {
+    try {
+      const maxResults = parseInt(req.query.maxResults as string) || 10;
+      const daysBack = parseInt(req.query.daysBack as string) || 30;
+      const result = await fetchYouTubeVideos(maxResults, daysBack);
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching YouTube videos:", error);
+      res.status(500).json({ error: "Failed to fetch YouTube videos. Make sure YouTube is connected." });
+    }
+  });
+
+  // Update YouTube video
+  app.patch("/api/youtube/videos/:videoId", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const { title, description, tags, categoryId } = req.body;
+      
+      if (!title || !description) {
+        return res.status(400).json({ error: "Title and description are required" });
+      }
+      
+      const result = await updateYouTubeVideo(
+        videoId,
+        title,
+        description,
+        tags || [],
+        categoryId
+      );
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    } catch (error) {
+      console.error("Error updating YouTube video:", error);
+      res.status(500).json({ error: "Failed to update YouTube video" });
+    }
+  });
+
+  // AI SEO Optimization endpoint
+  app.post("/api/youtube/optimize-seo", async (req, res) => {
+    try {
+      const { title, description, tags } = req.body;
+      
+      if (!title) {
+        return res.status(400).json({ error: "Video title is required" });
+      }
+
+      const openai = new OpenAI({
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      });
+
+      const prompt = `You are an expert YouTube SEO specialist. Analyze the following video and generate optimized content for better discoverability and engagement.
+
+**Video Title:** ${title}
+
+**Current Description:**
+${description || "(No description)"}
+
+**Current Tags:**
+${tags?.length > 0 ? tags.join(", ") : "(No tags)"}
+
+Please provide:
+1. An optimized description that:
+   - Has a compelling hook in the first 2-3 lines (visible before "Show more")
+   - Includes relevant keywords naturally
+   - Has clear formatting with line breaks
+   - Includes a call-to-action (subscribe, like, comment)
+   - Is between 200-500 words for optimal SEO
+
+2. A list of 15-25 optimized tags that:
+   - Include broad and specific topic tags
+   - Use relevant long-tail keywords
+   - Cover variations and synonyms of key terms
+
+Respond with valid JSON in this exact format:
+{
+  "optimizedDescription": "your optimized description here",
+  "optimizedTags": ["tag1", "tag2", "tag3", ...]
+}`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || "{}";
+      const optimized = JSON.parse(responseText);
+
+      res.json({
+        optimizedDescription: optimized.optimizedDescription || description,
+        optimizedTags: optimized.optimizedTags || tags || [],
+      });
+    } catch (error) {
+      console.error("Error optimizing SEO:", error);
+      res.status(500).json({ error: "Failed to generate SEO optimization" });
     }
   });
 

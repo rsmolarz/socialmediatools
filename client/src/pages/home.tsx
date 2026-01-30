@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MobilePreview } from "@/components/mobile-preview";
 import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
+import { VideoSeoOptimizer } from "@/components/video-seo-optimizer";
 import {
   Plus,
   Download,
@@ -27,6 +28,7 @@ import {
   Sparkles,
   Layers,
   RotateCcw,
+  Youtube,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
@@ -416,7 +418,7 @@ export default function Home() {
           {/* Controls Sidebar */}
           <div className="space-y-4">
             <Tabs defaultValue="text" className="w-full">
-              <TabsList className="w-full grid grid-cols-3">
+              <TabsList className="w-full grid grid-cols-4">
                 <TabsTrigger value="text" data-testid="tab-text">
                   <Type className="h-4 w-4 mr-2" />
                   Text
@@ -424,6 +426,10 @@ export default function Home() {
                 <TabsTrigger value="background" data-testid="tab-background">
                   <ImageIcon className="h-4 w-4 mr-2" />
                   BG
+                </TabsTrigger>
+                <TabsTrigger value="seo" data-testid="tab-seo">
+                  <Youtube className="h-4 w-4 mr-2" />
+                  SEO
                 </TabsTrigger>
                 <TabsTrigger value="saved" data-testid="tab-saved">
                   <FolderOpen className="h-4 w-4 mr-2" />
@@ -489,6 +495,25 @@ export default function Home() {
                 </ScrollArea>
               </TabsContent>
 
+              <TabsContent value="seo" className="mt-4">
+                <ScrollArea className="h-[calc(100vh-340px)]">
+                  <VideoSeoOptimizer
+                    onTitleSelect={(title) => {
+                      const firstLine = config.textLines?.[0];
+                      if (firstLine) {
+                        const words = title.split(" ");
+                        const newLines = words.slice(0, 3).map((word, i) => ({
+                          id: `line${i + 1}`,
+                          text: word.toLowerCase(),
+                          highlight: i === 0,
+                        }));
+                        setConfig((prev) => ({ ...prev, textLines: newLines }));
+                      }
+                    }}
+                  />
+                </ScrollArea>
+              </TabsContent>
+
               <TabsContent value="saved" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
                   <SavedThumbnails
@@ -504,11 +529,11 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer hint for future features */}
+      {/* Footer hint */}
       <footer className="fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur py-3">
         <div className="container mx-auto px-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Sparkles className="h-4 w-4" />
-          <span>Description & Tags Optimizer coming soon!</span>
+          <Youtube className="h-4 w-4 text-red-500" />
+          <span>Video SEO Optimizer is live! Check the SEO tab to optimize your videos.</span>
         </div>
       </footer>
     </div>
