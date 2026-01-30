@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Camera, X, User, Users, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 
 export interface PhotoConfig {
   url: string | null;
@@ -21,18 +22,20 @@ interface PhotoControlsProps {
 }
 
 async function removeBackground(imageData: string): Promise<string> {
-  const response = await fetch("/api/remove-background", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageData }),
+  // Use client-side background removal library
+  const blob = await imglyRemoveBackground(imageData, {
+    progress: (key, current, total) => {
+      console.log(`Background removal progress: ${key} - ${current}/${total}`);
+    },
   });
   
-  if (!response.ok) {
-    throw new Error("Failed to remove background");
-  }
-  
-  const data = await response.json();
-  return `data:image/png;base64,${data.b64_json}`;
+  // Convert blob to data URL
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 export function PhotoControls({

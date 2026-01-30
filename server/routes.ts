@@ -117,9 +117,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Image data is required" });
       }
 
+      console.log("Starting background removal...");
+
       // Extract base64 data and convert to buffer
       const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
       const imageBuffer = Buffer.from(base64Data, "base64");
+      
+      console.log("Image buffer size:", imageBuffer.length);
       
       // Create a readable stream from the buffer
       const stream = Readable.from(imageBuffer);
@@ -127,24 +131,32 @@ export async function registerRoutes(
       // Convert to file format the API expects
       const imageFile = await toFile(stream, "input.png", { type: "image/png" });
 
+      console.log("Calling OpenAI images.edit API...");
+
       // Use OpenAI's image editing capability to remove background
       const response = await openai.images.edit({
         model: "gpt-image-1",
         image: imageFile,
-        prompt: "Remove the background completely, making it fully transparent. Keep only the person/subject in the foreground with clean edges. The output must have a transparent background (PNG with alpha channel). Preserve the exact appearance of the subject.",
+        prompt: "Extract only the person from this photo. Remove all background elements completely. Output just the person cutout with a transparent background. Keep the person's appearance exactly as they are.",
         size: "1024x1024",
       });
+
+      console.log("API response received");
 
       // gpt-image-1 returns base64 by default
       const b64_json = response.data[0]?.b64_json;
       
       if (!b64_json) {
+        console.error("No b64_json in response:", JSON.stringify(response.data));
         throw new Error("No image data in response");
       }
 
+      console.log("Background removal successful, returning image");
       res.json({ b64_json });
     } catch (error: any) {
-      console.error("Error removing background:", error?.message || error);
+      console.error("Error removing background - Full error:", error);
+      console.error("Error message:", error?.message);
+      console.error("Error stack:", error?.stack);
       res.status(500).json({ error: "Failed to remove background", details: error?.message });
     }
   });
