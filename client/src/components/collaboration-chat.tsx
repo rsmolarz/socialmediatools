@@ -73,12 +73,12 @@ export function CollaborationChat({ messages, onSendMessage, currentUserId }: Co
                   </div>
                   <div 
                     className={cn(
-                      "px-3 py-1.5 rounded-2xl text-sm max-w-[85%] break-words",
+                      "px-3 py-1.5 rounded-2xl text-sm max-w-[85%] break-words shadow-sm",
                       msg.userId === currentUserId 
                         ? "bg-primary text-primary-foreground rounded-tr-none" 
-                        : "bg-muted rounded-tl-none"
+                        : "bg-muted rounded-tl-none border-l-4"
                     )}
-                    style={msg.userId !== currentUserId ? { borderLeft: `3px solid ${msg.color}` } : {}}
+                    style={msg.userId !== currentUserId ? { borderLeftColor: msg.color } : {}}
                   >
                     {msg.message}
                   </div>

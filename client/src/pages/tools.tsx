@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,10 @@ import { ImageFiltersPanel } from "@/components/image-filters-panel";
 import { SearchOrganization } from "@/components/search-organization";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CollaborationChat } from "@/components/collaboration-chat";
+import { useCollaboration } from "@/hooks/use-collaboration";
+import { PresenceIndicator } from "@/components/presence-indicator";
+import { LiveCursors } from "@/components/live-cursors";
 import { 
   LayoutTemplate, 
   Download, 
@@ -43,8 +47,13 @@ import {
   BarChart3
 } from "lucide-react";
 
+import { AISmartLayouts } from "@/components/ai-smart-layouts";
+import { ColorPaletteGenerator } from "@/components/color-palette-generator";
+
 const TOOLS = [
   { id: "templates", name: "Templates", icon: LayoutTemplate, description: "Pre-made thumbnail designs" },
+  { id: "smart-layout", name: "Smart Layout", icon: Sparkles, description: "AI-powered positioning" },
+  { id: "palettes", name: "Palettes", icon: Palette, description: "Brand color generation" },
   { id: "export", name: "Batch Export", icon: Download, description: "Export multiple thumbnails" },
   { id: "schedule", name: "Schedule", icon: Calendar, description: "Content calendar" },
   { id: "fonts", name: "Typography", icon: Type, description: "Font management" },
@@ -64,10 +73,37 @@ const TOOLS = [
   { id: "analytics", name: "Analytics", icon: BarChart3, description: "Track performance & engagement" },
 ];
 
+// ... inside ToolsPage render, after templates TabsContent
+          <TabsContent value="smart-layout" className="mt-0">
+            <AISmartLayouts onApply={(config) => console.log("Applying layout:", config)} />
+          </TabsContent>
+
+          <TabsContent value="palettes" className="mt-0">
+            <ColorPaletteGenerator />
+          </TabsContent>
+
+
 export default function ToolsPage() {
   const [activeTab, setActiveTab] = useState("templates");
   const [selectedThumbnailId, setSelectedThumbnailId] = useState<number | undefined>();
   const [selectedStockImage, setSelectedStockImage] = useState<string | undefined>();
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  const { 
+    connected, 
+    collaborators, 
+    cursors, 
+    chatMessages, 
+    sendCursor, 
+    sendChat,
+    userId,
+    selections,
+    sendSelection
+  } = useCollaboration({
+    thumbnailId: "default-tool-room", 
+    username: "User", 
+  });
 
   const handleApplyTemplate = (config: any) => {
     console.log("Apply template config:", config);
@@ -83,8 +119,14 @@ export default function ToolsPage() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="h-full flex flex-col relative" ref={canvasRef}>
+      <LiveCursors 
+        cursors={cursors} 
+        containerRef={canvasRef} 
+        onCursorMove={sendCursor} 
+      />
+
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
         <div className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/">
@@ -96,6 +138,12 @@ export default function ToolsPage() {
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="w-5 h-5 text-primary" />
                 <h1 className="text-xl font-bold">Tools & Features</h1>
+                <PresenceIndicator 
+                  connected={connected} 
+                  collaborators={collaborators} 
+                  onChatClick={() => setIsChatOpen(!isChatOpen)}
+                  hasUnread={chatMessages.length > 0 && !isChatOpen}
+                />
               </div>
               <p className="text-sm text-muted-foreground">
                 Powerful tools to create better thumbnails faster
@@ -124,6 +172,14 @@ export default function ToolsPage() {
 
           <TabsContent value="templates" className="mt-0">
             <TemplateLibrary onApplyTemplate={handleApplyTemplate} />
+          </TabsContent>
+
+          <TabsContent value="smart-layout" className="mt-0">
+            <AISmartLayouts onApply={(config) => console.log("Applying layout:", config)} />
+          </TabsContent>
+
+          <TabsContent value="palettes" className="mt-0">
+            <ColorPaletteGenerator />
           </TabsContent>
 
           <TabsContent value="export" className="mt-0">
@@ -195,6 +251,14 @@ export default function ToolsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {isChatOpen && (
+        <CollaborationChat 
+          messages={chatMessages} 
+          onSendMessage={sendChat} 
+          currentUserId={userId} 
+        />
+      )}
     </div>
   );
 }

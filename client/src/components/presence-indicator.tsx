@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Users } from "lucide-react";
+import { Users, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Collaborator {
   userId: string;
@@ -12,12 +13,16 @@ interface PresenceIndicatorProps {
   collaborators: Collaborator[];
   connected: boolean;
   maxVisible?: number;
+  onChatClick?: () => void;
+  hasUnread?: boolean;
 }
 
 export function PresenceIndicator({ 
   collaborators, 
   connected, 
-  maxVisible = 4 
+  maxVisible = 4,
+  onChatClick,
+  hasUnread
 }: PresenceIndicatorProps) {
   const visibleCollaborators = collaborators.slice(0, maxVisible);
   const hiddenCount = collaborators.length - maxVisible;
@@ -89,6 +94,21 @@ export function PresenceIndicator({
         <Users className="w-3 h-3" />
         {collaborators.length + 1}
       </span>
+
+      {onChatClick && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8 relative ml-2" 
+          onClick={onChatClick}
+          data-testid="button-open-chat"
+        >
+          <MessageSquare className="w-4 h-4" />
+          {hasUnread && (
+            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full border border-background" />
+          )}
+        </Button>
+      )}
     </div>
   );
 }
