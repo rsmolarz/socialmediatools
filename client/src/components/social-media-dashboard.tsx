@@ -21,6 +21,8 @@ import {
   Trash2, 
   Youtube, 
   Instagram,
+  Facebook,
+  Linkedin,
   RefreshCw,
   Zap,
   Target,
@@ -94,10 +96,17 @@ const getPlatformIcon = (platform: string) => {
       return <TikTokIcon />;
     case "instagram":
       return <Instagram className="w-4 h-4 text-pink-500" />;
+    case "facebook":
+      return <Facebook className="w-4 h-4 text-blue-600" />;
+    case "linkedin":
+      return <Linkedin className="w-4 h-4 text-blue-700" />;
     default:
       return <Zap className="w-4 h-4" />;
   }
 };
+
+const PLATFORMS = ["facebook", "instagram", "linkedin"] as const;
+type Platform = typeof PLATFORMS[number];
 
 const getTrendIcon = (direction: string) => {
   switch (direction) {
@@ -280,6 +289,42 @@ export function SocialMediaDashboard() {
     },
     onError: () => {
       toast({ title: "Generation Failed", description: "Failed to generate new background", variant: "destructive" });
+    },
+  });
+
+  const updatePlatformMutation = useMutation({
+    mutationFn: async ({ postId, platform }: { postId: number; platform: string }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        platform,
+      });
+      return response.json();
+    },
+    onMutate: async ({ postId, platform }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/viral/posts"] });
+      const previousData = queryClient.getQueryData(["/api/viral/posts"]);
+      queryClient.setQueryData(["/api/viral/posts"], (old: { posts: SocialPost[]; total: number } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          posts: old.posts.map((p: SocialPost) =>
+            p.id === postId ? { ...p, platform } : p
+          ),
+        };
+      });
+      if (previewPost && previewPost.id === postId) {
+        setPreviewPost({ ...previewPost, platform });
+      }
+      return { previousData };
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+      toast({ title: "Platform Updated", description: `Post format changed to ${variables.platform}` });
+    },
+    onError: (_, __, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/viral/posts"], context.previousData);
+      }
+      toast({ title: "Update Failed", description: "Failed to change platform format", variant: "destructive" });
     },
   });
 
@@ -851,11 +896,29 @@ export function SocialMediaDashboard() {
                             </div>
                           </div>
 
+                          <div className="flex gap-1 mt-2">
+                            <span className="text-xs text-muted-foreground mr-1">Format:</span>
+                            {PLATFORMS.map((p) => (
+                              <Button
+                                key={p}
+                                size="sm"
+                                variant={post.platform.toLowerCase() === p ? "default" : "outline"}
+                                className="h-7 px-2"
+                                onClick={() => updatePlatformMutation.mutate({ postId: post.id, platform: p })}
+                                disabled={updatePlatformMutation.isPending || post.platform.toLowerCase() === p}
+                                data-testid={`button-platform-${p}-${post.id}`}
+                              >
+                                {getPlatformIcon(p)}
+                                <span className="ml-1 capitalize text-xs">{p}</span>
+                              </Button>
+                            ))}
+                          </div>
+
                           <div className="flex gap-2 mt-3 pt-3 border-t flex-wrap">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setPreviewPost(post)}
+                              onClick={() => setPreviewPost({ ...post })}
                               data-testid={`button-preview-${post.id}`}
                             >
                               <Eye className="w-3 h-3 mr-1" />

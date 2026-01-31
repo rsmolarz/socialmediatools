@@ -62,8 +62,9 @@ Key entities:
   - **Background Layering**: Upload background images behind person cutouts with opacity control (10-100%)
   - **Post Preview Modal**: View platform-specific preview of posts with thumbnail, description, and hashtags
   - **Logo Overlay**: Toggle to add Medicine & Money Show logo to post thumbnails (showLogo field, uses mixBlendMode)
+  - **Platform Switching**: Change post format between Facebook, Instagram, and LinkedIn with optimistic UI updates
   - Database tables: viral_content, social_posts, social_thumbnails, viral_topics
-  - API endpoints: /api/viral/discover-topics, /api/viral/generate-content, /api/viral/posts (GET, POST, PATCH, DELETE)
+  - API endpoints: /api/viral/discover-topics, /api/viral/generate-content, /api/viral/posts (GET, POST, PATCH, DELETE) - PATCH supports platform field updates
 - **Three-Line Text Fix**: Viral title handlers now preserve all three text lines (only updates line 1)
 - **Viral Title Helper**: AI-powered feature in Text tab to create short, punchy viral titles
 - **Background Opacity Control**: Slider to adjust background image transparency (10-100%)
