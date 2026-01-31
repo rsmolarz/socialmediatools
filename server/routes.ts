@@ -463,6 +463,7 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
         thumbnailUrl: true,
         title: true,
         description: true,
+        showLogo: true,
       });
 
       const parsed = updateSchema.safeParse(req.body);

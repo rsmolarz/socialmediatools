@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import logoImage from "@assets/aragonai-6db9ede2-5123-48c3-8ae3-ed1f0654d82a_1769872211051.jpeg";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ interface SocialPost {
   status: string | null;
   approvedBy: string | null;
   thumbnailUrl: string | null;
+  showLogo: boolean | null;
   createdAt: string;
 }
 
@@ -208,6 +210,22 @@ export function SocialMediaDashboard() {
     },
   });
 
+  const toggleLogoMutation = useMutation({
+    mutationFn: async ({ postId, showLogo }: { postId: number; showLogo: boolean }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        showLogo,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+      toast({ title: "Logo Updated", description: "Logo visibility has been updated" });
+    },
+    onError: () => {
+      toast({ title: "Update Failed", description: "Failed to update logo", variant: "destructive" });
+    },
+  });
+
   const handleGenerateFromTopic = (topic: ViralTopic) => {
     setSelectedTopic(topic);
     generateContentMutation.mutate(topic.keyword);
@@ -289,6 +307,16 @@ export function SocialMediaDashboard() {
                       alt={previewPost.title}
                       className="w-full aspect-video object-cover"
                     />
+                    {previewPost.showLogo && (
+                      <div className="absolute top-3 right-3">
+                        <img 
+                          src={logoImage} 
+                          alt="Medicine & Money Logo"
+                          className="w-16 h-16 object-contain"
+                          style={{ mixBlendMode: "multiply" }}
+                        />
+                      </div>
+                    )}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                       <p className="text-white font-bold text-xl uppercase tracking-wide">
                         {previewPost.title.split(" - ")[0]}
@@ -553,6 +581,16 @@ export function SocialMediaDashboard() {
                                     className="w-full h-full object-cover rounded-md border"
                                     data-testid={`thumbnail-${post.id}`}
                                   />
+                                  {post.showLogo && (
+                                    <div className="absolute top-1 right-1">
+                                      <img 
+                                        src={logoImage} 
+                                        alt="Logo"
+                                        className="w-8 h-8 object-contain"
+                                        style={{ mixBlendMode: "multiply" }}
+                                      />
+                                    </div>
+                                  )}
                                   <div className="absolute inset-0 bg-black/50 invisible group-hover:visible rounded-md flex items-center justify-center">
                                     <Button
                                       size="icon"
@@ -618,6 +656,21 @@ export function SocialMediaDashboard() {
                             >
                               <Eye className="w-3 h-3 mr-1" />
                               Preview
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={post.showLogo ? "default" : "outline"}
+                              onClick={() => toggleLogoMutation.mutate({ postId: post.id, showLogo: !post.showLogo })}
+                              disabled={toggleLogoMutation.isPending}
+                              data-testid={`button-logo-${post.id}`}
+                            >
+                              <img 
+                                src={logoImage} 
+                                alt="Logo" 
+                                className="w-4 h-4 mr-1 object-contain"
+                                style={{ mixBlendMode: post.showLogo ? undefined : "multiply" }}
+                              />
+                              {post.showLogo ? "Logo On" : "Add Logo"}
                             </Button>
                             {post.status === "draft" && (
                               <>
