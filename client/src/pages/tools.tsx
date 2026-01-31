@@ -19,6 +19,7 @@ import { ExportOptimizer } from "@/components/export-optimizer";
 import { ABTestingPanel } from "@/components/ab-testing-panel";
 import { ImageFiltersPanel } from "@/components/image-filters-panel";
 import { SearchOrganization } from "@/components/search-organization";
+import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -38,7 +39,8 @@ import {
   ImagePlus,
   Settings2,
   FlaskConical,
-  Search
+  Search,
+  BarChart3
 } from "lucide-react";
 
 const TOOLS = [
@@ -59,6 +61,7 @@ const TOOLS = [
   { id: "abtest", name: "A/B Testing", icon: FlaskConical, description: "Test thumbnail variants" },
   { id: "filters", name: "Filters", icon: Sparkles, description: "Instagram-style image filters" },
   { id: "search", name: "Search & Organize", icon: Search, description: "Full-text search, tags & folders" },
+  { id: "analytics", name: "Analytics", icon: BarChart3, description: "Track performance & engagement" },
 ];
 
 export default function ToolsPage() {
@@ -185,6 +188,10 @@ export default function ToolsPage() {
 
           <TabsContent value="search" className="mt-0">
             <SearchOrganization />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-0">
+            <AnalyticsDashboard />
           </TabsContent>
         </Tabs>
       </div>
