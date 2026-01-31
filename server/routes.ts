@@ -1849,7 +1849,35 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
 
   // Analytics Dashboard Routes
   
-  // Get analytics summary for all thumbnails
+  /**
+   * @swagger
+   * /analytics/summary:
+   *   get:
+   *     summary: Get analytics summary for all thumbnails
+   *     tags: [Analytics]
+   *     parameters:
+   *       - in: query
+   *         name: startDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter start date (YYYY-MM-DD)
+   *       - in: query
+   *         name: endDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter end date (YYYY-MM-DD)
+   *     responses:
+   *       200:
+   *         description: Analytics summary with total impressions, clicks, and per-thumbnail stats
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/AnalyticsSummary'
+   *       500:
+   *         description: Server error
+   */
   app.get("/api/analytics/summary", async (req, res) => {
     try {
       // Parse date range from query params
@@ -1917,7 +1945,30 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     }
   });
   
-  // Get analytics for a specific thumbnail
+  /**
+   * @swagger
+   * /analytics/thumbnail/{thumbnailId}:
+   *   get:
+   *     summary: Get analytics for a specific thumbnail
+   *     tags: [Analytics]
+   *     parameters:
+   *       - in: path
+   *         name: thumbnailId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: The thumbnail ID
+   *     responses:
+   *       200:
+   *         description: Detailed analytics for the thumbnail
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ThumbnailAnalytics'
+   *       500:
+   *         description: Server error
+   */
   app.get("/api/analytics/thumbnail/:thumbnailId", async (req, res) => {
     try {
       const { thumbnailId } = req.params;
@@ -1966,7 +2017,26 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     }
   });
   
-  // Record analytics event (impression or click)
+  /**
+   * @swagger
+   * /analytics/event:
+   *   post:
+   *     summary: Record an analytics event (impression or click)
+   *     tags: [Analytics]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/AnalyticsEvent'
+   *     responses:
+   *       201:
+   *         description: Event recorded successfully
+   *       400:
+   *         description: Invalid event data
+   *       500:
+   *         description: Server error
+   */
   app.post("/api/analytics/event", async (req, res) => {
     try {
       const parsed = insertAnalyticsEventSchema.safeParse(req.body);
@@ -2022,7 +2092,26 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     }
   });
   
-  // Bulk record analytics (for importing data)
+  /**
+   * @swagger
+   * /analytics/bulk:
+   *   post:
+   *     summary: Bulk import analytics data
+   *     tags: [Analytics]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/BulkAnalytics'
+   *     responses:
+   *       201:
+   *         description: Analytics data imported successfully
+   *       400:
+   *         description: Missing required fields
+   *       500:
+   *         description: Server error
+   */
   app.post("/api/analytics/bulk", async (req, res) => {
     try {
       const { thumbnailId, impressions, clicks, platform, date } = req.body;
