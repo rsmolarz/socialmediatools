@@ -21,6 +21,7 @@ import { Readable } from "stream";
 import { viralAnalyzer } from "./lib/viral-analyzer";
 import { randomBytes } from "crypto";
 import archiver from "archiver";
+import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo } from "./youtube";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1347,6 +1348,116 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     } catch (error) {
       console.error("Error deleting brand kit:", error);
       res.status(500).json({ error: "Failed to delete brand kit" });
+    }
+  });
+
+  // YouTube API Routes
+  
+  // Check YouTube connection status
+  app.get("/api/youtube/status", async (_req, res) => {
+    try {
+      const connected = await checkYouTubeConnection();
+      res.json({ connected });
+    } catch (error) {
+      console.error("Error checking YouTube connection:", error);
+      res.json({ connected: false });
+    }
+  });
+
+  // Get YouTube videos from channel
+  app.get("/api/youtube/videos", async (req, res) => {
+    try {
+      const maxResults = parseInt(req.query.maxResults as string) || 20;
+      const daysBack = parseInt(req.query.daysBack as string) || 365;
+      
+      const result = await fetchYouTubeVideos(maxResults, daysBack);
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching YouTube videos:", error);
+      res.status(500).json({ error: "Failed to fetch YouTube videos" });
+    }
+  });
+
+  // AI-optimize SEO for a video
+  app.post("/api/youtube/optimize-seo", async (req, res) => {
+    try {
+      const { title, description, tags } = req.body;
+      
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      const prompt = `You are a YouTube SEO expert for "The Medicine & Money Show" podcast. Optimize the following video metadata for maximum discoverability and engagement.
+
+Current Title: ${title}
+Current Description: ${description || "(no description)"}
+Current Tags: ${tags?.join(", ") || "(no tags)"}
+
+Generate an optimized description and tags. The description should:
+- Start with a compelling hook in the first 2 sentences (this appears in search results)
+- Include relevant keywords naturally
+- Have a clear call-to-action
+- Include timestamps if appropriate
+- Be between 200-500 words
+
+Generate 15-25 highly relevant tags that:
+- Include the exact video topic
+- Include related topics and synonyms
+- Include common misspellings if applicable
+- Are ordered from most specific to most general
+
+Return JSON format:
+{
+  "optimizedDescription": "your optimized description here",
+  "optimizedTags": ["tag1", "tag2", ...]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      const result = JSON.parse(content);
+
+      res.json({
+        optimizedDescription: result.optimizedDescription || description,
+        optimizedTags: result.optimizedTags || tags || [],
+      });
+    } catch (error) {
+      console.error("Error optimizing SEO:", error);
+      res.status(500).json({ error: "Failed to optimize SEO" });
+    }
+  });
+
+  // Update a YouTube video
+  app.patch("/api/youtube/videos/:videoId", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const { title, description, tags, categoryId } = req.body;
+
+      if (!videoId || !title) {
+        return res.status(400).json({ error: "Video ID and title are required" });
+      }
+
+      const result = await updateYouTubeVideo(
+        videoId,
+        title,
+        description || "",
+        tags || [],
+        categoryId
+      );
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(500).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error("Error updating YouTube video:", error);
+      res.status(500).json({ error: "Failed to update YouTube video" });
     }
   });
 
