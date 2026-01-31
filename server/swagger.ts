@@ -51,7 +51,70 @@ When rate limited, the API returns HTTP 429 with a \`Retry-After\` header indica
 ### Analytics
 - Use bulk import endpoint for historical data
 - Poll summary endpoint no more than once per minute
-- Enable auto-refresh only when dashboard is visible`,
+- Enable auto-refresh only when dashboard is visible
+
+## SDK Examples
+
+### JavaScript (Fetch)
+\`\`\`javascript
+// Get analytics summary
+const response = await fetch('/api/analytics/summary?startDate=2026-01-01&endDate=2026-01-31', {
+  credentials: 'include'
+});
+const data = await response.json();
+console.log('Total impressions:', data.totalImpressions);
+
+// Record an event
+await fetch('/api/analytics/event', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include',
+  body: JSON.stringify({
+    thumbnailId: 'your-thumbnail-id',
+    eventType: 'impression'
+  })
+});
+\`\`\`
+
+### Python (requests)
+\`\`\`python
+import requests
+
+# Get analytics summary
+response = requests.get(
+    'https://your-app.replit.app/api/analytics/summary',
+    params={'startDate': '2026-01-01', 'endDate': '2026-01-31'},
+    cookies={'connect.sid': 'your-session-cookie'}
+)
+data = response.json()
+print(f"Total impressions: {data['totalImpressions']}")
+
+# Record an event
+requests.post(
+    'https://your-app.replit.app/api/analytics/event',
+    json={'thumbnailId': 'your-thumbnail-id', 'eventType': 'click'},
+    cookies={'connect.sid': 'your-session-cookie'}
+)
+\`\`\`
+
+### cURL
+\`\`\`bash
+# Get analytics summary
+curl -X GET "https://your-app.replit.app/api/analytics/summary?startDate=2026-01-01&endDate=2026-01-31" \\
+  -H "Cookie: connect.sid=your-session-cookie"
+
+# Record an impression event
+curl -X POST "https://your-app.replit.app/api/analytics/event" \\
+  -H "Content-Type: application/json" \\
+  -H "Cookie: connect.sid=your-session-cookie" \\
+  -d '{"thumbnailId": "your-thumbnail-id", "eventType": "impression"}'
+
+# Bulk import analytics
+curl -X POST "https://your-app.replit.app/api/analytics/bulk" \\
+  -H "Content-Type: application/json" \\
+  -H "Cookie: connect.sid=your-session-cookie" \\
+  -d '{"thumbnailId": "id", "impressions": 100, "clicks": 5, "platform": "youtube", "date": "2026-01-31"}'
+\`\`\``,
       contact: {
         name: "Medicine & Money Show",
         url: "https://medicineandmoneyshow.com"
