@@ -29,7 +29,13 @@ const PLATFORMS = [
   { id: "youtube", name: "YouTube", icon: Youtube, color: "bg-red-500" },
   { id: "tiktok", name: "TikTok", icon: SiTiktok, color: "bg-black" },
   { id: "instagram", name: "Instagram", icon: Instagram, color: "bg-pink-500" },
+  { id: "twitter", name: "Twitter/X", icon: CalendarIcon, color: "bg-sky-500" },
+  { id: "facebook", name: "Facebook", icon: CalendarIcon, color: "bg-blue-600" },
 ];
+
+const getUserTimezone = () => {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+};
 
 interface SchedulingCalendarProps {
   onScheduleContent?: (date: Date) => void;
@@ -138,7 +144,12 @@ export function SchedulingCalendar({ onScheduleContent }: SchedulingCalendarProp
                 <CalendarIcon className="w-5 h-5" />
                 Content Calendar
               </CardTitle>
-              <CardDescription>Schedule your content across platforms</CardDescription>
+              <CardDescription>
+                Schedule your content across platforms
+                <span className="ml-2 text-xs text-muted-foreground">
+                  (Timezone: {getUserTimezone()})
+                </span>
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button
