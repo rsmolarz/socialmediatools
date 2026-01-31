@@ -500,17 +500,10 @@ export default function Home() {
                     <ViralTitleHelper
                       currentTitle={config.textLines?.[0]?.text || ""}
                       onTitleSelect={(title) => {
-                        const lines = config.textLines || [];
-                        if (lines.length > 0) {
-                          const updatedLines = [...lines];
-                          updatedLines[0] = { ...updatedLines[0], text: title };
-                          setConfig((prev) => ({ ...prev, textLines: updatedLines }));
-                        } else {
-                          setConfig((prev) => ({
-                            ...prev,
-                            textLines: [{ text: title, color: "#ffffff", highlighted: true }],
-                          }));
-                        }
+                        setConfig((prev) => ({
+                          ...prev,
+                          textLines: [{ text: title, color: "#ffffff", highlighted: true }],
+                        }));
                       }}
                     />
                     <TextLineControls
