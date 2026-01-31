@@ -9,6 +9,7 @@ import { FontManagement } from "@/components/font-management";
 import { CollaborationPanel } from "@/components/collaboration-panel";
 import { CollectionsPanel } from "@/components/collections-panel";
 import { VideoSeoOptimizer } from "@/components/video-seo-optimizer";
+import { TrendAnalysis } from "@/components/trend-analysis";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -19,7 +20,8 @@ import {
   Folder,
   Sparkles,
   ArrowLeft,
-  Youtube
+  Youtube,
+  TrendingUp
 } from "lucide-react";
 
 const TOOLS = [
@@ -30,6 +32,7 @@ const TOOLS = [
   { id: "collaborate", name: "Collaborate", icon: Users, description: "Share & comment" },
   { id: "collections", name: "Collections", icon: Folder, description: "Organize thumbnails" },
   { id: "youtube", name: "YouTube Upgrade", icon: Youtube, description: "Optimize & update videos" },
+  { id: "trends", name: "Trends", icon: TrendingUp, description: "Trending topics & styles" },
 ];
 
 export default function ToolsPage() {
@@ -106,6 +109,10 @@ export default function ToolsPage() {
 
           <TabsContent value="youtube" className="mt-0">
             <VideoSeoOptimizer />
+          </TabsContent>
+
+          <TabsContent value="trends" className="mt-0">
+            <TrendAnalysis niche="Medicine & Money" />
           </TabsContent>
         </Tabs>
       </div>

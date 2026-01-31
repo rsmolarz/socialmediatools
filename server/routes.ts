@@ -1487,5 +1487,63 @@ Return JSON format:
     }
   });
 
+  // Trend Analysis API
+  app.post("/api/trends/analyze", async (req, res) => {
+    try {
+      const { niche } = req.body;
+      
+      const systemPrompt = `You are a trend analysis expert for content creators. Analyze current trends for the "${niche || 'general'}" niche.`;
+      
+      const userPrompt = `Generate trending topics and style recommendations for the "${niche || 'general'}" niche.
+
+Return a JSON object with:
+{
+  "topics": [
+    {
+      "topic": "Topic name",
+      "score": 85,
+      "change": "up" | "down" | "stable",
+      "category": "Category name",
+      "relatedKeywords": ["keyword1", "keyword2"],
+      "suggestedStyles": ["style suggestion 1", "style suggestion 2"],
+      "peakTime": "When this content performs best"
+    }
+  ],
+  "styles": [
+    {
+      "name": "Style name",
+      "popularity": 90,
+      "examples": ["Channel1", "Channel2"],
+      "colors": ["#HEX1", "#HEX2", "#HEX3"],
+      "fonts": ["Font1", "Font2"]
+    }
+  ]
+}
+
+Generate 5 trending topics and 5 style trends specific to this niche.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 2000,
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        return res.status(500).json({ error: "No response from AI" });
+      }
+
+      const result = JSON.parse(content);
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing trends:", error);
+      res.status(500).json({ error: "Failed to analyze trends" });
+    }
+  });
+
   return httpServer;
 }
