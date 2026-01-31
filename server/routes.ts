@@ -12,8 +12,11 @@ import {
   insertCollectionSchema,
   insertCollaborationSchema,
   insertCommentSchema,
-  insertAnalyticsSchema
+  insertAnalyticsSchema,
+  brandKitsTable
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
 import OpenAI, { toFile } from "openai";
@@ -1542,6 +1545,149 @@ Generate 5 trending topics and 5 style trends specific to this niche.`;
     } catch (error) {
       console.error("Error analyzing trends:", error);
       res.status(500).json({ error: "Failed to analyze trends" });
+    }
+  });
+
+  // Viral Hook Generator API
+  app.post("/api/hooks/generate", async (req, res) => {
+    try {
+      const { topic, hookType } = req.body;
+      
+      if (!topic) {
+        return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const systemPrompt = `You are a viral content expert specializing in creating attention-grabbing hooks for YouTube videos and social media content. Your hooks should be concise, punchy, and designed to maximize engagement.`;
+
+      const hookStyles = hookType === "all" 
+        ? "curiosity gap, controversial, story hook, question hook, shocking stat, and promise hook"
+        : hookType;
+
+      const userPrompt = `Generate 6 viral hooks for the following topic: "${topic}"
+
+${hookType === "all" ? "Include a variety of hook styles:" : `Focus on ${hookStyles} style hooks:`}
+
+Return JSON:
+{
+  "hooks": [
+    {
+      "text": "The actual hook text (15-50 words)",
+      "score": 75-100 virality score,
+      "type": "curiosity" | "controversy" | "story" | "question" | "statistic" | "promise",
+      "emotion": "Main emotion triggered (curiosity, fear, excitement, urgency, hope)",
+      "reasoning": "Brief explanation of why this hook works"
+    }
+  ]
+}
+
+Make hooks specific to "${topic}" and relevant to medical/finance professionals.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 2000,
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        return res.status(500).json({ error: "No response from AI" });
+      }
+
+      const result = JSON.parse(content);
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating hooks:", error);
+      res.status(500).json({ error: "Failed to generate hooks" });
+    }
+  });
+
+  // Brand Kit Management API
+  app.get("/api/brand-kits", async (req, res) => {
+    try {
+      const kits = await db.select().from(brandKitsTable).orderBy(desc(brandKitsTable.createdAt));
+      res.json(kits);
+    } catch (error) {
+      console.error("Error fetching brand kits:", error);
+      res.status(500).json({ error: "Failed to fetch brand kits" });
+    }
+  });
+
+  app.post("/api/brand-kits", async (req, res) => {
+    try {
+      const { name, primaryColor, secondaryColor, accentColor, backgroundColor, primaryFont, secondaryFont, logoUrl } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+
+      const [newKit] = await db.insert(brandKitsTable).values({
+        userId: "default",
+        name,
+        colors: {
+          primary: primaryColor || "#0066CC",
+          secondary: secondaryColor || "#003366",
+          accent: accentColor || "#66B2FF",
+          background: backgroundColor || "#FFFFFF",
+          text: "#000000"
+        },
+        fonts: {
+          heading: primaryFont || "Inter",
+          body: secondaryFont || "Open Sans",
+          accent: primaryFont || "Inter"
+        },
+        logos: logoUrl ? [{ url: logoUrl, variant: "primary" }] : [],
+      }).returning();
+
+      res.json(newKit);
+    } catch (error) {
+      console.error("Error creating brand kit:", error);
+      res.status(500).json({ error: "Failed to create brand kit" });
+    }
+  });
+
+  app.patch("/api/brand-kits/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+
+      const [updated] = await db.update(brandKitsTable)
+        .set(updates)
+        .where(eq(brandKitsTable.id, parseInt(id)))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: "Brand kit not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating brand kit:", error);
+      res.status(500).json({ error: "Failed to update brand kit" });
+    }
+  });
+
+  app.delete("/api/brand-kits/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(brandKitsTable).where(eq(brandKitsTable.id, parseInt(id)));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting brand kit:", error);
+      res.status(500).json({ error: "Failed to delete brand kit" });
+    }
+  });
+
+  app.post("/api/brand-kits/:id/default", async (req, res) => {
+    try {
+      const { id } = req.params;
+      res.json({ success: true, id: parseInt(id) });
+    } catch (error) {
+      console.error("Error setting default brand kit:", error);
+      res.status(500).json({ error: "Failed to set default brand kit" });
     }
   });
 

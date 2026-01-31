@@ -10,6 +10,9 @@ import { CollaborationPanel } from "@/components/collaboration-panel";
 import { CollectionsPanel } from "@/components/collections-panel";
 import { VideoSeoOptimizer } from "@/components/video-seo-optimizer";
 import { TrendAnalysis } from "@/components/trend-analysis";
+import { ViralHookGenerator } from "@/components/viral-hook-generator";
+import { BrandKitManagement } from "@/components/brand-kit-management";
+import { AdvancedImageEditor } from "@/components/advanced-image-editor";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -21,7 +24,10 @@ import {
   Sparkles,
   ArrowLeft,
   Youtube,
-  TrendingUp
+  TrendingUp,
+  Zap,
+  Palette,
+  SlidersHorizontal
 } from "lucide-react";
 
 const TOOLS = [
@@ -33,6 +39,9 @@ const TOOLS = [
   { id: "collections", name: "Collections", icon: Folder, description: "Organize thumbnails" },
   { id: "youtube", name: "YouTube Upgrade", icon: Youtube, description: "Optimize & update videos" },
   { id: "trends", name: "Trends", icon: TrendingUp, description: "Trending topics & styles" },
+  { id: "hooks", name: "Viral Hooks", icon: Zap, description: "Generate attention-grabbing hooks" },
+  { id: "brand", name: "Brand Kit", icon: Palette, description: "Colors, fonts & logos" },
+  { id: "editor", name: "Image Editor", icon: SlidersHorizontal, description: "Crop, filters & overlays" },
 ];
 
 export default function ToolsPage() {
@@ -113,6 +122,18 @@ export default function ToolsPage() {
 
           <TabsContent value="trends" className="mt-0">
             <TrendAnalysis niche="Medicine & Money" />
+          </TabsContent>
+
+          <TabsContent value="hooks" className="mt-0">
+            <ViralHookGenerator />
+          </TabsContent>
+
+          <TabsContent value="brand" className="mt-0">
+            <BrandKitManagement />
+          </TabsContent>
+
+          <TabsContent value="editor" className="mt-0">
+            <AdvancedImageEditor />
           </TabsContent>
         </Tabs>
       </div>
