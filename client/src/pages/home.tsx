@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
   RotateCcw,
   Users,
   TrendingUp,
+  Wrench,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
@@ -403,6 +405,12 @@ export default function Home() {
               <Save className="h-4 w-4 mr-2" />
               {saveMutation.isPending ? "Saving..." : editingId ? "Update" : "Save"}
             </Button>
+            <Link href="/tools">
+              <Button variant="outline" data-testid="button-tools">
+                <Wrench className="h-4 w-4 mr-2" />
+                Tools
+              </Button>
+            </Link>
             <ThemeToggle />
           </div>
         </div>
