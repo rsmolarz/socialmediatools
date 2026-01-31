@@ -239,13 +239,17 @@ export function SocialMediaDashboard() {
   const updateBackgroundMutation = useMutation({
     mutationFn: async ({ postId, backgroundUrl }: { postId: number; backgroundUrl: string }) => {
       const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
-        backgroundUrl,
+        backgroundUrl: backgroundUrl || null,
       });
-      return response.json();
+      return { result: await response.json(), wasRemoved: !backgroundUrl };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
-      toast({ title: "Background Updated", description: "Background image has been set" });
+      if (data.wasRemoved) {
+        toast({ title: "Background Removed", description: "Background image has been removed" });
+      } else {
+        toast({ title: "Background Updated", description: "Background image has been set" });
+      }
     },
     onError: () => {
       toast({ title: "Update Failed", description: "Failed to update background", variant: "destructive" });
@@ -455,7 +459,7 @@ export function SocialMediaDashboard() {
                   </div>
                 )}
                 {previewPost.thumbnailUrl && (
-                  <div className="relative overflow-hidden">
+                  <div className="relative overflow-hidden bg-muted">
                     {previewPost.backgroundUrl && (
                       <img 
                         src={previewPost.backgroundUrl} 
@@ -467,7 +471,7 @@ export function SocialMediaDashboard() {
                     <img 
                       src={previewPost.thumbnailUrl} 
                       alt={previewPost.title}
-                      className="relative w-full aspect-video object-cover"
+                      className="relative w-full aspect-video object-contain"
                     />
                     {previewPost.showLogo && (
                       <div className="absolute top-3 right-3">
@@ -742,7 +746,7 @@ export function SocialMediaDashboard() {
                               data-testid={`dropzone-${post.id}`}
                             >
                               {post.thumbnailUrl ? (
-                                <div className="relative group h-20 rounded-md transition-all overflow-hidden border">
+                                <div className="relative group h-20 rounded-md transition-all overflow-hidden border bg-muted">
                                   {post.backgroundUrl && (
                                     <img 
                                       src={post.backgroundUrl} 
@@ -755,7 +759,7 @@ export function SocialMediaDashboard() {
                                   <img 
                                     src={post.thumbnailUrl} 
                                     alt={post.title}
-                                    className="relative w-full h-full object-cover"
+                                    className="relative w-full h-full object-contain"
                                     data-testid={`thumbnail-${post.id}`}
                                   />
                                   {post.showLogo && (
@@ -895,6 +899,15 @@ export function SocialMediaDashboard() {
                                   data-testid={`slider-opacity-${post.id}`}
                                 />
                                 <span className="text-xs text-muted-foreground w-8">{post.backgroundOpacity ?? 100}%</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => updateBackgroundMutation.mutate({ postId: post.id, backgroundUrl: "" })}
+                                  disabled={updateBackgroundMutation.isPending}
+                                  data-testid={`button-remove-bg-${post.id}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
                               </div>
                             )}
                             {post.status === "draft" && (
@@ -919,17 +932,17 @@ export function SocialMediaDashboard() {
                                   <X className="w-3 h-3 mr-1" />
                                   Reject
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => deleteMutation.mutate(post.id)}
-                                  disabled={deleteMutation.isPending}
-                                  data-testid={`button-delete-${post.id}`}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
                               </>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteMutation.mutate(post.id)}
+                              disabled={deleteMutation.isPending}
+                              data-testid={`button-delete-${post.id}`}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
