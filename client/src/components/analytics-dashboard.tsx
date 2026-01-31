@@ -9,19 +9,36 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  Legend
+} from "recharts";
 import { 
   BarChart3, 
   Eye, 
   MousePointerClick, 
   TrendingUp, 
-  TrendingDown,
   RefreshCw,
   Plus,
   Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
   Loader2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FlaskConical,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  Trophy
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -56,10 +73,23 @@ interface ThumbnailAnalytics {
   dailyStats: DailyStats[];
 }
 
+interface ABTest {
+  id: number;
+  name: string;
+  description: string;
+  status: string;
+  variants: any[];
+  winner: string | null;
+  createdAt: string;
+}
+
+const CHART_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+
 export function AnalyticsDashboard() {
   const { toast } = useToast();
   const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const [newData, setNewData] = useState({
     thumbnailId: "",
     impressions: "",
@@ -79,6 +109,10 @@ export function AnalyticsDashboard() {
   const { data: thumbnailAnalytics, isLoading: detailLoading } = useQuery<ThumbnailAnalytics>({
     queryKey: ["/api/analytics/thumbnail", selectedThumbnail],
     enabled: !!selectedThumbnail,
+  });
+
+  const { data: abTests } = useQuery<ABTest[]>({
+    queryKey: ["/api/ab-tests"],
   });
 
   const addAnalyticsMutation = useMutation({
@@ -142,6 +176,41 @@ export function AnalyticsDashboard() {
     if (rate >= 10) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
     if (rate >= 5) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
     return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+  };
+
+  const getLineChartData = () => {
+    if (!thumbnailAnalytics?.dailyStats) return [];
+    return thumbnailAnalytics.dailyStats
+      .slice(0, 14)
+      .reverse()
+      .map(day => ({
+        date: new Date(day.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        impressions: day.impressions,
+        clicks: day.clicks,
+      }));
+  };
+
+  const getPieChartData = () => {
+    if (!summary) return [];
+    return [
+      { name: "Impressions (No Click)", value: summary.totalImpressions - summary.totalClicks, color: "#3b82f6" },
+      { name: "Clicks", value: summary.totalClicks, color: "#10b981" },
+    ];
+  };
+
+  const getThumbnailComparisonData = () => {
+    if (!summary?.thumbnails) return [];
+    return summary.thumbnails.slice(0, 6).map((thumb, index) => ({
+      name: thumb.title.length > 15 ? thumb.title.substring(0, 15) + "..." : thumb.title,
+      impressions: thumb.impressions,
+      clicks: thumb.clicks,
+      ctr: thumb.engagementRate,
+    }));
+  };
+
+  const getABTestResults = () => {
+    if (!abTests) return [];
+    return abTests.filter(test => test.status === "completed" || test.status === "active");
   };
 
   if (summaryLoading) {
@@ -322,194 +391,509 @@ export function AnalyticsDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              Thumbnail Performance
-            </CardTitle>
-            <CardDescription>
-              Click on a thumbnail to view detailed analytics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {summary?.thumbnails && summary.thumbnails.length > 0 ? (
-              <div className="space-y-3">
-                {summary.thumbnails.map((thumb, index) => (
-                  <div
-                    key={thumb.thumbnailId}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors hover-elevate ${
-                      selectedThumbnail === thumb.thumbnailId
-                        ? "border-primary bg-primary/5"
-                        : "border-border"
-                    }`}
-                    onClick={() => setSelectedThumbnail(thumb.thumbnailId)}
-                    data-testid={`thumbnail-stat-${index}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium truncate max-w-[200px]">
-                          {thumb.title}
-                        </span>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview" data-testid="tab-overview">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="charts" data-testid="tab-charts">
+            <LineChartIcon className="w-4 h-4 mr-2" />
+            Charts
+          </TabsTrigger>
+          <TabsTrigger value="engagement" data-testid="tab-engagement">
+            <PieChartIcon className="w-4 h-4 mr-2" />
+            Engagement
+          </TabsTrigger>
+          <TabsTrigger value="abtest" data-testid="tab-abtest-compare">
+            <FlaskConical className="w-4 h-4 mr-2" />
+            A/B Results
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Thumbnail Performance
+                </CardTitle>
+                <CardDescription>
+                  Click on a thumbnail to view detailed analytics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {summary?.thumbnails && summary.thumbnails.length > 0 ? (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {summary.thumbnails.map((thumb, index) => (
+                      <div
+                        key={thumb.thumbnailId}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors hover-elevate ${
+                          selectedThumbnail === thumb.thumbnailId
+                            ? "border-primary bg-primary/5"
+                            : "border-border"
+                        }`}
+                        onClick={() => setSelectedThumbnail(thumb.thumbnailId)}
+                        data-testid={`thumbnail-stat-${index}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium truncate max-w-[200px]">
+                              {thumb.title}
+                            </span>
+                          </div>
+                          <Badge className={getEngagementBadge(thumb.engagementRate)}>
+                            {thumb.engagementRate.toFixed(2)}%
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Eye className="w-3 h-3 text-muted-foreground" />
+                            <span>{formatNumber(thumb.impressions)} impressions</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MousePointerClick className="w-3 h-3 text-muted-foreground" />
+                            <span>{formatNumber(thumb.clicks)} clicks</span>
+                          </div>
+                        </div>
+                        <Progress 
+                          value={thumb.engagementRate} 
+                          className="mt-2 h-1" 
+                        />
                       </div>
-                      <Badge className={getEngagementBadge(thumb.engagementRate)}>
-                        {thumb.engagementRate.toFixed(2)}%
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Eye className="w-3 h-3 text-muted-foreground" />
-                        <span>{formatNumber(thumb.impressions)} impressions</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MousePointerClick className="w-3 h-3 text-muted-foreground" />
-                        <span>{formatNumber(thumb.clicks)} clicks</span>
-                      </div>
-                    </div>
-                    <Progress 
-                      value={thumb.engagementRate} 
-                      className="mt-2 h-1" 
-                    />
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No analytics data yet</p>
-                <p className="text-sm mt-1">Add analytics data to see performance metrics</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No analytics data yet</p>
+                    <p className="text-sm mt-1">Add analytics data to see performance metrics</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Detailed Analytics
-            </CardTitle>
-            <CardDescription>
-              {selectedThumbnail 
-                ? "Showing stats for selected thumbnail" 
-                : "Select a thumbnail to view details"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {selectedThumbnail ? (
-              detailLoading ? (
-                <div className="flex items-center justify-center h-48">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : thumbnailAnalytics ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-3 bg-muted/50 rounded-lg">
-                      <div className="text-2xl font-bold">
-                        {formatNumber(thumbnailAnalytics.totalImpressions)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Impressions</div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Detailed Analytics
+                </CardTitle>
+                <CardDescription>
+                  {selectedThumbnail 
+                    ? "Showing stats for selected thumbnail" 
+                    : "Select a thumbnail to view details"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedThumbnail ? (
+                  detailLoading ? (
+                    <div className="flex items-center justify-center h-48">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                     </div>
-                    <div className="text-center p-3 bg-muted/50 rounded-lg">
-                      <div className="text-2xl font-bold">
-                        {formatNumber(thumbnailAnalytics.totalClicks)}
+                  ) : thumbnailAnalytics ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <div className="text-2xl font-bold">
+                            {formatNumber(thumbnailAnalytics.totalImpressions)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Impressions</div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <div className="text-2xl font-bold">
+                            {formatNumber(thumbnailAnalytics.totalClicks)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Clicks</div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <div className={`text-2xl font-bold ${getEngagementColor(thumbnailAnalytics.engagementRate)}`}>
+                            {thumbnailAnalytics.engagementRate.toFixed(2)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">CTR</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">Clicks</div>
+
+                      <Separator />
+
+                      <div>
+                        <h4 className="font-medium mb-3">Recent Daily Stats</h4>
+                        {thumbnailAnalytics.dailyStats.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {thumbnailAnalytics.dailyStats.slice(0, 7).map((day, index) => {
+                              const dayEngagement = day.impressions > 0 
+                                ? ((day.clicks / day.impressions) * 100)
+                                : 0;
+                              return (
+                                <div 
+                                  key={index} 
+                                  className="flex items-center justify-between text-sm p-2 rounded bg-muted/30"
+                                >
+                                  <span className="text-muted-foreground">
+                                    {new Date(day.date).toLocaleDateString()}
+                                  </span>
+                                  <div className="flex items-center gap-4">
+                                    <span className="flex items-center gap-1">
+                                      <Eye className="w-3 h-3" />
+                                      {day.impressions}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <MousePointerClick className="w-3 h-3" />
+                                      {day.clicks}
+                                    </span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {dayEngagement.toFixed(1)}%
+                                    </Badge>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No daily stats available
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => recordEventMutation.mutate({ 
+                            thumbnailId: selectedThumbnail, 
+                            eventType: "impression" 
+                          })}
+                          data-testid="button-record-impression"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          +1 Impression
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => recordEventMutation.mutate({ 
+                            thumbnailId: selectedThumbnail, 
+                            eventType: "click" 
+                          })}
+                          data-testid="button-record-click"
+                        >
+                          <MousePointerClick className="w-3 h-3 mr-1" />
+                          +1 Click
+                        </Button>
+                      </div>
                     </div>
-                    <div className="text-center p-3 bg-muted/50 rounded-lg">
-                      <div className={`text-2xl font-bold ${getEngagementColor(thumbnailAnalytics.engagementRate)}`}>
-                        {thumbnailAnalytics.engagementRate.toFixed(2)}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">CTR</div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No data available for this thumbnail</p>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Select a thumbnail from the list</p>
+                    <p className="text-sm mt-1">to view detailed analytics</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="charts" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LineChartIcon className="w-5 h-5" />
+                  Views Over Time
+                </CardTitle>
+                <CardDescription>
+                  {selectedThumbnail 
+                    ? "Daily impressions and clicks for selected thumbnail"
+                    : "Select a thumbnail to view trend data"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedThumbnail && thumbnailAnalytics?.dailyStats?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={getLineChartData()}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }} 
+                        className="fill-muted-foreground"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        className="fill-muted-foreground"
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "hsl(var(--card))", 
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px"
+                        }}
+                      />
+                      <Legend />
+                      <Line 
+                        type="monotone" 
+                        dataKey="impressions" 
+                        stroke="#3b82f6" 
+                        strokeWidth={2}
+                        dot={{ fill: "#3b82f6", strokeWidth: 2 }}
+                        name="Impressions"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="clicks" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        dot={{ fill: "#10b981", strokeWidth: 2 }}
+                        name="Clicks"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    <div className="text-center">
+                      <LineChartIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Select a thumbnail with data</p>
+                      <p className="text-sm mt-1">to view the trend chart</p>
                     </div>
                   </div>
+                )}
+              </CardContent>
+            </Card>
 
-                  <Separator />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Thumbnail Comparison
+                </CardTitle>
+                <CardDescription>
+                  Compare performance across thumbnails
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {summary?.thumbnails && summary.thumbnails.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getThumbnailComparisonData()} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis type="number" tick={{ fontSize: 12 }} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        tick={{ fontSize: 11 }} 
+                        width={100}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "hsl(var(--card))", 
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px"
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="impressions" fill="#3b82f6" name="Impressions" />
+                      <Bar dataKey="clicks" fill="#10b981" name="Clicks" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No thumbnail data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-                  <div>
-                    <h4 className="font-medium mb-3">Recent Daily Stats</h4>
-                    {thumbnailAnalytics.dailyStats.length > 0 ? (
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {thumbnailAnalytics.dailyStats.slice(0, 7).map((day, index) => {
-                          const dayEngagement = day.impressions > 0 
-                            ? ((day.clicks / day.impressions) * 100)
-                            : 0;
-                          return (
+        <TabsContent value="engagement" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="w-5 h-5" />
+                  Engagement Breakdown
+                </CardTitle>
+                <CardDescription>
+                  Distribution of impressions vs clicks
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {summary && (summary.totalImpressions > 0 || summary.totalClicks > 0) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={getPieChartData()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {getPieChartData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "hsl(var(--card))", 
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px"
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    <div className="text-center">
+                      <PieChartIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No engagement data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  CTR Leaderboard
+                </CardTitle>
+                <CardDescription>
+                  Top performing thumbnails by click-through rate
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {summary?.thumbnails && summary.thumbnails.length > 0 ? (
+                  <div className="space-y-3">
+                    {summary.thumbnails
+                      .sort((a, b) => b.engagementRate - a.engagementRate)
+                      .slice(0, 5)
+                      .map((thumb, index) => (
+                        <div 
+                          key={thumb.thumbnailId}
+                          className="flex items-center gap-3 p-3 rounded-lg bg-muted/30"
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            index === 0 ? "bg-yellow-500 text-yellow-900" :
+                            index === 1 ? "bg-gray-300 text-gray-700" :
+                            index === 2 ? "bg-amber-600 text-amber-100" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{thumb.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatNumber(thumb.impressions)} views • {formatNumber(thumb.clicks)} clicks
+                            </p>
+                          </div>
+                          <Badge className={getEngagementBadge(thumb.engagementRate)}>
+                            {thumb.engagementRate.toFixed(2)}%
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    <div className="text-center">
+                      <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No performance data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="abtest" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FlaskConical className="w-5 h-5" />
+                A/B Test Results
+              </CardTitle>
+              <CardDescription>
+                Compare thumbnail variant performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {getABTestResults().length > 0 ? (
+                <div className="space-y-6">
+                  {getABTestResults().map((test) => (
+                    <div key={test.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 className="font-semibold">{test.name}</h4>
+                          <p className="text-sm text-muted-foreground">{test.description}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={test.status === "completed" ? "default" : "secondary"}>
+                            {test.status}
+                          </Badge>
+                          {test.winner && (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <Trophy className="w-3 h-3 mr-1" />
+                              Winner: {test.winner}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {test.variants && test.variants.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {test.variants.map((variant: any, index: number) => (
                             <div 
-                              key={index} 
-                              className="flex items-center justify-between text-sm p-2 rounded bg-muted/30"
+                              key={index}
+                              className={`p-3 rounded-lg border ${
+                                test.winner === variant.name 
+                                  ? "border-green-500 bg-green-50 dark:bg-green-950"
+                                  : "border-border"
+                              }`}
                             >
-                              <span className="text-muted-foreground">
-                                {new Date(day.date).toLocaleDateString()}
-                              </span>
-                              <div className="flex items-center gap-4">
-                                <span className="flex items-center gap-1">
-                                  <Eye className="w-3 h-3" />
-                                  {day.impressions}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MousePointerClick className="w-3 h-3" />
-                                  {day.clicks}
-                                </span>
-                                <Badge variant="outline" className="text-xs">
-                                  {dayEngagement.toFixed(1)}%
-                                </Badge>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-medium">{variant.name || `Variant ${index + 1}`}</span>
+                                {test.winner === variant.name && (
+                                  <Trophy className="w-4 h-4 text-green-500" />
+                                )}
+                              </div>
+                              <div className="text-sm text-muted-foreground space-y-1">
+                                <p>Layout: {variant.config?.layout || "N/A"}</p>
+                                <p>Accent: {variant.config?.accentColor || "N/A"}</p>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No daily stats available
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => recordEventMutation.mutate({ 
-                        thumbnailId: selectedThumbnail, 
-                        eventType: "impression" 
-                      })}
-                      data-testid="button-record-impression"
-                    >
-                      <Eye className="w-3 h-3 mr-1" />
-                      +1 Impression
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => recordEventMutation.mutate({ 
-                        thumbnailId: selectedThumbnail, 
-                        eventType: "click" 
-                      })}
-                      data-testid="button-record-click"
-                    >
-                      <MousePointerClick className="w-3 h-3 mr-1" />
-                      +1 Click
-                    </Button>
-                  </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No variants available</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No data available for this thumbnail</p>
+                <div className="text-center py-12 text-muted-foreground">
+                  <FlaskConical className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No A/B tests completed yet</p>
+                  <p className="text-sm mt-1">Create tests in the A/B Testing tab to see results here</p>
                 </div>
-              )
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Select a thumbnail from the list</p>
-                <p className="text-sm mt-1">to view detailed analytics</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

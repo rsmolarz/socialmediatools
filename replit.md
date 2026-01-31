@@ -104,6 +104,9 @@ Key entities:
   - **Daily Statistics**: Historical data with 30-day views for trend analysis
   - **Manual Data Entry**: Add analytics data via dialog with thumbnail selector, impressions, clicks, platform, and date fields
   - **Event Recording**: API endpoints for recording individual impression/click events
+  - **Performance Charts**: Line graphs for views over time, bar charts for thumbnail comparison using recharts library
+  - **Engagement Visualization**: Pie chart showing impressions vs clicks breakdown, CTR leaderboard ranking top performers
+  - **A/B Test Results**: Compare thumbnail variants side-by-side with winner highlighting
   - Database tables: thumbnail_analytics, analytics_events
   - API endpoints: /api/analytics/summary, /api/analytics/thumbnail/:id, /api/analytics/event, /api/analytics/bulk, /api/analytics/events/:id
 
