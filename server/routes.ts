@@ -1,12 +1,26 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertThumbnailSchema, insertViralContentSchema, insertSocialPostSchema, insertViralTopicSchema } from "@shared/schema";
+import { 
+  insertThumbnailSchema, 
+  insertViralContentSchema, 
+  insertSocialPostSchema, 
+  insertViralTopicSchema,
+  insertTemplateSchema,
+  insertBrandKitSchema,
+  insertScheduledContentSchema,
+  insertCollectionSchema,
+  insertCollaborationSchema,
+  insertCommentSchema,
+  insertAnalyticsSchema
+} from "@shared/schema";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
 import OpenAI, { toFile } from "openai";
 import { Readable } from "stream";
 import { viralAnalyzer } from "./lib/viral-analyzer";
+import { randomBytes } from "crypto";
+import archiver from "archiver";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -638,6 +652,701 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     } catch (error) {
       console.error("Error analyzing content:", error);
       res.status(500).json({ success: false, error: "Failed to analyze content" });
+    }
+  });
+
+  // ============================================
+  // TEMPLATE LIBRARY ROUTES
+  // ============================================
+
+  // Get all templates (with optional category filter)
+  app.get("/api/templates", async (req, res) => {
+    try {
+      const { category, search } = req.query;
+      
+      if (search && typeof search === "string") {
+        const templates = await storage.searchTemplates(search);
+        return res.json(templates);
+      }
+      
+      const templates = await storage.getAllTemplates(
+        category ? String(category) : undefined
+      );
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ error: "Failed to fetch templates" });
+    }
+  });
+
+  // Get single template
+  app.get("/api/templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const template = await storage.getTemplate(id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching template:", error);
+      res.status(500).json({ error: "Failed to fetch template" });
+    }
+  });
+
+  // Create template
+  app.post("/api/templates", async (req, res) => {
+    try {
+      const parsed = insertTemplateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid template data", details: parsed.error });
+      }
+      const template = await storage.createTemplate(parsed.data);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating template:", error);
+      res.status(500).json({ error: "Failed to create template" });
+    }
+  });
+
+  // Update template
+  app.patch("/api/templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const parsed = insertTemplateSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid template data", details: parsed.error });
+      }
+      
+      const template = await storage.updateTemplate(id, parsed.data);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating template:", error);
+      res.status(500).json({ error: "Failed to update template" });
+    }
+  });
+
+  // Delete template
+  app.delete("/api/templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const deleted = await storage.deleteTemplate(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ error: "Failed to delete template" });
+    }
+  });
+
+  // ============================================
+  // BATCH EXPORT ROUTES
+  // ============================================
+
+  // Export single image in different formats
+  app.post("/api/export/single", async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        imageData: z.string(),
+        format: z.enum(["png", "jpg", "webp"]),
+        quality: z.number().min(1).max(100).optional().default(90),
+      });
+
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid export data", details: parsed.error });
+      }
+
+      const { imageData, format, quality } = parsed.data;
+      
+      // For now, we'll just return the image data with appropriate MIME type
+      // In production, you'd want to use Sharp or similar for format conversion
+      const mimeTypes: Record<string, string> = {
+        png: "image/png",
+        jpg: "image/jpeg",
+        webp: "image/webp",
+      };
+
+      res.json({
+        success: true,
+        format,
+        mimeType: mimeTypes[format],
+        data: imageData,
+        quality,
+      });
+    } catch (error) {
+      console.error("Error exporting image:", error);
+      res.status(500).json({ error: "Failed to export image" });
+    }
+  });
+
+  // Batch export multiple thumbnails as ZIP
+  app.post("/api/export/batch", async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        thumbnailIds: z.array(z.string()),
+        format: z.enum(["png", "jpg", "webp"]).default("png"),
+        includeConfig: z.boolean().optional().default(false),
+      });
+
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid batch export data", details: parsed.error });
+      }
+
+      const { thumbnailIds, format, includeConfig } = parsed.data;
+
+      // Fetch all thumbnails
+      const thumbnailsData = await Promise.all(
+        thumbnailIds.map(id => storage.getThumbnail(id))
+      );
+
+      const validThumbnails = thumbnailsData.filter(t => t !== undefined);
+
+      if (validThumbnails.length === 0) {
+        return res.status(404).json({ error: "No valid thumbnails found" });
+      }
+
+      // Create ZIP archive
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="thumbnails-export.zip"`);
+
+      const archive = archiver("zip", { zlib: { level: 9 } });
+      archive.pipe(res);
+
+      for (const thumb of validThumbnails) {
+        if (thumb.previewUrl) {
+          // Extract base64 data and add to archive
+          const base64Match = thumb.previewUrl.match(/^data:image\/\w+;base64,(.+)$/);
+          if (base64Match) {
+            const imageBuffer = Buffer.from(base64Match[1], "base64");
+            archive.append(imageBuffer, { name: `${thumb.title || thumb.id}.${format}` });
+          }
+        }
+
+        if (includeConfig) {
+          archive.append(JSON.stringify(thumb.config, null, 2), { 
+            name: `${thumb.title || thumb.id}-config.json` 
+          });
+        }
+      }
+
+      await archive.finalize();
+    } catch (error) {
+      console.error("Error batch exporting:", error);
+      res.status(500).json({ error: "Failed to batch export" });
+    }
+  });
+
+  // ============================================
+  // SCHEDULED CONTENT ROUTES
+  // ============================================
+
+  // Get all scheduled content
+  app.get("/api/schedule", async (_req, res) => {
+    try {
+      const scheduled = await storage.getAllScheduledContent();
+      res.json(scheduled);
+    } catch (error) {
+      console.error("Error fetching scheduled content:", error);
+      res.status(500).json({ error: "Failed to fetch scheduled content" });
+    }
+  });
+
+  // Get scheduled content by date range
+  app.get("/api/schedule/range", async (req, res) => {
+    try {
+      const { start, end } = req.query;
+      
+      if (!start || !end) {
+        return res.status(400).json({ error: "Start and end dates are required" });
+      }
+
+      const startDate = new Date(String(start));
+      const endDate = new Date(String(end));
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+
+      const scheduled = await storage.getScheduledContentByDateRange(startDate, endDate);
+      res.json(scheduled);
+    } catch (error) {
+      console.error("Error fetching scheduled content by range:", error);
+      res.status(500).json({ error: "Failed to fetch scheduled content" });
+    }
+  });
+
+  // Create scheduled content
+  app.post("/api/schedule", async (req, res) => {
+    try {
+      const parsed = insertScheduledContentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid schedule data", details: parsed.error });
+      }
+      const scheduled = await storage.createScheduledContent(parsed.data);
+      res.status(201).json(scheduled);
+    } catch (error) {
+      console.error("Error creating scheduled content:", error);
+      res.status(500).json({ error: "Failed to create scheduled content" });
+    }
+  });
+
+  // Update scheduled content
+  app.patch("/api/schedule/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid schedule ID" });
+      }
+      
+      const parsed = insertScheduledContentSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid schedule data", details: parsed.error });
+      }
+      
+      const scheduled = await storage.updateScheduledContent(id, parsed.data);
+      if (!scheduled) {
+        return res.status(404).json({ error: "Scheduled content not found" });
+      }
+      res.json(scheduled);
+    } catch (error) {
+      console.error("Error updating scheduled content:", error);
+      res.status(500).json({ error: "Failed to update scheduled content" });
+    }
+  });
+
+  // Delete scheduled content
+  app.delete("/api/schedule/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid schedule ID" });
+      }
+      
+      const deleted = await storage.deleteScheduledContent(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Scheduled content not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting scheduled content:", error);
+      res.status(500).json({ error: "Failed to delete scheduled content" });
+    }
+  });
+
+  // ============================================
+  // COLLECTION ROUTES
+  // ============================================
+
+  // Get all collections for a user
+  app.get("/api/collections", async (req, res) => {
+    try {
+      const userId = String(req.query.userId || "default");
+      const collections = await storage.getAllCollections(userId);
+      res.json(collections);
+    } catch (error) {
+      console.error("Error fetching collections:", error);
+      res.status(500).json({ error: "Failed to fetch collections" });
+    }
+  });
+
+  // Get single collection
+  app.get("/api/collections/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid collection ID" });
+      }
+      
+      const collection = await storage.getCollection(id);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      console.error("Error fetching collection:", error);
+      res.status(500).json({ error: "Failed to fetch collection" });
+    }
+  });
+
+  // Create collection
+  app.post("/api/collections", async (req, res) => {
+    try {
+      const parsed = insertCollectionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid collection data", details: parsed.error });
+      }
+      const collection = await storage.createCollection(parsed.data);
+      res.status(201).json(collection);
+    } catch (error) {
+      console.error("Error creating collection:", error);
+      res.status(500).json({ error: "Failed to create collection" });
+    }
+  });
+
+  // Update collection
+  app.patch("/api/collections/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid collection ID" });
+      }
+      
+      const parsed = insertCollectionSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid collection data", details: parsed.error });
+      }
+      
+      const collection = await storage.updateCollection(id, parsed.data);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      console.error("Error updating collection:", error);
+      res.status(500).json({ error: "Failed to update collection" });
+    }
+  });
+
+  // Delete collection
+  app.delete("/api/collections/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid collection ID" });
+      }
+      
+      const deleted = await storage.deleteCollection(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting collection:", error);
+      res.status(500).json({ error: "Failed to delete collection" });
+    }
+  });
+
+  // ============================================
+  // COLLABORATION ROUTES
+  // ============================================
+
+  // Get collaborations for a thumbnail
+  app.get("/api/collaborations/thumbnail/:thumbnailId", async (req, res) => {
+    try {
+      const thumbnailId = parseInt(req.params.thumbnailId);
+      if (isNaN(thumbnailId)) {
+        return res.status(400).json({ error: "Invalid thumbnail ID" });
+      }
+      
+      const collaborations = await storage.getCollaborationsByThumbnail(thumbnailId);
+      res.json(collaborations);
+    } catch (error) {
+      console.error("Error fetching collaborations:", error);
+      res.status(500).json({ error: "Failed to fetch collaborations" });
+    }
+  });
+
+  // Get collaborations shared with a user
+  app.get("/api/collaborations/user/:userId", async (req, res) => {
+    try {
+      const collaborations = await storage.getCollaborationsByUser(req.params.userId);
+      res.json(collaborations);
+    } catch (error) {
+      console.error("Error fetching user collaborations:", error);
+      res.status(500).json({ error: "Failed to fetch collaborations" });
+    }
+  });
+
+  // Get collaboration by share token
+  app.get("/api/collaborations/token/:token", async (req, res) => {
+    try {
+      const collaboration = await storage.getCollaborationByToken(req.params.token);
+      if (!collaboration) {
+        return res.status(404).json({ error: "Invalid or expired share link" });
+      }
+      
+      // Check if expired
+      if (collaboration.expiresAt && new Date(collaboration.expiresAt) < new Date()) {
+        return res.status(410).json({ error: "Share link has expired" });
+      }
+      
+      res.json(collaboration);
+    } catch (error) {
+      console.error("Error fetching collaboration by token:", error);
+      res.status(500).json({ error: "Failed to fetch collaboration" });
+    }
+  });
+
+  // Create collaboration (share a thumbnail)
+  app.post("/api/collaborations", async (req, res) => {
+    try {
+      const bodyData = {
+        ...req.body,
+        shareToken: randomBytes(16).toString("hex"),
+      };
+      
+      const parsed = insertCollaborationSchema.safeParse(bodyData);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid collaboration data", details: parsed.error });
+      }
+      
+      const collaboration = await storage.createCollaboration(parsed.data);
+      res.status(201).json(collaboration);
+    } catch (error) {
+      console.error("Error creating collaboration:", error);
+      res.status(500).json({ error: "Failed to create collaboration" });
+    }
+  });
+
+  // Delete collaboration (revoke sharing)
+  app.delete("/api/collaborations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid collaboration ID" });
+      }
+      
+      const deleted = await storage.deleteCollaboration(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Collaboration not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting collaboration:", error);
+      res.status(500).json({ error: "Failed to delete collaboration" });
+    }
+  });
+
+  // ============================================
+  // COMMENT ROUTES
+  // ============================================
+
+  // Get comments for a thumbnail
+  app.get("/api/comments/thumbnail/:thumbnailId", async (req, res) => {
+    try {
+      const thumbnailId = parseInt(req.params.thumbnailId);
+      if (isNaN(thumbnailId)) {
+        return res.status(400).json({ error: "Invalid thumbnail ID" });
+      }
+      
+      const comments = await storage.getCommentsByThumbnail(thumbnailId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ error: "Failed to fetch comments" });
+    }
+  });
+
+  // Create comment
+  app.post("/api/comments", async (req, res) => {
+    try {
+      const parsed = insertCommentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid comment data", details: parsed.error });
+      }
+      const comment = await storage.createComment(parsed.data);
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      res.status(500).json({ error: "Failed to create comment" });
+    }
+  });
+
+  // Update comment (e.g., mark as resolved)
+  app.patch("/api/comments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid comment ID" });
+      }
+      
+      const parsed = insertCommentSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid comment data", details: parsed.error });
+      }
+      
+      const comment = await storage.updateComment(id, parsed.data);
+      if (!comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      res.json(comment);
+    } catch (error) {
+      console.error("Error updating comment:", error);
+      res.status(500).json({ error: "Failed to update comment" });
+    }
+  });
+
+  // Delete comment
+  app.delete("/api/comments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid comment ID" });
+      }
+      
+      const deleted = await storage.deleteComment(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  // ============================================
+  // ANALYTICS ROUTES
+  // ============================================
+
+  // Track an analytics event
+  app.post("/api/analytics", async (req, res) => {
+    try {
+      const parsed = insertAnalyticsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid analytics data", details: parsed.error });
+      }
+      const event = await storage.createAnalyticsEvent(parsed.data);
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("Error tracking analytics:", error);
+      res.status(500).json({ error: "Failed to track analytics" });
+    }
+  });
+
+  // Get analytics by user
+  app.get("/api/analytics/user/:userId", async (req, res) => {
+    try {
+      const limit = parseInt(String(req.query.limit || "100"));
+      const analytics = await storage.getAnalyticsByUser(req.params.userId, limit);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching user analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get analytics by action
+  app.get("/api/analytics/action/:action", async (req, res) => {
+    try {
+      const limit = parseInt(String(req.query.limit || "100"));
+      const analytics = await storage.getAnalyticsByAction(req.params.action, limit);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching action analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // ============================================
+  // BRAND KIT ROUTES
+  // ============================================
+
+  // Get all brand kits for a user
+  app.get("/api/brand-kits", async (req, res) => {
+    try {
+      const userId = String(req.query.userId || "default");
+      const brandKits = await storage.getAllBrandKits(userId);
+      res.json(brandKits);
+    } catch (error) {
+      console.error("Error fetching brand kits:", error);
+      res.status(500).json({ error: "Failed to fetch brand kits" });
+    }
+  });
+
+  // Get single brand kit
+  app.get("/api/brand-kits/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid brand kit ID" });
+      }
+      
+      const brandKit = await storage.getBrandKit(id);
+      if (!brandKit) {
+        return res.status(404).json({ error: "Brand kit not found" });
+      }
+      res.json(brandKit);
+    } catch (error) {
+      console.error("Error fetching brand kit:", error);
+      res.status(500).json({ error: "Failed to fetch brand kit" });
+    }
+  });
+
+  // Create brand kit
+  app.post("/api/brand-kits", async (req, res) => {
+    try {
+      const parsed = insertBrandKitSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid brand kit data", details: parsed.error });
+      }
+      const brandKit = await storage.createBrandKit(parsed.data);
+      res.status(201).json(brandKit);
+    } catch (error) {
+      console.error("Error creating brand kit:", error);
+      res.status(500).json({ error: "Failed to create brand kit" });
+    }
+  });
+
+  // Update brand kit
+  app.patch("/api/brand-kits/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid brand kit ID" });
+      }
+      
+      const parsed = insertBrandKitSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid brand kit data", details: parsed.error });
+      }
+      
+      const brandKit = await storage.updateBrandKit(id, parsed.data);
+      if (!brandKit) {
+        return res.status(404).json({ error: "Brand kit not found" });
+      }
+      res.json(brandKit);
+    } catch (error) {
+      console.error("Error updating brand kit:", error);
+      res.status(500).json({ error: "Failed to update brand kit" });
+    }
+  });
+
+  // Delete brand kit
+  app.delete("/api/brand-kits/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid brand kit ID" });
+      }
+      
+      const deleted = await storage.deleteBrandKit(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Brand kit not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting brand kit:", error);
+      res.status(500).json({ error: "Failed to delete brand kit" });
     }
   });
 

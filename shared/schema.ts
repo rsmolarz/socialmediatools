@@ -240,3 +240,159 @@ export const insertViralTopicSchema = createInsertSchema(viralTopics).omit({
 
 export type ViralTopic = typeof viralTopics.$inferSelect;
 export type InsertViralTopic = z.infer<typeof insertViralTopicSchema>;
+
+// ============================================
+// NEW FEATURE SCHEMAS
+// ============================================
+
+// Template Library - Pre-designed thumbnail templates
+export const templatesTable = pgTable("templates", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    category: text("category").notNull(), // tech, finance, health, gaming, lifestyle
+    thumbnail: text("thumbnail_url"), // Preview image
+    config: jsonb("config").notNull(), // Stores default TextLine, Background, etc
+    tags: text("tags").array(), // For searching
+    isPublic: boolean("is_public").default(true),
+    creator: text("creator_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type Template = typeof templatesTable.$inferSelect;
+export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export const insertTemplateSchema = createInsertSchema(templatesTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Brand Kit - Store brand colors, fonts, logos
+export const brandKitsTable = pgTable("brand_kits", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    colors: jsonb("colors").notNull(), // { primary, secondary, accent, text, background }
+    fonts: jsonb("fonts").notNull(), // { heading, body, accent }
+    logos: jsonb("logos").notNull(), // Array of logo objects with variants
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type BrandKit = typeof brandKitsTable.$inferSelect;
+export type InsertBrandKit = z.infer<typeof insertBrandKitSchema>;
+export const insertBrandKitSchema = createInsertSchema(brandKitsTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Scheduled Content - For scheduling posts
+export const scheduledContentTable = pgTable("scheduled_content", {
+    id: serial("id").primaryKey(),
+    thumbnailId: integer("thumbnail_id"),
+    platforms: text("platforms").array(), // youtube, tiktok, instagram
+    scheduledTime: timestamp("scheduled_time").notNull(),
+    status: text("status").default("pending"), // pending, scheduled, published, failed
+    timezone: text("timezone").default("UTC"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ScheduledContent = typeof scheduledContentTable.$inferSelect;
+export type InsertScheduledContent = z.infer<typeof insertScheduledContentSchema>;
+export const insertScheduledContentSchema = createInsertSchema(scheduledContentTable).omit({
+    id: true,
+    createdAt: true,
+});
+
+// Collections/Folders - Organize thumbnails
+export const collectionsTable = pgTable("collections", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    color: text("color"),
+    icon: text("icon"),
+    isPrivate: boolean("is_private").default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type Collection = typeof collectionsTable.$inferSelect;
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export const insertCollectionSchema = createInsertSchema(collectionsTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Collaboration - Share and comment on thumbnails
+export const collaborationTable = pgTable("collaborations", {
+    id: serial("id").primaryKey(),
+    thumbnailId: integer("thumbnail_id"),
+    sharedWith: text("shared_with_user_id").notNull(),
+    permission: text("permission").default("view"), // view, edit, comment
+    shareToken: text("share_token").unique(),
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Collaboration = typeof collaborationTable.$inferSelect;
+export type InsertCollaboration = z.infer<typeof insertCollaborationSchema>;
+export const insertCollaborationSchema = createInsertSchema(collaborationTable).omit({
+    id: true,
+    createdAt: true,
+});
+
+// Comments - Comments on thumbnails
+export const commentsTable = pgTable("comments", {
+    id: serial("id").primaryKey(),
+    thumbnailId: integer("thumbnail_id"),
+    userId: text("user_id").notNull(),
+    content: text("content").notNull(),
+    resolved: boolean("resolved").default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type Comment = typeof commentsTable.$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export const insertCommentSchema = createInsertSchema(commentsTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Keyboard Shortcuts - User-defined shortcuts
+export const keyboardShortcutsTable = pgTable("keyboard_shortcuts", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    action: text("action").notNull(), // export, undo, save, etc
+    keys: text("keys").notNull(), // e.g., "ctrl+e"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type KeyboardShortcut = typeof keyboardShortcutsTable.$inferSelect;
+export type InsertKeyboardShortcut = z.infer<typeof insertKeyboardShortcutSchema>;
+export const insertKeyboardShortcutSchema = createInsertSchema(keyboardShortcutsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
+// Analytics - Track user actions and feature usage
+export const analyticsTable = pgTable("analytics", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    action: text("action").notNull(), // thumbnail_created, export_click, etc
+    metadata: jsonb("metadata"), // Additional data
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Analytics = typeof analyticsTable.$inferSelect;
+export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
+export const insertAnalyticsSchema = createInsertSchema(analyticsTable).omit({
+    id: true,
+    createdAt: true,
+});
