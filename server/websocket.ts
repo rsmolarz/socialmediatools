@@ -12,13 +12,22 @@ interface CollaborationClient {
 }
 
 interface CollaborationMessage {
-  type: "join" | "leave" | "cursor" | "edit" | "presence" | "chat" | "sync";
+  type: "join" | "leave" | "cursor" | "edit" | "presence" | "chat" | "sync" | "selection";
   thumbnailId?: string;
   userId?: string;
   username?: string;
   data?: any;
   timestamp?: number;
 }
+
+interface SelectionState {
+  layerId: string | null;
+  userId: string;
+  username: string;
+  color: string;
+}
+
+const thumbnailSelections = new Map<string, Map<string, SelectionState>>();
 
 interface EditState {
   data: any;
@@ -206,6 +215,34 @@ export function setupWebSocket(server: Server) {
               broadcast(client.thumbnailId, {
                 type: "sync",
                 userId: client.odisId,
+                data: message.data
+              }, ws);
+            }
+            break;
+
+          case "selection":
+            if (client.thumbnailId) {
+              if (!thumbnailSelections.has(client.thumbnailId)) {
+                thumbnailSelections.set(client.thumbnailId, new Map());
+              }
+              const selections = thumbnailSelections.get(client.thumbnailId)!;
+              
+              if (message.data?.layerId) {
+                selections.set(client.odisId, {
+                  layerId: message.data.layerId,
+                  userId: client.odisId,
+                  username: client.username || "Anonymous",
+                  color: client.color
+                });
+              } else {
+                selections.delete(client.odisId);
+              }
+
+              broadcast(client.thumbnailId, {
+                type: "selection",
+                userId: client.odisId,
+                username: client.username,
+                color: client.color,
                 data: message.data
               }, ws);
             }

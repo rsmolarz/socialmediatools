@@ -38,6 +38,7 @@ export function useCollaboration(options: UseCollaborationOptions) {
   const [userColor, setUserColor] = useState<string>("#4ECDC4");
   const [collaborators, setCollaborators] = useState<CollaboratorPresence[]>([]);
   const [cursors, setCursors] = useState<Map<string, CursorPosition>>(new Map());
+  const [selections, setSelections] = useState<Map<string, {layerId: string; userId: string; username: string; color: string}>>(new Map());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const connect = useCallback(() => {
@@ -121,6 +122,23 @@ export function useCollaboration(options: UseCollaborationOptions) {
               timestamp: message.timestamp
             }]);
             break;
+
+          case "selection":
+            setSelections(prev => {
+              const next = new Map(prev);
+              if (message.data?.layerId) {
+                next.set(message.userId, {
+                  layerId: message.data.layerId,
+                  userId: message.userId,
+                  username: message.username,
+                  color: message.color
+                });
+              } else {
+                next.delete(message.userId);
+              }
+              return next;
+            });
+            break;
             
           case "edit_rejected":
             onConflict?.(message.currentData, message.timestamp);
@@ -197,6 +215,15 @@ export function useCollaboration(options: UseCollaborationOptions) {
     sendCursor,
     sendEdit,
     sendSync,
-    sendChat
+    sendChat,
+    selections: Array.from(selections.values()),
+    sendSelection: useCallback((layerId: string | null) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "selection",
+          data: { layerId }
+        }));
+      }
+    }, [])
   };
 }
