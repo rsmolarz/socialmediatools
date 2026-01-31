@@ -134,7 +134,8 @@ curl -X POST "https://your-app.replit.app/api/analytics/bulk" \\
       { name: "YouTube", description: "YouTube channel integration" },
       { name: "Templates", description: "Thumbnail template library" },
       { name: "Collections", description: "Thumbnail organization" },
-      { name: "Authentication", description: "User authentication" }
+      { name: "Authentication", description: "User authentication" },
+      { name: "System", description: "API status and health checks" }
     ],
     components: {
       securitySchemes: {

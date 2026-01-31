@@ -2139,20 +2139,150 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     }
   });
   
-  // Get recent events for a thumbnail
+  /**
+   * @swagger
+   * /analytics/events/{thumbnailId}:
+   *   get:
+   *     summary: Get paginated events for a thumbnail
+   *     tags: [Analytics]
+   *     parameters:
+   *       - in: path
+   *         name: thumbnailId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: Page number (1-indexed)
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 50
+   *           maximum: 100
+   *         description: Items per page (max 100)
+   *     responses:
+   *       200:
+   *         description: Paginated list of events
+   */
   app.get("/api/analytics/events/:thumbnailId", async (req, res) => {
     try {
       const { thumbnailId } = req.params;
-      const events = await db.select()
-        .from(analyticsEventsTable)
-        .where(eq(analyticsEventsTable.thumbnailId, thumbnailId))
-        .orderBy(desc(analyticsEventsTable.createdAt))
-        .limit(100);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+      const offset = (page - 1) * limit;
       
-      res.json(events);
+      const [events, totalResult] = await Promise.all([
+        db.select()
+          .from(analyticsEventsTable)
+          .where(eq(analyticsEventsTable.thumbnailId, thumbnailId))
+          .orderBy(desc(analyticsEventsTable.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db.select({ count: count() })
+          .from(analyticsEventsTable)
+          .where(eq(analyticsEventsTable.thumbnailId, thumbnailId))
+      ]);
+      
+      const total = totalResult[0]?.count || 0;
+      const totalPages = Math.ceil(total / limit);
+      
+      res.json({
+        data: events,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching analytics events:", error);
       res.status(500).json({ error: "Failed to fetch analytics events" });
+    }
+  });
+
+  /**
+   * @swagger
+   * /status:
+   *   get:
+   *     summary: Get API status and health check
+   *     tags: [System]
+   *     responses:
+   *       200:
+   *         description: API is healthy
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                   enum: [healthy, degraded, down]
+   *                 version:
+   *                   type: string
+   *                 uptime:
+   *                   type: number
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *                 services:
+   *                   type: object
+   */
+  const startTime = Date.now();
+  
+  app.get("/api/status", async (_req, res) => {
+    try {
+      const services: Record<string, { status: string; latency?: number }> = {};
+      
+      // Check database
+      const dbStart = Date.now();
+      try {
+        await db.select({ count: sql<number>`1` }).from(thumbnails).limit(1);
+        services.database = { status: "healthy", latency: Date.now() - dbStart };
+      } catch {
+        services.database = { status: "down" };
+      }
+      
+      // Check OpenAI API
+      services.openai = { 
+        status: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? "configured" : "not_configured" 
+      };
+      
+      // Check YouTube integration
+      services.youtube = { 
+        status: process.env.YOUTUBE_REFRESH_TOKEN ? "configured" : "not_configured" 
+      };
+      
+      const allHealthy = Object.values(services).every(s => 
+        s.status === "healthy" || s.status === "configured"
+      );
+      
+      res.json({
+        status: allHealthy ? "healthy" : "degraded",
+        version: "1.0.0",
+        uptime: Math.floor((Date.now() - startTime) / 1000),
+        timestamp: new Date().toISOString(),
+        services,
+        rateLimit: {
+          analytics: { read: "100/min", write: "30/min" },
+          images: "10/min",
+          youtube: "50/min",
+          general: "200/min"
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "down", 
+        error: "Health check failed",
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
