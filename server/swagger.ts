@@ -31,7 +31,35 @@ const options: swaggerJsdoc.Options = {
       { name: "Authentication", description: "User authentication" }
     ],
     components: {
+      securitySchemes: {
+        sessionAuth: {
+          type: "apiKey",
+          in: "cookie",
+          name: "connect.sid",
+          description: "Session-based authentication using Replit Auth (OIDC)"
+        }
+      },
       schemas: {
+        User: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "Unique user identifier (sub claim from OIDC)" },
+            email: { type: "string", format: "email" },
+            firstName: { type: "string" },
+            lastName: { type: "string" },
+            profileImageUrl: { type: "string", format: "uri" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" }
+          }
+        },
+        AuthSession: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            userId: { type: "string" },
+            expiresAt: { type: "string", format: "date-time" }
+          }
+        },
         AnalyticsSummary: {
           type: "object",
           properties: {
@@ -157,6 +185,57 @@ const options: swaggerJsdoc.Options = {
           properties: {
             error: { type: "string" },
             message: { type: "string" }
+          }
+        }
+      }
+    },
+    paths: {
+      "/login": {
+        get: {
+          summary: "Initiate login with Replit Auth",
+          description: "Redirects to Replit's OIDC authentication page. After successful authentication, user is redirected back with a session cookie.",
+          tags: ["Authentication"],
+          responses: {
+            302: {
+              description: "Redirect to Replit Auth login page"
+            }
+          }
+        }
+      },
+      "/logout": {
+        get: {
+          summary: "Logout current user",
+          description: "Destroys the current session and logs out the user.",
+          tags: ["Authentication"],
+          security: [{ sessionAuth: [] }],
+          responses: {
+            302: {
+              description: "Redirect to home page after logout"
+            }
+          }
+        }
+      },
+      "/auth/user": {
+        get: {
+          summary: "Get current authenticated user",
+          description: "Returns the currently authenticated user's profile information. Requires valid session.",
+          tags: ["Authentication"],
+          security: [{ sessionAuth: [] }],
+          responses: {
+            200: {
+              description: "Current user profile",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/User" }
+                }
+              }
+            },
+            401: {
+              description: "Not authenticated"
+            },
+            500: {
+              description: "Server error"
+            }
           }
         }
       }
