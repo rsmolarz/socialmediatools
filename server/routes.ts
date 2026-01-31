@@ -1868,7 +1868,7 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
       .groupBy(thumbnailAnalyticsTable.thumbnailId);
       
       // Get thumbnails for title lookup
-      const allThumbnails = await storage.getThumbnails();
+      const allThumbnails = await storage.getAllThumbnails();
       
       // Combine data with engagement rates
       const thumbnailsWithStats = thumbnailStats.map(stat => {
