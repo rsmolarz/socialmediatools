@@ -52,7 +52,14 @@ Key entities:
 
 ## Recent Changes
 
-### Latest Updates (January 30, 2026)
+### Latest Updates (January 31, 2026)
+- **Viral Title Helper**: New AI-powered feature in Text tab to create short, punchy viral titles:
+  - AI generates 6 viral title options (3-5 words max, all caps)
+  - Quick templates organized by hook type (Money, Medical, Urgency, Curiosity)
+  - Viral title tips and best practices
+- **Background Opacity Control**: Slider to adjust background image transparency (10-100%)
+
+### Previous Updates (January 30, 2026)
 - **Transcript Analyzer**: New AI-powered feature to analyze podcast transcripts and generate:
   - Key themes detection (3-5 topics extracted from content)
   - Auto-generated headlines for thumbnail text lines

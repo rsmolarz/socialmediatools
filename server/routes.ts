@@ -228,5 +228,61 @@ Return ONLY valid JSON, no markdown or explanation.`;
     }
   });
 
+  // Generate viral titles
+  app.post("/api/generate-viral-titles", async (req, res) => {
+    try {
+      const { topic } = req.body;
+
+      if (!topic) {
+        return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const systemPrompt = `You are a YouTube thumbnail title expert. Your job is to create SHORT, punchy, viral-worthy titles for YouTube thumbnails.
+
+CRITICAL RULES:
+1. Maximum 3-5 words per title
+2. Use ALL CAPS for maximum impact
+3. Create curiosity, urgency, or shock value
+4. Use power words: FREE, SECRET, NOW, STOP, TRUTH, NEVER, ALWAYS, MISTAKE
+5. Numbers are powerful when relevant
+6. Make viewers NEED to click
+
+Generate exactly 6 viral title options. Return ONLY a JSON object with this format:
+{
+  "titles": ["TITLE 1", "TITLE 2", "TITLE 3", "TITLE 4", "TITLE 5", "TITLE 6"]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Create 6 viral YouTube thumbnail titles for this topic: ${topic}` }
+        ],
+        max_tokens: 300,
+        temperature: 0.9,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      
+      let result;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("No JSON found in response");
+        }
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", content);
+        return res.status(500).json({ error: "Failed to parse titles" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating viral titles:", error);
+      res.status(500).json({ error: "Failed to generate viral titles" });
+    }
+  });
+
   return httpServer;
 }
