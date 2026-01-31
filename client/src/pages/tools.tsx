@@ -16,6 +16,9 @@ import { AdvancedImageEditor } from "@/components/advanced-image-editor";
 import { BackgroundRemover } from "@/components/background-remover";
 import { StockImageBrowser } from "@/components/stock-image-browser";
 import { ExportOptimizer } from "@/components/export-optimizer";
+import { ABTestingPanel } from "@/components/ab-testing-panel";
+import { ImageFiltersPanel } from "@/components/image-filters-panel";
+import { SearchOrganization } from "@/components/search-organization";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -33,7 +36,9 @@ import {
   SlidersHorizontal,
   Eraser,
   ImagePlus,
-  Settings2
+  Settings2,
+  FlaskConical,
+  Search
 } from "lucide-react";
 
 const TOOLS = [
@@ -51,6 +56,9 @@ const TOOLS = [
   { id: "bgremove", name: "BG Remover", icon: Eraser, description: "Remove or blur backgrounds" },
   { id: "stock", name: "Stock Images", icon: ImagePlus, description: "Browse stock photo library" },
   { id: "optimize", name: "Export Options", icon: Settings2, description: "WebP, AVIF & optimization" },
+  { id: "abtest", name: "A/B Testing", icon: FlaskConical, description: "Test thumbnail variants" },
+  { id: "filters", name: "Filters", icon: Sparkles, description: "Instagram-style image filters" },
+  { id: "search", name: "Search & Organize", icon: Search, description: "Full-text search, tags & folders" },
 ];
 
 export default function ToolsPage() {
@@ -165,6 +173,18 @@ export default function ToolsPage() {
 
           <TabsContent value="optimize" className="mt-0">
             <ExportOptimizer onExport={handleExportOptimized} thumbnailDataUrl={selectedStockImage} />
+          </TabsContent>
+
+          <TabsContent value="abtest" className="mt-0">
+            <ABTestingPanel />
+          </TabsContent>
+
+          <TabsContent value="filters" className="mt-0">
+            <ImageFiltersPanel />
+          </TabsContent>
+
+          <TabsContent value="search" className="mt-0">
+            <SearchOrganization />
           </TabsContent>
         </Tabs>
       </div>

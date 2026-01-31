@@ -13,7 +13,13 @@ import {
   insertCollaborationSchema,
   insertCommentSchema,
   insertAnalyticsSchema,
-  brandKitsTable
+  insertABTestSchema,
+  insertThumbnailTagSchema,
+  insertThumbnailFolderSchema,
+  brandKitsTable,
+  abTestsTable,
+  thumbnailTagsTable,
+  thumbnailFoldersTable
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -1693,6 +1699,146 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     } catch (error) {
       console.error("Error setting default brand kit:", error);
       res.status(500).json({ error: "Failed to set default brand kit" });
+    }
+  });
+
+  // A/B Testing Routes
+  app.get("/api/ab-tests", async (_req, res) => {
+    try {
+      const tests = await db.select().from(abTestsTable).orderBy(desc(abTestsTable.createdAt));
+      res.json(tests);
+    } catch (error) {
+      console.error("Error fetching A/B tests:", error);
+      res.status(500).json({ error: "Failed to fetch A/B tests" });
+    }
+  });
+
+  app.post("/api/ab-tests", async (req, res) => {
+    try {
+      const parsed = insertABTestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid A/B test data", details: parsed.error });
+      }
+      const [newTest] = await db.insert(abTestsTable).values(parsed.data).returning();
+      res.status(201).json(newTest);
+    } catch (error) {
+      console.error("Error creating A/B test:", error);
+      res.status(500).json({ error: "Failed to create A/B test" });
+    }
+  });
+
+  app.patch("/api/ab-tests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, winner, name, description, variants } = req.body;
+      const validStatuses = ["draft", "active", "completed"];
+      
+      const updateData: Record<string, any> = {};
+      if (status !== undefined) {
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({ error: "Invalid status. Must be: draft, active, or completed" });
+        }
+        updateData.status = status;
+      }
+      if (winner !== undefined) updateData.winner = winner;
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (variants !== undefined) updateData.variants = variants;
+      
+      const [updated] = await db.update(abTestsTable)
+        .set(updateData)
+        .where(eq(abTestsTable.id, parseInt(id)))
+        .returning();
+      if (!updated) {
+        return res.status(404).json({ error: "A/B test not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating A/B test:", error);
+      res.status(500).json({ error: "Failed to update A/B test" });
+    }
+  });
+
+  app.delete("/api/ab-tests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(abTestsTable).where(eq(abTestsTable.id, parseInt(id)));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting A/B test:", error);
+      res.status(500).json({ error: "Failed to delete A/B test" });
+    }
+  });
+
+  // Thumbnail Tags Routes
+  app.get("/api/thumbnail-tags", async (_req, res) => {
+    try {
+      const tags = await db.select().from(thumbnailTagsTable);
+      res.json(tags);
+    } catch (error) {
+      console.error("Error fetching thumbnail tags:", error);
+      res.status(500).json({ error: "Failed to fetch thumbnail tags" });
+    }
+  });
+
+  app.post("/api/thumbnail-tags", async (req, res) => {
+    try {
+      const parsed = insertThumbnailTagSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid tag data", details: parsed.error });
+      }
+      const [newTag] = await db.insert(thumbnailTagsTable).values(parsed.data).returning();
+      res.status(201).json(newTag);
+    } catch (error) {
+      console.error("Error creating thumbnail tag:", error);
+      res.status(500).json({ error: "Failed to create thumbnail tag" });
+    }
+  });
+
+  app.delete("/api/thumbnail-tags/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(thumbnailTagsTable).where(eq(thumbnailTagsTable.id, parseInt(id)));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting thumbnail tag:", error);
+      res.status(500).json({ error: "Failed to delete thumbnail tag" });
+    }
+  });
+
+  // Thumbnail Folders Routes
+  app.get("/api/thumbnail-folders", async (_req, res) => {
+    try {
+      const folders = await db.select().from(thumbnailFoldersTable).orderBy(thumbnailFoldersTable.name);
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching thumbnail folders:", error);
+      res.status(500).json({ error: "Failed to fetch thumbnail folders" });
+    }
+  });
+
+  app.post("/api/thumbnail-folders", async (req, res) => {
+    try {
+      const parsed = insertThumbnailFolderSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid folder data", details: parsed.error });
+      }
+      const [newFolder] = await db.insert(thumbnailFoldersTable).values(parsed.data).returning();
+      res.status(201).json(newFolder);
+    } catch (error) {
+      console.error("Error creating thumbnail folder:", error);
+      res.status(500).json({ error: "Failed to create thumbnail folder" });
+    }
+  });
+
+  app.delete("/api/thumbnail-folders/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(thumbnailFoldersTable).where(eq(thumbnailFoldersTable.id, parseInt(id)));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting thumbnail folder:", error);
+      res.status(500).json({ error: "Failed to delete thumbnail folder" });
     }
   });
 

@@ -384,5 +384,77 @@ export const insertAnalyticsSchema = createInsertSchema(analyticsTable).omit({
     createdAt: true,
 });
 
+// A/B Testing - Create and track thumbnail variants
+export const abTestsTable = pgTable("ab_tests", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    originalThumbnailId: text("original_thumbnail_id").notNull(),
+    variants: jsonb("variants").$type<{id: string; name: string; config: ThumbnailConfig}[]>().notNull(),
+    status: text("status").default("draft"), // draft, active, completed
+    winner: text("winner"), // variant id that won
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ABTest = typeof abTestsTable.$inferSelect;
+export type InsertABTest = z.infer<typeof insertABTestSchema>;
+export const insertABTestSchema = createInsertSchema(abTestsTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Image Filters - Preset filters for images
+export const imageFilterSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    brightness: z.number().min(-100).max(100).default(0),
+    contrast: z.number().min(-100).max(100).default(0),
+    saturation: z.number().min(-100).max(100).default(0),
+    hue: z.number().min(-180).max(180).default(0),
+    blur: z.number().min(0).max(20).default(0),
+    sepia: z.number().min(0).max(100).default(0),
+    grayscale: z.number().min(0).max(100).default(0),
+    opacity: z.number().min(0).max(100).default(100),
+});
+
+export type ImageFilter = z.infer<typeof imageFilterSchema>;
+
+// Thumbnail Tags - For organizing thumbnails
+export const thumbnailTagsTable = pgTable("thumbnail_tags", {
+    id: serial("id").primaryKey(),
+    thumbnailId: text("thumbnail_id").notNull(),
+    tag: text("tag").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ThumbnailTag = typeof thumbnailTagsTable.$inferSelect;
+export type InsertThumbnailTag = z.infer<typeof insertThumbnailTagSchema>;
+export const insertThumbnailTagSchema = createInsertSchema(thumbnailTagsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
+// Thumbnail Folders - For organizing thumbnails
+export const thumbnailFoldersTable = pgTable("thumbnail_folders", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    parentId: integer("parent_id"),
+    color: text("color").default("#6B7280"),
+    icon: text("icon").default("folder"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ThumbnailFolder = typeof thumbnailFoldersTable.$inferSelect;
+export type InsertThumbnailFolder = z.infer<typeof insertThumbnailFolderSchema>;
+export const insertThumbnailFolderSchema = createInsertSchema(thumbnailFoldersTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
 // Auth models
 export * from "./models/auth";
