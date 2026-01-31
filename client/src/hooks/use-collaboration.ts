@@ -27,10 +27,11 @@ interface UseCollaborationOptions {
   username?: string;
   onEdit?: (data: any) => void;
   onSync?: (data: any) => void;
+  onConflict?: (currentData: any, rejectedTimestamp: number) => void;
 }
 
 export function useCollaboration(options: UseCollaborationOptions) {
-  const { thumbnailId, username = "Anonymous", onEdit, onSync } = options;
+  const { thumbnailId, username = "Anonymous", onEdit, onSync, onConflict } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -120,6 +121,10 @@ export function useCollaboration(options: UseCollaborationOptions) {
               timestamp: message.timestamp
             }]);
             break;
+            
+          case "edit_rejected":
+            onConflict?.(message.currentData, message.timestamp);
+            break;
         }
       } catch (error) {
         console.error("WebSocket message parse error:", error);
@@ -158,7 +163,8 @@ export function useCollaboration(options: UseCollaborationOptions) {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: "edit",
-        data
+        data,
+        timestamp: Date.now()
       }));
     }
   }, []);

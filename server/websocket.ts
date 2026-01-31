@@ -17,7 +17,16 @@ interface CollaborationMessage {
   userId?: string;
   username?: string;
   data?: any;
+  timestamp?: number;
 }
+
+interface EditState {
+  data: any;
+  timestamp: number;
+  userId: string;
+}
+
+const thumbnailStates = new Map<string, EditState>();
 
 const clients = new Map<WebSocket, CollaborationClient>();
 const thumbnailRooms = new Map<string, Set<WebSocket>>();
@@ -143,12 +152,39 @@ export function setupWebSocket(server: Server) {
             
           case "edit":
             if (client.thumbnailId && message.data) {
-              broadcast(client.thumbnailId, {
-                type: "edit",
-                userId: client.odisId,
-                username: client.username,
-                data: message.data
-              }, ws);
+              const incomingTimestamp = message.timestamp || Date.now();
+              const currentState = thumbnailStates.get(client.thumbnailId);
+              
+              if (!currentState || incomingTimestamp >= currentState.timestamp) {
+                thumbnailStates.set(client.thumbnailId, {
+                  data: message.data,
+                  timestamp: incomingTimestamp,
+                  userId: client.odisId
+                });
+                
+                broadcast(client.thumbnailId, {
+                  type: "edit",
+                  userId: client.odisId,
+                  username: client.username,
+                  data: message.data,
+                  timestamp: incomingTimestamp,
+                  accepted: true
+                }, ws);
+                
+                ws.send(JSON.stringify({
+                  type: "edit_ack",
+                  timestamp: incomingTimestamp,
+                  accepted: true
+                }));
+              } else {
+                ws.send(JSON.stringify({
+                  type: "edit_rejected",
+                  timestamp: incomingTimestamp,
+                  currentTimestamp: currentState.timestamp,
+                  currentData: currentState.data,
+                  reason: "Newer edit exists"
+                }));
+              }
             }
             break;
             
