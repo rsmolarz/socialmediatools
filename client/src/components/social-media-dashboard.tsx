@@ -80,6 +80,8 @@ interface SocialPost {
   backgroundOpacity: number | null;
   showLogo: boolean | null;
   logoSize: number | null;
+  selectedHook: string | null;
+  callToAction: string | null;
   createdAt: string;
 }
 
@@ -314,6 +316,41 @@ export function SocialMediaDashboard() {
     },
   });
 
+  const updateCallToActionMutation = useMutation({
+    mutationFn: async ({ postId, callToAction }: { postId: number; callToAction: string }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        callToAction,
+      });
+      return response.json();
+    },
+    onMutate: async ({ postId, callToAction }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/viral/posts"] });
+      const previousData = queryClient.getQueryData(["/api/viral/posts"]);
+      queryClient.setQueryData(["/api/viral/posts"], (old: { posts: SocialPost[]; total: number } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          posts: old.posts.map((p: SocialPost) =>
+            p.id === postId ? { ...p, callToAction } : p
+          ),
+        };
+      });
+      if (previewPost && previewPost.id === postId) {
+        setPreviewPost({ ...previewPost, callToAction });
+      }
+      return { previousData };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/viral/posts"], context.previousData);
+      }
+      toast({ title: "Update Failed", description: "Failed to update CTA", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+    },
+  });
+
   const regenerateBackgroundMutation = useMutation({
     mutationFn: async (postId: number) => {
       const response = await apiRequest("POST", `/api/viral/posts/${postId}/regenerate-background`, {});
@@ -519,9 +556,19 @@ export function SocialMediaDashboard() {
                     <p className="text-xs text-muted-foreground">Just now</p>
                   </div>
                 </div>
+                {previewPost.selectedHook && (
+                  <div className="px-3 pt-3" data-testid="preview-hook">
+                    <p className="text-sm font-semibold text-primary italic">"{previewPost.selectedHook}"</p>
+                  </div>
+                )}
                 {previewPost.description && (
                   <div className="p-3 text-sm">
                     {previewPost.description}
+                  </div>
+                )}
+                {previewPost.callToAction && (
+                  <div className="px-3 pb-3 text-sm" data-testid="preview-cta">
+                    <p className="font-medium text-primary">{previewPost.callToAction}</p>
                   </div>
                 )}
                 {(previewPost.thumbnailUrl || previewPost.backgroundUrl) && (
@@ -927,6 +974,37 @@ export function SocialMediaDashboard() {
                                   {post.description}
                                 </p>
                               )}
+                              {post.selectedHook && (
+                                <div className="mt-2 p-2 bg-primary/10 rounded-md border border-primary/20" data-testid={`text-hook-${post.id}`}>
+                                  <p className="text-xs font-medium text-primary">Selected Hook:</p>
+                                  <p className="text-sm italic">"{post.selectedHook}"</p>
+                                </div>
+                              )}
+                              <div className="mt-2 p-2 bg-accent/50 rounded-md" data-testid={`text-cta-${post.id}`}>
+                                <p className="text-xs font-medium text-muted-foreground">Call to Action:</p>
+                                <input
+                                  type="text"
+                                  className="w-full text-sm bg-transparent border-b border-transparent hover:border-muted-foreground focus:border-primary focus:outline-none transition-colors"
+                                  value={post.callToAction || ""}
+                                  placeholder="Enter call to action..."
+                                  onChange={(e) => {
+                                    const newCta = e.target.value;
+                                    queryClient.setQueryData(["/api/viral/posts"], (old: { posts: SocialPost[]; total: number } | undefined) => {
+                                      if (!old) return old;
+                                      return {
+                                        ...old,
+                                        posts: old.posts.map((p: SocialPost) =>
+                                          p.id === post.id ? { ...p, callToAction: newCta } : p
+                                        ),
+                                      };
+                                    });
+                                  }}
+                                  onBlur={(e) => {
+                                    updateCallToActionMutation.mutate({ postId: post.id, callToAction: e.target.value });
+                                  }}
+                                  data-testid={`input-cta-${post.id}`}
+                                />
+                              </div>
                               {post.hashtags && post.hashtags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-2">
                                   {post.hashtags.slice(0, 4).map((tag, idx) => (
