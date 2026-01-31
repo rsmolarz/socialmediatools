@@ -79,6 +79,7 @@ interface SocialPost {
   backgroundUrl: string | null;
   backgroundOpacity: number | null;
   showLogo: boolean | null;
+  logoSize: number | null;
   createdAt: string;
 }
 
@@ -240,6 +241,41 @@ export function SocialMediaDashboard() {
     },
     onError: () => {
       toast({ title: "Update Failed", description: "Failed to update logo", variant: "destructive" });
+    },
+  });
+
+  const updateLogoSizeMutation = useMutation({
+    mutationFn: async ({ postId, logoSize }: { postId: number; logoSize: number }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        logoSize,
+      });
+      return response.json();
+    },
+    onMutate: async ({ postId, logoSize }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/viral/posts"] });
+      const previousData = queryClient.getQueryData(["/api/viral/posts"]);
+      queryClient.setQueryData(["/api/viral/posts"], (old: { posts: SocialPost[]; total: number } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          posts: old.posts.map((p: SocialPost) =>
+            p.id === postId ? { ...p, logoSize } : p
+          ),
+        };
+      });
+      if (previewPost && previewPost.id === postId) {
+        setPreviewPost({ ...previewPost, logoSize });
+      }
+      return { previousData };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/viral/posts"], context.previousData);
+      }
+      toast({ title: "Update Failed", description: "Failed to update logo size", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
     },
   });
 
@@ -511,8 +547,12 @@ export function SocialMediaDashboard() {
                         <img 
                           src={logoImage} 
                           alt="Medicine & Money Logo"
-                          className="w-16 h-16 object-contain"
-                          style={{ mixBlendMode: "multiply" }}
+                          className="object-contain rounded-lg"
+                          data-testid="preview-logo"
+                          style={{ 
+                            width: `${(previewPost.logoSize || 50) * 1.5}px`,
+                            height: `${(previewPost.logoSize || 50) * 1.5}px`
+                          }}
                         />
                       </div>
                     )}
@@ -814,8 +854,11 @@ export function SocialMediaDashboard() {
                                       <img 
                                         src={logoImage} 
                                         alt="Logo"
-                                        className="w-8 h-8 object-contain"
-                                        style={{ mixBlendMode: "multiply" }}
+                                        className="object-contain rounded"
+                                        style={{ 
+                                          width: `${Math.max(16, ((post.logoSize || 50) / 50) * 32)}px`,
+                                          height: `${Math.max(16, ((post.logoSize || 50) / 50) * 32)}px`
+                                        }}
                                       />
                                     </div>
                                   )}
@@ -934,11 +977,28 @@ export function SocialMediaDashboard() {
                               <img 
                                 src={logoImage} 
                                 alt="Logo" 
-                                className="w-4 h-4 mr-1 object-contain"
-                                style={{ mixBlendMode: post.showLogo ? undefined : "multiply" }}
+                                className="w-4 h-4 mr-1 object-contain rounded-sm"
                               />
                               {post.showLogo ? "Logo On" : "Add Logo"}
                             </Button>
+                            {post.showLogo && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Size:</span>
+                                <input
+                                  type="range"
+                                  min="20"
+                                  max="100"
+                                  value={post.logoSize || 50}
+                                  onChange={(e) => updateLogoSizeMutation.mutate({ 
+                                    postId: post.id, 
+                                    logoSize: parseInt(e.target.value) 
+                                  })}
+                                  className="w-16 h-1 accent-primary"
+                                  data-testid={`slider-logo-size-${post.id}`}
+                                />
+                                <span className="text-xs text-muted-foreground w-6" data-testid={`text-logo-size-${post.id}`}>{post.logoSize || 50}%</span>
+                              </div>
+                            )}
                             {post.thumbnailUrl && (
                               <Button
                                 size="sm"
