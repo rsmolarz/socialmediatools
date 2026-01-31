@@ -42,6 +42,8 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
   const [sharePermission, setSharePermission] = useState<"view" | "edit" | "comment">("view");
   const [newComment, setNewComment] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState("");
 
   const { data: collaborations = [], isLoading: loadingCollabs } = useQuery<Collaboration[]>({
     queryKey: [`/api/collaborations/thumbnail/${thumbnailId}`],
@@ -141,6 +143,54 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
       thumbnailId,
       userId,
       content: newComment.trim(),
+    });
+  };
+
+  const handleCommentChange = (value: string) => {
+    setNewComment(value);
+    
+    const lastAtIndex = value.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const textAfterAt = value.slice(lastAtIndex + 1);
+      const hasSpaceAfterAt = textAfterAt.includes(" ");
+      
+      if (!hasSpaceAfterAt && textAfterAt.length <= 20) {
+        setMentionFilter(textAfterAt.toLowerCase());
+        setShowMentions(true);
+      } else {
+        setShowMentions(false);
+      }
+    } else {
+      setShowMentions(false);
+    }
+  };
+
+  const insertMention = (email: string) => {
+    const lastAtIndex = newComment.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const beforeAt = newComment.slice(0, lastAtIndex);
+      setNewComment(`${beforeAt}@${email} `);
+    }
+    setShowMentions(false);
+  };
+
+  const filteredCollaborators = collaborations.filter(c => 
+    c.sharedWith.toLowerCase().includes(mentionFilter)
+  );
+
+  const renderCommentWithMentions = (content: string) => {
+    const mentionRegex = /@([\w@.-]+)/g;
+    const parts = content.split(mentionRegex);
+    
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return (
+          <span key={index} className="text-primary font-medium bg-primary/10 px-1 rounded">
+            @{part}
+          </span>
+        );
+      }
+      return part;
     });
   };
 
@@ -253,14 +303,33 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
           <CardDescription>Feedback and discussion</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="relative">
             <Textarea
-              placeholder="Add a comment..."
+              placeholder="Add a comment... (use @ to mention collaborators)"
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={(e) => handleCommentChange(e.target.value)}
               className="min-h-[80px]"
               data-testid="input-comment"
             />
+            {showMentions && filteredCollaborators.length > 0 && (
+              <div className="absolute left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                {filteredCollaborators.map((collab) => (
+                  <button
+                    key={collab.id}
+                    className="w-full flex items-center gap-2 p-2 hover:bg-muted transition-colors text-left"
+                    onClick={() => insertMention(collab.sharedWith)}
+                    data-testid={`mention-${collab.id}`}
+                  >
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs">
+                        {collab.sharedWith.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{collab.sharedWith}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <Button 
             onClick={handleAddComment}
@@ -333,7 +402,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
                     </div>
                   </div>
                   <p className={`mt-2 text-sm ${comment.resolved ? "text-muted-foreground line-through" : ""}`}>
-                    {comment.content}
+                    {renderCommentWithMentions(comment.content)}
                   </p>
                   {comment.resolved && (
                     <Badge variant="secondary" className="mt-2 text-xs">Resolved</Badge>
