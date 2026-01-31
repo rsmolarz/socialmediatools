@@ -286,13 +286,17 @@ export default function Home() {
     tags?: string[];
     suggestedHeadline?: string[];
   }) => {
-    // Update text lines with viral title if available
+    // Update first text line with viral title, preserve others
     const title = analysis.viralTitle || analysis.suggestedHeadline?.[0];
     if (title) {
-      setConfig((prev) => ({
-        ...prev,
-        textLines: [{ id: "line-1", text: title, highlight: true }],
-      }));
+      setConfig((prev) => {
+        const currentLines = prev.textLines || DEFAULT_TEXT_LINES;
+        const newLines = [...currentLines];
+        if (newLines[0]) {
+          newLines[0] = { ...newLines[0], text: title };
+        }
+        return { ...prev, textLines: newLines };
+      });
     }
     
     toast({
@@ -504,10 +508,14 @@ export default function Home() {
                     <ViralTitleHelper
                       currentTitle={config.textLines?.[0]?.text || ""}
                       onTitleSelect={(title) => {
-                        setConfig((prev) => ({
-                          ...prev,
-                          textLines: [{ id: "line-1", text: title, highlight: true }],
-                        }));
+                        setConfig((prev) => {
+                          const currentLines = prev.textLines || DEFAULT_TEXT_LINES;
+                          const newLines = [...currentLines];
+                          if (newLines[0]) {
+                            newLines[0] = { ...newLines[0], text: title };
+                          }
+                          return { ...prev, textLines: newLines };
+                        });
                       }}
                     />
                     <TextLineControls
@@ -552,10 +560,14 @@ export default function Home() {
                       onAnalysisComplete={handleTranscriptAnalysis}
                       onGenerateBackground={handleGenerateFromTranscript}
                       onApplyViralTitle={(title) => {
-                        setConfig((prev) => ({
-                          ...prev,
-                          textLines: [{ id: "line-1", text: title, highlight: true }],
-                        }));
+                        setConfig((prev) => {
+                          const currentLines = prev.textLines || DEFAULT_TEXT_LINES;
+                          const newLines = [...currentLines];
+                          if (newLines[0]) {
+                            newLines[0] = { ...newLines[0], text: title };
+                          }
+                          return { ...prev, textLines: newLines };
+                        });
                       }}
                     />
                     <BackgroundControls
