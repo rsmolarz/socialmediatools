@@ -280,20 +280,24 @@ export default function Home() {
     backgroundPrompt: string;
     style: string;
     mood: string;
-    suggestedHeadline: string[];
+    viralTitle?: string;
+    youtubeTitle?: string;
+    youtubeDescription?: string;
+    tags?: string[];
+    suggestedHeadline?: string[];
   }) => {
-    // Update text lines with suggested headlines
-    if (analysis.suggestedHeadline && analysis.suggestedHeadline.length >= 3) {
-      const newLines = [...(config.textLines || DEFAULT_TEXT_LINES)];
-      if (newLines[0]) newLines[0] = { ...newLines[0], text: analysis.suggestedHeadline[0] };
-      if (newLines[1]) newLines[1] = { ...newLines[1], text: analysis.suggestedHeadline[1] };
-      if (newLines[2]) newLines[2] = { ...newLines[2], text: analysis.suggestedHeadline[2] };
-      setConfig((prev) => ({ ...prev, textLines: newLines }));
+    // Update text lines with viral title if available
+    const title = analysis.viralTitle || analysis.suggestedHeadline?.[0];
+    if (title) {
+      setConfig((prev) => ({
+        ...prev,
+        textLines: [{ id: "line-1", text: title, highlight: true }],
+      }));
     }
     
     toast({
       title: "Transcript Analyzed",
-      description: `Detected ${analysis.themes.length} themes. Headlines updated!`,
+      description: `Detected ${analysis.themes.length} themes. ${title ? "Title applied!" : "Background generating..."}`,
     });
   };
 
@@ -502,7 +506,7 @@ export default function Home() {
                       onTitleSelect={(title) => {
                         setConfig((prev) => ({
                           ...prev,
-                          textLines: [{ text: title, color: "#ffffff", highlighted: true }],
+                          textLines: [{ id: "line-1", text: title, highlight: true }],
                         }));
                       }}
                     />
@@ -547,6 +551,12 @@ export default function Home() {
                     <TranscriptAnalyzer
                       onAnalysisComplete={handleTranscriptAnalysis}
                       onGenerateBackground={handleGenerateFromTranscript}
+                      onApplyViralTitle={(title) => {
+                        setConfig((prev) => ({
+                          ...prev,
+                          textLines: [{ id: "line-1", text: title, highlight: true }],
+                        }));
+                      }}
                     />
                     <BackgroundControls
                       backgroundColor={config.backgroundColor}

@@ -173,27 +173,45 @@ export async function registerRoutes(
       // Truncate to ~3000 chars for efficiency
       const truncatedTranscript = transcript.substring(0, 3000);
 
-      const systemPrompt = `You are an expert at analyzing podcast transcripts and creating compelling YouTube thumbnail backgrounds for "The Medicine & Money Show" - a podcast about physician finance, investing, and entrepreneurship.
+      const systemPrompt = `You are an expert at analyzing podcast transcripts and creating viral YouTube content for "The Medicine & Money Show" - a podcast about physician finance, investing, and entrepreneurship.
 
 Analyze the transcript and return a JSON object with:
-1. "themes" - Array of 3-5 key themes/topics (short phrases, 2-4 words each)
-2. "backgroundPrompt" - A vivid image generation prompt for a futuristic podcast thumbnail background. CRITICAL: Include REAL, TANGIBLE OBJECTS related to the topic - NOT abstract art or gradients. Examples:
-   - For gut health: realistic 3D rendered intestines, gut microbiome visualization, anatomical digestive system
-   - For investing: realistic gold bars, stock charts on screens, luxury watches, stacks of cash
-   - For real estate: modern skyscrapers, luxury homes, property keys, building blueprints
-   - For medicine: stethoscopes, medical equipment, pharmaceutical pills, brain MRI scans
-   - For wealth: sports cars, private jets, diamond jewelry, luxury lifestyle items
-   The background should be dark/black with dramatic lighting on the real objects. Futuristic, cinematic, hyper-realistic 3D style. NO text, NO people, NO abstract patterns.
-3. "style" - One of: futuristic, cinematic, medical, finance, tech, dramatic
-4. "mood" - One of: dramatic, professional, bold, mysterious, luxurious
-5. "suggestedHeadline" - Array of exactly 1 string - a SINGLE short viral title:
+
+1. "viralTitle" - A SINGLE short viral title for the thumbnail:
    - MAXIMUM 3-4 words only
    - ALL CAPS format
    - Use power words: SECRET, NOW, STOP, FREE, TRUTH, RICH, WEALTH
    - Examples: "GET RICH NOW", "DOCTOR'S SECRET", "STOP THIS NOW", "WEALTH SECRET"
-   - DO NOT write full sentences or long phrases
 
-Focus on finance, medicine, investing, entrepreneurship, and wealth-building themes. Make it punchy, viral, and clickable like top YouTube thumbnails.
+2. "youtubeTitle" - A compelling YouTube video title (50-70 characters):
+   - Hook viewers immediately
+   - Include keywords for SEO
+   - Create curiosity or promise value
+   - Example: "How Doctors Build Wealth Through Real Estate (Step-by-Step Guide)"
+
+3. "youtubeDescription" - A full YouTube description (200-300 words):
+   - Start with a hook summarizing the video
+   - Include 3-5 bullet points of key topics covered
+   - Add a call-to-action to subscribe
+   - Include relevant keywords naturally
+   - End with "Connect with us:" placeholder
+
+4. "tags" - Array of 10-15 YouTube tags for SEO:
+   - Mix of broad and specific keywords
+   - Include: physician finance, doctor investing, medical professional wealth, etc.
+   - Include topic-specific tags from the transcript
+
+5. "themes" - Array of 3-5 key themes/topics (short phrases, 2-4 words each)
+
+6. "backgroundPrompt" - A vivid image generation prompt for a futuristic thumbnail background. CRITICAL: Include REAL, TANGIBLE OBJECTS related to the topic - NOT abstract art or gradients. Examples:
+   - For gut health: realistic 3D rendered intestines, gut microbiome visualization
+   - For investing: realistic gold bars, stock charts, luxury watches, stacks of cash
+   - For real estate: modern skyscrapers, luxury homes, property keys, blueprints
+   - For medicine: stethoscopes, medical equipment, pharmaceutical pills
+   The background should be dark/black with dramatic lighting. Futuristic, cinematic, hyper-realistic 3D style. NO text, NO people.
+
+7. "style" - One of: futuristic, cinematic, medical, finance, tech, dramatic
+8. "mood" - One of: dramatic, professional, bold, mysterious, luxurious
 
 Return ONLY valid JSON, no markdown or explanation.`;
 
@@ -203,7 +221,7 @@ Return ONLY valid JSON, no markdown or explanation.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: `Analyze this podcast transcript:\n\n${truncatedTranscript}` }
         ],
-        max_tokens: 1000,
+        max_tokens: 2000,
         temperature: 0.7,
       });
 
