@@ -16,13 +16,18 @@ import {
   insertABTestSchema,
   insertThumbnailTagSchema,
   insertThumbnailFolderSchema,
+  insertThumbnailAnalyticsSchema,
+  insertAnalyticsEventSchema,
   brandKitsTable,
   abTestsTable,
   thumbnailTagsTable,
-  thumbnailFoldersTable
+  thumbnailFoldersTable,
+  thumbnailAnalyticsTable,
+  analyticsEventsTable,
+  thumbnails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql, gte, and, count, sum } from "drizzle-orm";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
 import OpenAI, { toFile } from "openai";
@@ -1839,6 +1844,212 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     } catch (error) {
       console.error("Error deleting thumbnail folder:", error);
       res.status(500).json({ error: "Failed to delete thumbnail folder" });
+    }
+  });
+
+  // Analytics Dashboard Routes
+  
+  // Get analytics summary for all thumbnails
+  app.get("/api/analytics/summary", async (_req, res) => {
+    try {
+      // Get total impressions and clicks
+      const totals = await db.select({
+        totalImpressions: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.impressions}), 0)`,
+        totalClicks: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.clicks}), 0)`,
+      }).from(thumbnailAnalyticsTable);
+      
+      // Get per-thumbnail stats
+      const thumbnailStats = await db.select({
+        thumbnailId: thumbnailAnalyticsTable.thumbnailId,
+        impressions: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.impressions}), 0)`,
+        clicks: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.clicks}), 0)`,
+      })
+      .from(thumbnailAnalyticsTable)
+      .groupBy(thumbnailAnalyticsTable.thumbnailId);
+      
+      // Get thumbnails for title lookup
+      const allThumbnails = await storage.getThumbnails();
+      
+      // Combine data with engagement rates
+      const thumbnailsWithStats = thumbnailStats.map(stat => {
+        const thumb = allThumbnails.find(t => t.id === stat.thumbnailId);
+        const impressions = Number(stat.impressions);
+        const clicks = Number(stat.clicks);
+        const engagementRate = impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : "0.00";
+        return {
+          thumbnailId: stat.thumbnailId,
+          title: thumb?.title || "Unknown",
+          impressions,
+          clicks,
+          engagementRate: parseFloat(engagementRate),
+        };
+      });
+      
+      const totalImpressions = Number(totals[0]?.totalImpressions || 0);
+      const totalClicks = Number(totals[0]?.totalClicks || 0);
+      const overallEngagement = totalImpressions > 0 
+        ? ((totalClicks / totalImpressions) * 100).toFixed(2) 
+        : "0.00";
+      
+      res.json({
+        totalImpressions,
+        totalClicks,
+        overallEngagementRate: parseFloat(overallEngagement),
+        thumbnails: thumbnailsWithStats.sort((a, b) => b.impressions - a.impressions),
+      });
+    } catch (error) {
+      console.error("Error fetching analytics summary:", error);
+      res.status(500).json({ error: "Failed to fetch analytics summary" });
+    }
+  });
+  
+  // Get analytics for a specific thumbnail
+  app.get("/api/analytics/thumbnail/:thumbnailId", async (req, res) => {
+    try {
+      const { thumbnailId } = req.params;
+      
+      // Get daily stats for the past 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const dailyStats = await db.select()
+        .from(thumbnailAnalyticsTable)
+        .where(and(
+          eq(thumbnailAnalyticsTable.thumbnailId, thumbnailId),
+          gte(thumbnailAnalyticsTable.date, thirtyDaysAgo)
+        ))
+        .orderBy(desc(thumbnailAnalyticsTable.date));
+      
+      // Get total stats
+      const totals = await db.select({
+        totalImpressions: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.impressions}), 0)`,
+        totalClicks: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.clicks}), 0)`,
+      })
+      .from(thumbnailAnalyticsTable)
+      .where(eq(thumbnailAnalyticsTable.thumbnailId, thumbnailId));
+      
+      const totalImpressions = Number(totals[0]?.totalImpressions || 0);
+      const totalClicks = Number(totals[0]?.totalClicks || 0);
+      const engagementRate = totalImpressions > 0 
+        ? ((totalClicks / totalImpressions) * 100).toFixed(2) 
+        : "0.00";
+      
+      res.json({
+        thumbnailId,
+        totalImpressions,
+        totalClicks,
+        engagementRate: parseFloat(engagementRate),
+        dailyStats: dailyStats.map(d => ({
+          date: d.date,
+          impressions: d.impressions,
+          clicks: d.clicks,
+          platform: d.platform,
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching thumbnail analytics:", error);
+      res.status(500).json({ error: "Failed to fetch thumbnail analytics" });
+    }
+  });
+  
+  // Record analytics event (impression or click)
+  app.post("/api/analytics/event", async (req, res) => {
+    try {
+      const parsed = insertAnalyticsEventSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid event data", details: parsed.error });
+      }
+      
+      const { thumbnailId, eventType, platform, source, metadata } = parsed.data;
+      
+      // Insert the event
+      const [event] = await db.insert(analyticsEventsTable)
+        .values({ thumbnailId, eventType, platform, source, metadata })
+        .returning();
+      
+      // Update or create daily analytics record
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const existingRecord = await db.select()
+        .from(thumbnailAnalyticsTable)
+        .where(and(
+          eq(thumbnailAnalyticsTable.thumbnailId, thumbnailId),
+          eq(thumbnailAnalyticsTable.date, today),
+          eq(thumbnailAnalyticsTable.platform, platform || "youtube")
+        ))
+        .limit(1);
+      
+      if (existingRecord.length > 0) {
+        // Update existing record
+        const updateField = eventType === "click" ? "clicks" : "impressions";
+        await db.update(thumbnailAnalyticsTable)
+          .set({
+            [updateField]: sql`${thumbnailAnalyticsTable[updateField as "clicks" | "impressions"]} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(thumbnailAnalyticsTable.id, existingRecord[0].id));
+      } else {
+        // Create new record
+        await db.insert(thumbnailAnalyticsTable).values({
+          thumbnailId,
+          date: today,
+          impressions: eventType === "impression" ? 1 : 0,
+          clicks: eventType === "click" ? 1 : 0,
+          platform: platform || "youtube",
+          source: source || "organic",
+        });
+      }
+      
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("Error recording analytics event:", error);
+      res.status(500).json({ error: "Failed to record analytics event" });
+    }
+  });
+  
+  // Bulk record analytics (for importing data)
+  app.post("/api/analytics/bulk", async (req, res) => {
+    try {
+      const { thumbnailId, impressions, clicks, platform, date } = req.body;
+      
+      if (!thumbnailId || impressions === undefined || clicks === undefined) {
+        return res.status(400).json({ error: "Missing required fields: thumbnailId, impressions, clicks" });
+      }
+      
+      const recordDate = date ? new Date(date) : new Date();
+      recordDate.setHours(0, 0, 0, 0);
+      
+      const [record] = await db.insert(thumbnailAnalyticsTable).values({
+        thumbnailId,
+        date: recordDate,
+        impressions: Number(impressions),
+        clicks: Number(clicks),
+        platform: platform || "youtube",
+        source: "import",
+      }).returning();
+      
+      res.status(201).json(record);
+    } catch (error) {
+      console.error("Error bulk recording analytics:", error);
+      res.status(500).json({ error: "Failed to bulk record analytics" });
+    }
+  });
+  
+  // Get recent events for a thumbnail
+  app.get("/api/analytics/events/:thumbnailId", async (req, res) => {
+    try {
+      const { thumbnailId } = req.params;
+      const events = await db.select()
+        .from(analyticsEventsTable)
+        .where(eq(analyticsEventsTable.thumbnailId, thumbnailId))
+        .orderBy(desc(analyticsEventsTable.createdAt))
+        .limit(100);
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching analytics events:", error);
+      res.status(500).json({ error: "Failed to fetch analytics events" });
     }
   });
 
