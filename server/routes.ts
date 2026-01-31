@@ -468,6 +468,7 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
         title: true,
         description: true,
         showLogo: true,
+        logoSize: true,
         platform: true,
       });
 
