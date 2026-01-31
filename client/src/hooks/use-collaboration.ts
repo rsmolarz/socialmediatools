@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface CollaboratorPresence {
   userId: string;
@@ -32,6 +33,7 @@ interface UseCollaborationOptions {
 
 export function useCollaboration(options: UseCollaborationOptions) {
   const { thumbnailId, username = "Anonymous", onEdit, onSync, onConflict } = options;
+  const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -73,6 +75,10 @@ export function useCollaboration(options: UseCollaborationOptions) {
           case "join":
             setCollaborators(prev => {
               if (prev.some(c => c.userId === message.userId)) return prev;
+              toast({
+                title: "User Joined",
+                description: `${message.username} is now collaborating.`,
+              });
               return [...prev, {
                 userId: message.userId,
                 username: message.username,
@@ -82,9 +88,16 @@ export function useCollaboration(options: UseCollaborationOptions) {
             break;
             
           case "leave":
-            setCollaborators(prev => 
-              prev.filter(c => c.userId !== message.userId)
-            );
+            setCollaborators(prev => {
+              const leavingUser = prev.find(c => c.userId === message.userId);
+              if (leavingUser) {
+                toast({
+                  title: "User Left",
+                  description: `${leavingUser.username} has left the session.`,
+                });
+              }
+              return prev.filter(c => c.userId !== message.userId);
+            });
             setCursors(prev => {
               const next = new Map(prev);
               next.delete(message.userId);
@@ -108,6 +121,11 @@ export function useCollaboration(options: UseCollaborationOptions) {
             
           case "edit":
             onEdit?.(message.data);
+            toast({
+              title: "Update",
+              description: `${message.username} made a change.`,
+              duration: 2000,
+            });
             break;
             
           case "sync":
