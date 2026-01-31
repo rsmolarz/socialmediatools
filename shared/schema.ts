@@ -456,5 +456,44 @@ export const insertThumbnailFolderSchema = createInsertSchema(thumbnailFoldersTa
     updatedAt: true,
 });
 
+// Analytics - Track thumbnail performance
+export const thumbnailAnalyticsTable = pgTable("thumbnail_analytics", {
+    id: serial("id").primaryKey(),
+    thumbnailId: text("thumbnail_id").notNull(),
+    date: timestamp("date").defaultNow().notNull(),
+    impressions: integer("impressions").default(0).notNull(),
+    clicks: integer("clicks").default(0).notNull(),
+    platform: text("platform").default("youtube"),
+    source: text("source").default("organic"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ThumbnailAnalytics = typeof thumbnailAnalyticsTable.$inferSelect;
+export type InsertThumbnailAnalytics = z.infer<typeof insertThumbnailAnalyticsSchema>;
+export const insertThumbnailAnalyticsSchema = createInsertSchema(thumbnailAnalyticsTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Analytics Events - Individual tracking events
+export const analyticsEventsTable = pgTable("analytics_events", {
+    id: serial("id").primaryKey(),
+    thumbnailId: text("thumbnail_id").notNull(),
+    eventType: text("event_type").notNull(), // 'impression', 'click', 'share', 'save'
+    platform: text("platform").default("youtube"),
+    source: text("source").default("organic"),
+    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AnalyticsEvent = typeof analyticsEventsTable.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEventsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
 // Auth models
 export * from "./models/auth";
