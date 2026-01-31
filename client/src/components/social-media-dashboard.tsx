@@ -125,6 +125,7 @@ export function SocialMediaDashboard() {
   const [previewPost, setPreviewPost] = useState<SocialPost | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPostId, setUploadingPostId] = useState<number | null>(null);
+  const [dragOverPostId, setDragOverPostId] = useState<number | null>(null);
 
   const { data: topicsData, isLoading: topicsLoading, refetch: refetchTopics } = useQuery<{ topics: ViralTopic[] }>({
     queryKey: ["/api/viral/discover-topics"],
@@ -259,6 +260,44 @@ export function SocialMediaDashboard() {
       reader.readAsDataURL(file);
     }
     e.target.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent, postId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverPostId(postId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, postId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const relatedTarget = e.relatedTarget as Node | null;
+    const currentTarget = e.currentTarget as Node;
+    if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+      setDragOverPostId(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, postId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverPostId(null);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        updatePhotoMutation.mutate({ postId, photoUrl: base64 });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      toast({
+        title: "Invalid File",
+        description: "Please drop an image file",
+        variant: "destructive",
+      });
+    }
   };
 
   const topics = topicsData?.topics || [];
@@ -572,9 +611,15 @@ export function SocialMediaDashboard() {
                       <Card key={post.id} className="overflow-hidden">
                         <CardContent className="p-4">
                           <div className="flex gap-4">
-                            <div className="flex-shrink-0 w-32">
+                            <div 
+                              className={`flex-shrink-0 w-32 rounded-md transition-all ${dragOverPostId === post.id ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                              onDragOver={(e) => handleDragOver(e, post.id)}
+                              onDragLeave={(e) => handleDragLeave(e, post.id)}
+                              onDrop={(e) => handleDrop(e, post.id)}
+                              data-testid={`dropzone-${post.id}`}
+                            >
                               {post.thumbnailUrl ? (
-                                <div className="relative group h-20">
+                                <div className="relative group h-20 rounded-md transition-all">
                                   <img 
                                     src={post.thumbnailUrl} 
                                     alt={post.title}
@@ -591,28 +636,41 @@ export function SocialMediaDashboard() {
                                       />
                                     </div>
                                   )}
-                                  <div className="absolute inset-0 bg-black/50 invisible group-hover:visible rounded-md flex items-center justify-center">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handlePhotoUpload(post.id)}
-                                      data-testid={`button-change-photo-${post.id}`}
-                                    >
-                                      <Upload className="w-5 h-5 text-white" />
-                                    </Button>
+                                  <div className={`absolute inset-0 bg-black/50 rounded-md flex items-center justify-center transition-all ${dragOverPostId === post.id ? "visible" : "invisible group-hover:visible"}`}>
+                                    {dragOverPostId === post.id ? (
+                                      <div className="text-white text-xs text-center">
+                                        <Upload className="w-5 h-5 mx-auto mb-1" />
+                                        Drop image
+                                      </div>
+                                    ) : (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => handlePhotoUpload(post.id)}
+                                        data-testid={`button-change-photo-${post.id}`}
+                                      >
+                                        <Upload className="w-5 h-5 text-white" />
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               ) : (
-                                <div className="h-20 flex items-center justify-center">
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => handlePhotoUpload(post.id)}
-                                    className="border-dashed"
-                                    data-testid={`button-add-photo-${post.id}`}
-                                  >
-                                    <ImagePlus className="w-4 h-4 mr-1" />
-                                    Add Photo
-                                  </Button>
+                                <div 
+                                  className={`h-20 flex items-center justify-center border-2 border-dashed rounded-md transition-all cursor-pointer ${dragOverPostId === post.id ? "border-primary bg-primary/10" : "border-muted-foreground/30 hover:border-muted-foreground/50"}`}
+                                  onClick={() => handlePhotoUpload(post.id)}
+                                  data-testid={`button-add-photo-${post.id}`}
+                                >
+                                  {dragOverPostId === post.id ? (
+                                    <div className="text-center text-sm text-primary">
+                                      <Upload className="w-5 h-5 mx-auto mb-1" />
+                                      Drop image
+                                    </div>
+                                  ) : (
+                                    <div className="text-center text-sm text-muted-foreground">
+                                      <ImagePlus className="w-5 h-5 mx-auto mb-1" />
+                                      Drop or click
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

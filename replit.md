@@ -58,7 +58,7 @@ Key entities:
   - **Multi-Platform Content Generation**: Generate optimized content for YouTube, TikTok, and Instagram
   - **Content Queue Management**: Review, approve, reject, and delete generated content
   - **Virality Scoring**: AI-assessed viral potential scores for all content
-  - **Photo Upload**: Upload custom photos for social post thumbnails via file input with base64 encoding
+  - **Photo Upload**: Upload custom photos for social post thumbnails via file input with base64 encoding, supports drag and drop
   - **Post Preview Modal**: View platform-specific preview of posts with thumbnail, description, and hashtags
   - **Logo Overlay**: Toggle to add Medicine & Money Show logo to post thumbnails (showLogo field, uses mixBlendMode)
   - Database tables: viral_content, social_posts, social_thumbnails, viral_topics
