@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,10 @@ import {
   Download,
   FileText,
   FileSpreadsheet,
-  CalendarDays
+  CalendarDays,
+  Clock,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -109,6 +112,9 @@ export function AnalyticsDashboard() {
   const [customEndDate, setCustomEndDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [newData, setNewData] = useState({
     thumbnailId: "",
     impressions: "",
@@ -168,6 +174,40 @@ export function AnalyticsDashboard() {
   const { data: abTests } = useQuery<ABTest[]>({
     queryKey: ["/api/ab-tests"],
   });
+
+  // Update lastUpdated when summary data changes
+  useEffect(() => {
+    if (summary && !summaryLoading) {
+      setLastUpdated(new Date());
+      setIsRefreshing(false);
+    }
+  }, [summary, summaryLoading]);
+
+  // Auto-refresh every 30 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      refetchSummary();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, refetchSummary]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await refetchSummary();
+  };
+
+  const formatLastUpdated = () => {
+    if (!lastUpdated) return "Never";
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastUpdated.getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return lastUpdated.toLocaleTimeString();
+  };
 
   const addAnalyticsMutation = useMutation({
     mutationFn: async (data: typeof newData) => {
@@ -464,14 +504,35 @@ export function AnalyticsDashboard() {
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground border rounded-lg px-3 py-1.5">
+            <Clock className="w-4 h-4" />
+            <span>Updated: {formatLastUpdated()}</span>
+            {isRefreshing && (
+              <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+            )}
+          </div>
+          <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            data-testid="button-auto-refresh"
+          >
+            {autoRefresh ? (
+              <Wifi className="w-4 h-4 mr-2" />
+            ) : (
+              <WifiOff className="w-4 h-4 mr-2" />
+            )}
+            {autoRefresh ? "Live" : "Auto"}
+          </Button>
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => refetchSummary()}
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
             data-testid="button-refresh-analytics"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
           <DropdownMenu>
