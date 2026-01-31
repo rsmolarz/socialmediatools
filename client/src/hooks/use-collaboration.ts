@@ -5,6 +5,8 @@ interface CollaboratorPresence {
   userId: string;
   username: string;
   color: string;
+  status: "online" | "away" | "busy";
+  lastSeen: number;
 }
 
 interface CursorPosition {
@@ -71,7 +73,15 @@ export function useCollaboration(options: UseCollaborationOptions) {
           case "presence":
             setCollaborators(message.users || []);
             break;
-            
+
+          case "presence_update":
+            setCollaborators(prev => prev.map(c => 
+              c.userId === message.userId 
+                ? { ...c, status: message.status, lastSeen: message.lastSeen } 
+                : c
+            ));
+            break;
+
           case "join":
             setCollaborators(prev => {
               if (prev.some(c => c.userId === message.userId)) return prev;
@@ -82,7 +92,9 @@ export function useCollaboration(options: UseCollaborationOptions) {
               return [...prev, {
                 userId: message.userId,
                 username: message.username,
-                color: message.color
+                color: message.color,
+                status: message.status || "online",
+                lastSeen: message.lastSeen || Date.now()
               }];
             });
             break;
@@ -244,6 +256,14 @@ export function useCollaboration(options: UseCollaborationOptions) {
     sendSync,
     sendChat,
     activityLog,
+    sendPresenceUpdate: useCallback((status: "online" | "away" | "busy") => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "presence",
+          data: { status }
+        }));
+      }
+    }, []),
     selections: Array.from(selections.values()),
     sendSelection: useCallback((layerId: string | null) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {

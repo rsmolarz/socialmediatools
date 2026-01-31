@@ -3,11 +3,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Users, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
+
 interface Collaborator {
   userId: string;
   username: string;
   color: string;
-  status?: "online" | "away" | "busy";
+  status: "online" | "away" | "busy";
+  lastSeen: number;
 }
 
 interface PresenceIndicatorProps {
@@ -60,9 +64,9 @@ export function PresenceIndicator({
         {visibleCollaborators.map((collaborator) => (
           <Tooltip key={collaborator.userId}>
             <TooltipTrigger asChild>
-              <div className="relative">
+              <div className="relative group">
                 <Avatar 
-                  className="w-8 h-8 border-2 border-background cursor-pointer hover-elevate"
+                  className="w-8 h-8 border-2 border-background cursor-pointer hover-elevate transition-transform hover:scale-110"
                   style={{ borderColor: collaborator.color }}
                   data-testid={`presence-avatar-${collaborator.userId}`}
                 >
@@ -74,14 +78,28 @@ export function PresenceIndicator({
                   </AvatarFallback>
                 </Avatar>
                 <div className={cn(
-                  "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-background",
+                  "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background shadow-sm transition-colors duration-300",
                   getStatusColor(collaborator.status)
                 )} />
               </div>
             </TooltipTrigger>
-            <TooltipContent>
-              <p className="font-medium">{collaborator.username}</p>
-              <p className="text-xs text-muted-foreground capitalize">{collaborator.status || "online"}</p>
+            <TooltipContent side="bottom" className="p-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", getStatusColor(collaborator.status))} />
+                  <p className="font-semibold text-sm">{collaborator.username}</p>
+                </div>
+                <div className="flex flex-col gap-1 pl-4 border-l border-muted-foreground/20">
+                  <p className="text-xs text-muted-foreground capitalize flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                    {collaborator.status || "online"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground italic flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                    Seen {formatDistanceToNow(new Date(collaborator.lastSeen), { addSuffix: true })}
+                  </p>
+                </div>
+              </div>
             </TooltipContent>
           </Tooltip>
         ))}

@@ -9,6 +9,7 @@ interface CollaborationClient {
   username?: string;
   color: string;
   lastActivity: number;
+  status: "online" | "away" | "busy";
 }
 
 interface CollaborationMessage {
@@ -75,18 +76,20 @@ function broadcast(thumbnailId: string, message: object, excludeWs?: WebSocket) 
   });
 }
 
-function getPresenceList(thumbnailId: string): Array<{userId: string; username: string; color: string}> {
+function getPresenceList(thumbnailId: string): Array<{userId: string; username: string; color: string; status: string; lastSeen: number}> {
   const room = thumbnailRooms.get(thumbnailId);
   if (!room) return [];
   
-  const presence: Array<{userId: string; username: string; color: string}> = [];
+  const presence: Array<{userId: string; username: string; color: string; status: string; lastSeen: number}> = [];
   room.forEach(ws => {
     const client = clients.get(ws);
     if (client) {
       presence.push({
         userId: client.odisId,
         username: client.username || "Anonymous",
-        color: client.color
+        color: client.color,
+        status: client.status || "online",
+        lastSeen: client.lastActivity
       });
     }
   });
@@ -136,6 +139,8 @@ export function setupWebSocket(server: Server) {
               
               client.thumbnailId = message.thumbnailId;
               client.username = message.username || "Anonymous";
+              client.status = "online";
+              client.lastActivity = Date.now();
               
               if (!thumbnailRooms.has(message.thumbnailId)) {
                 thumbnailRooms.set(message.thumbnailId, new Set());
@@ -146,12 +151,21 @@ export function setupWebSocket(server: Server) {
                 type: "join",
                 userId: client.odisId,
                 username: client.username,
-                color: client.color
+                color: client.color,
+                status: client.status,
+                lastSeen: client.lastActivity
               }, ws);
               
               ws.send(JSON.stringify({
                 type: "presence",
                 users: getPresenceList(message.thumbnailId)
+              }));
+
+              // Send existing activity log to newly joined user
+              const log = activityLogs.get(message.thumbnailId) || [];
+              ws.send(JSON.stringify({
+                type: "activity_history",
+                data: log
               }));
             }
             break;
@@ -238,6 +252,21 @@ export function setupWebSocket(server: Server) {
             }
             break;
             
+          case "presence":
+            if (message.data?.status) {
+              client.status = message.data.status;
+              client.lastActivity = Date.now();
+              if (client.thumbnailId) {
+                broadcast(client.thumbnailId, {
+                  type: "presence_update",
+                  userId: client.odisId,
+                  status: client.status,
+                  lastSeen: client.lastActivity
+                });
+              }
+            }
+            break;
+
           case "chat":
             if (client.thumbnailId && message.data) {
               broadcast(client.thumbnailId, {

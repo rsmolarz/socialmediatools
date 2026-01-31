@@ -78,6 +78,7 @@ export default function ToolsPage() {
   const [selectedThumbnailId, setSelectedThumbnailId] = useState<number | undefined>();
   const [selectedStockImage, setSelectedStockImage] = useState<string | undefined>();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [userStatus, setUserStatus] = useState<"online" | "away" | "busy">("online");
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -90,11 +91,16 @@ export default function ToolsPage() {
     userId,
     selections,
     sendSelection,
-    activityLog
+    activityLog,
+    sendPresenceUpdate
   } = useCollaboration({
     thumbnailId: "default-tool-room", 
     username: "User", 
   });
+
+  useEffect(() => {
+    sendPresenceUpdate?.(userStatus);
+  }, [userStatus, sendPresenceUpdate]);
 
   const handleApplyTemplate = (config: any) => {
     console.log("Apply template config:", config);
