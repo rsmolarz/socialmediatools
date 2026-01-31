@@ -53,6 +53,15 @@ Key entities:
 ## Recent Changes
 
 ### Latest Updates (January 31, 2026)
+- **Tools Page (Tier 1 Features)**: New dedicated tools page accessible via header button with 6 feature tabs:
+  - **Template Library**: Browse and apply pre-made thumbnail templates with categories (Health, Finance, Tech, Gaming, Lifestyle, Business), search functionality, and 6 default templates
+  - **Batch Export**: Export multiple thumbnails at once in PNG/JPG/WebP formats with quality control (10-100%) and ZIP download, includes configuration file export option
+  - **Content Scheduling Calendar**: Visual calendar interface for scheduling content across platforms (YouTube, TikTok, Instagram, Twitter), date navigation, and scheduled item management
+  - **Font Management**: Comprehensive typography controls with 13+ fonts across categories (Modern, Classic, Creative), font size/weight controls, letter spacing, line height, text alignment, color presets, and text shadow effects
+  - **Collaboration Panel**: Share thumbnails with team members via email with permission levels (view, edit, comment), share link generation, and comments system with resolve/delete functionality
+  - **Collections Panel**: Color-coded folder organization for thumbnails with 8 colors, 6 icons, privacy settings, and full CRUD operations
+  - Database tables: templates, brandKits, scheduledContent, collections, collaborations, comments, keyboardShortcuts, analytics
+  - Navigation: Tools button in home header, back button in tools header, ThemeToggle on both pages
 - **Social Media Suite**: New comprehensive social media dashboard (Social tab) with:
   - **Viral Topic Discovery**: AI-powered trending topic analysis for Medicine & Money niche
   - **Multi-Platform Content Generation**: Generate optimized content for YouTube, TikTok, and Instagram

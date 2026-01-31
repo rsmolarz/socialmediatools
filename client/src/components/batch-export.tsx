@@ -47,6 +47,7 @@ export function BatchExport({ thumbnails: externalThumbnails, onExportComplete }
         body: JSON.stringify({
           thumbnailIds: Array.from(selectedIds),
           format,
+          quality,
           includeConfig,
         }),
       });

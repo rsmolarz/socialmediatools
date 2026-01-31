@@ -58,12 +58,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
   });
 
   const { data: collections = [], isLoading } = useQuery<Collection[]>({
-    queryKey: ["/api/collections", userId],
-    queryFn: async () => {
-      const response = await fetch(`/api/collections?userId=${userId}`);
-      if (!response.ok) throw new Error("Failed to fetch");
-      return response.json();
-    },
+    queryKey: [`/api/collections?userId=${userId}`],
   });
 
   const createMutation = useMutation({
@@ -74,7 +69,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/collections?userId=${userId}`] });
       setShowCreateDialog(false);
       resetForm();
       toast({ title: "Collection created" });
@@ -92,7 +87,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/collections?userId=${userId}`] });
       setEditingCollection(null);
       resetForm();
       toast({ title: "Collection updated" });
@@ -102,7 +97,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest(`/api/collections/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/collections?userId=${userId}`] });
       toast({ title: "Collection deleted" });
     },
   });

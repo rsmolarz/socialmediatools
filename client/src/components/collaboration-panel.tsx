@@ -44,24 +44,12 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
   const [copiedLink, setCopiedLink] = useState(false);
 
   const { data: collaborations = [], isLoading: loadingCollabs } = useQuery<Collaboration[]>({
-    queryKey: ["/api/collaborations/thumbnail", thumbnailId],
-    queryFn: async () => {
-      if (!thumbnailId) return [];
-      const response = await fetch(`/api/collaborations/thumbnail/${thumbnailId}`);
-      if (!response.ok) throw new Error("Failed to fetch");
-      return response.json();
-    },
+    queryKey: [`/api/collaborations/thumbnail/${thumbnailId}`],
     enabled: !!thumbnailId,
   });
 
   const { data: comments = [], isLoading: loadingComments } = useQuery<Comment[]>({
-    queryKey: ["/api/comments/thumbnail", thumbnailId],
-    queryFn: async () => {
-      if (!thumbnailId) return [];
-      const response = await fetch(`/api/comments/thumbnail/${thumbnailId}`);
-      if (!response.ok) throw new Error("Failed to fetch");
-      return response.json();
-    },
+    queryKey: [`/api/comments/thumbnail/${thumbnailId}`],
     enabled: !!thumbnailId,
   });
 
@@ -73,7 +61,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/collaborations/thumbnail", thumbnailId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/collaborations/thumbnail/${thumbnailId}`] });
       setShowShareDialog(false);
       setShareEmail("");
       toast({ title: "Shared", description: "Thumbnail has been shared" });
@@ -86,7 +74,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
   const deleteCollabMutation = useMutation({
     mutationFn: (id: number) => apiRequest(`/api/collaborations/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/collaborations/thumbnail", thumbnailId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/collaborations/thumbnail/${thumbnailId}`] });
       toast({ title: "Access revoked" });
     },
   });
@@ -99,7 +87,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/comments/thumbnail", thumbnailId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/comments/thumbnail/${thumbnailId}`] });
       setNewComment("");
     },
   });
@@ -112,14 +100,14 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/comments/thumbnail", thumbnailId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/comments/thumbnail/${thumbnailId}`] });
     },
   });
 
   const deleteCommentMutation = useMutation({
     mutationFn: (id: number) => apiRequest(`/api/comments/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/comments/thumbnail", thumbnailId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/comments/thumbnail/${thumbnailId}`] });
     },
   });
 
