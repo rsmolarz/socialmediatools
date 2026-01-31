@@ -356,10 +356,11 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
       const { topic, platforms } = parsed.data;
       const generatedContent = await viralAnalyzer.generateViralContent(topic, platforms);
 
-      // Save to database using storage
+      // Save to both viral_content and social_posts tables
       const savedContent = [];
       for (const content of generatedContent) {
         try {
+          // Save to viral_content for history tracking
           const contentData = insertViralContentSchema.parse({
             title: content.title,
             description: content.description,
@@ -370,8 +371,23 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
             brandVoiceApplied: "Medicine and Money Show",
             themes: content.hashtags,
           });
-          const saved = await storage.createViralContent(contentData);
-          savedContent.push(saved);
+          const savedViral = await storage.createViralContent(contentData);
+
+          // Also save to social_posts for the Manage queue
+          const postData = insertSocialPostSchema.parse({
+            viralContentId: savedViral.id,
+            platform: content.platform,
+            title: content.title,
+            description: content.description,
+            script: content.script || null,
+            hashtags: content.hashtags,
+            hooks: content.hooks,
+            viralityScore: content.viralityScore,
+            status: "draft",
+          });
+          await storage.createSocialPost(postData);
+
+          savedContent.push(savedViral);
         } catch (e) {
           console.error("Error saving content:", e);
         }
