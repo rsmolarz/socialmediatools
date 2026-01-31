@@ -461,6 +461,8 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
 
       const updateSchema = insertSocialPostSchema.partial().pick({
         thumbnailUrl: true,
+        backgroundUrl: true,
+        backgroundOpacity: true,
         title: true,
         description: true,
         showLogo: true,

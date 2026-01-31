@@ -175,6 +175,8 @@ export const socialPosts = pgTable("social_posts", {
   postedAt: timestamp("posted_at"),
   platformPostId: text("platform_post_id"),
   thumbnailUrl: text("thumbnail_url"),
+  backgroundUrl: text("background_url"),
+  backgroundOpacity: integer("background_opacity").default(100),
   showLogo: boolean("show_logo").default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),

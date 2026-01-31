@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import logoImage from "@assets/aragonai-6db9ede2-5123-48c3-8ae3-ed1f0654d82a_1769872211051.jpeg";
+import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, 
@@ -30,7 +32,9 @@ import {
   Eye,
   ImagePlus,
   Upload,
-  User
+  User,
+  Layers,
+  Image
 } from "lucide-react";
 
 interface ViralTopic {
@@ -70,6 +74,8 @@ interface SocialPost {
   status: string | null;
   approvedBy: string | null;
   thumbnailUrl: string | null;
+  backgroundUrl: string | null;
+  backgroundOpacity: number | null;
   showLogo: boolean | null;
   createdAt: string;
 }
@@ -124,8 +130,11 @@ export function SocialMediaDashboard() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([]);
   const [previewPost, setPreviewPost] = useState<SocialPost | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPostId, setUploadingPostId] = useState<number | null>(null);
+  const [uploadingBackgroundPostId, setUploadingBackgroundPostId] = useState<number | null>(null);
   const [dragOverPostId, setDragOverPostId] = useState<number | null>(null);
+  const [processingPostId, setProcessingPostId] = useState<number | null>(null);
 
   const { data: topicsData, isLoading: topicsLoading, refetch: refetchTopics } = useQuery<{ topics: ViralTopic[] }>({
     queryKey: ["/api/viral/discover-topics"],
@@ -227,6 +236,51 @@ export function SocialMediaDashboard() {
     },
   });
 
+  const updateBackgroundMutation = useMutation({
+    mutationFn: async ({ postId, backgroundUrl }: { postId: number; backgroundUrl: string }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        backgroundUrl,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+      toast({ title: "Background Updated", description: "Background image has been set" });
+    },
+    onError: () => {
+      toast({ title: "Update Failed", description: "Failed to update background", variant: "destructive" });
+    },
+  });
+
+  const updateOpacityMutation = useMutation({
+    mutationFn: async ({ postId, backgroundOpacity }: { postId: number; backgroundOpacity: number }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        backgroundOpacity,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+    },
+    onError: () => {
+      toast({ title: "Update Failed", description: "Failed to update opacity", variant: "destructive" });
+    },
+  });
+
+  const removeBackgroundFromImage = async (imageData: string): Promise<string> => {
+    const blob = await imglyRemoveBackground(imageData, {
+      progress: (key, current, total) => {
+        console.log(`Background removal: ${key} - ${current}/${total}`);
+      },
+    });
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
   const handleGenerateFromTopic = (topic: ViralTopic) => {
     setSelectedTopic(topic);
     generateContentMutation.mutate(topic.keyword);
@@ -248,14 +302,51 @@ export function SocialMediaDashboard() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadingPostId) {
+      const postId = uploadingPostId;
+      setUploadingPostId(null);
+      setProcessingPostId(postId);
+      
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          toast({ title: "Removing Background", description: "Processing your image..." });
+          const processedImage = await removeBackgroundFromImage(base64);
+          updatePhotoMutation.mutate({ postId, photoUrl: processedImage });
+          toast({ title: "Background Removed", description: "Image processed successfully" });
+        } catch (error) {
+          console.error("Background removal failed:", error);
+          updatePhotoMutation.mutate({ postId, photoUrl: base64 });
+          toast({ 
+            title: "Background Removal Failed", 
+            description: "Using original image. You can try again later.",
+            variant: "destructive" 
+          });
+        } finally {
+          setProcessingPostId(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = "";
+  };
+
+  const handleBackgroundUpload = (postId: number) => {
+    setUploadingBackgroundPostId(postId);
+    backgroundInputRef.current?.click();
+  };
+
+  const handleBackgroundFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && uploadingBackgroundPostId) {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = reader.result as string;
-        updatePhotoMutation.mutate({ postId: uploadingPostId, photoUrl: base64 });
-        setUploadingPostId(null);
+        updateBackgroundMutation.mutate({ postId: uploadingBackgroundPostId, backgroundUrl: base64 });
+        setUploadingBackgroundPostId(null);
       };
       reader.readAsDataURL(file);
     }
@@ -278,17 +369,33 @@ export function SocialMediaDashboard() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent, postId: number) => {
+  const handleDrop = async (e: React.DragEvent, postId: number) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverPostId(null);
     
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
+      setProcessingPostId(postId);
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = reader.result as string;
-        updatePhotoMutation.mutate({ postId, photoUrl: base64 });
+        try {
+          toast({ title: "Removing Background", description: "Processing your image..." });
+          const processedImage = await removeBackgroundFromImage(base64);
+          updatePhotoMutation.mutate({ postId, photoUrl: processedImage });
+          toast({ title: "Background Removed", description: "Image processed successfully" });
+        } catch (error) {
+          console.error("Background removal failed:", error);
+          updatePhotoMutation.mutate({ postId, photoUrl: base64 });
+          toast({ 
+            title: "Background Removal Failed", 
+            description: "Using original image.",
+            variant: "destructive" 
+          });
+        } finally {
+          setProcessingPostId(null);
+        }
       };
       reader.readAsDataURL(file);
     } else {
@@ -312,6 +419,14 @@ export function SocialMediaDashboard() {
         accept="image/*"
         className="hidden"
         data-testid="input-photo-upload"
+      />
+      <input
+        type="file"
+        ref={backgroundInputRef}
+        onChange={handleBackgroundFileChange}
+        accept="image/*"
+        className="hidden"
+        data-testid="input-background-upload"
       />
       
       <Dialog open={!!previewPost} onOpenChange={(open) => !open && setPreviewPost(null)}>
@@ -340,11 +455,19 @@ export function SocialMediaDashboard() {
                   </div>
                 )}
                 {previewPost.thumbnailUrl && (
-                  <div className="relative">
+                  <div className="relative overflow-hidden">
+                    {previewPost.backgroundUrl && (
+                      <img 
+                        src={previewPost.backgroundUrl} 
+                        alt="Background"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        style={{ opacity: (previewPost.backgroundOpacity ?? 100) / 100 }}
+                      />
+                    )}
                     <img 
                       src={previewPost.thumbnailUrl} 
                       alt={previewPost.title}
-                      className="w-full aspect-video object-cover"
+                      className="relative w-full aspect-video object-cover"
                     />
                     {previewPost.showLogo && (
                       <div className="absolute top-3 right-3">
@@ -619,11 +742,20 @@ export function SocialMediaDashboard() {
                               data-testid={`dropzone-${post.id}`}
                             >
                               {post.thumbnailUrl ? (
-                                <div className="relative group h-20 rounded-md transition-all">
+                                <div className="relative group h-20 rounded-md transition-all overflow-hidden border">
+                                  {post.backgroundUrl && (
+                                    <img 
+                                      src={post.backgroundUrl} 
+                                      alt="Background"
+                                      className="absolute inset-0 w-full h-full object-cover"
+                                      style={{ opacity: (post.backgroundOpacity ?? 100) / 100 }}
+                                      data-testid={`background-${post.id}`}
+                                    />
+                                  )}
                                   <img 
                                     src={post.thumbnailUrl} 
                                     alt={post.title}
-                                    className="w-full h-full object-cover rounded-md border"
+                                    className="relative w-full h-full object-cover"
                                     data-testid={`thumbnail-${post.id}`}
                                   />
                                   {post.showLogo && (
@@ -636,7 +768,15 @@ export function SocialMediaDashboard() {
                                       />
                                     </div>
                                   )}
-                                  <div className={`absolute inset-0 bg-black/50 rounded-md flex items-center justify-center transition-all ${dragOverPostId === post.id ? "visible" : "invisible group-hover:visible"}`}>
+                                  {processingPostId === post.id && (
+                                    <div className="absolute inset-0 bg-black/70 rounded-md flex items-center justify-center">
+                                      <div className="text-white text-xs text-center">
+                                        <Loader2 className="w-5 h-5 mx-auto mb-1 animate-spin" />
+                                        Processing...
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div className={`absolute inset-0 bg-black/50 rounded-md flex items-center justify-center transition-all ${dragOverPostId === post.id ? "visible" : processingPostId === post.id ? "invisible" : "invisible group-hover:visible"}`}>
                                     {dragOverPostId === post.id ? (
                                       <div className="text-white text-xs text-center">
                                         <Upload className="w-5 h-5 mx-auto mb-1" />
@@ -730,6 +870,33 @@ export function SocialMediaDashboard() {
                               />
                               {post.showLogo ? "Logo On" : "Add Logo"}
                             </Button>
+                            {post.thumbnailUrl && (
+                              <Button
+                                size="sm"
+                                variant={post.backgroundUrl ? "default" : "outline"}
+                                onClick={() => handleBackgroundUpload(post.id)}
+                                disabled={updateBackgroundMutation.isPending}
+                                data-testid={`button-background-${post.id}`}
+                              >
+                                <Layers className="w-3 h-3 mr-1" />
+                                {post.backgroundUrl ? "Change BG" : "Add BG"}
+                              </Button>
+                            )}
+                            {post.backgroundUrl && (
+                              <div className="flex items-center gap-2 min-w-[140px]">
+                                <Image className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                <Slider
+                                  value={[post.backgroundOpacity ?? 100]}
+                                  onValueChange={(value) => updateOpacityMutation.mutate({ postId: post.id, backgroundOpacity: value[0] })}
+                                  min={10}
+                                  max={100}
+                                  step={5}
+                                  className="flex-1"
+                                  data-testid={`slider-opacity-${post.id}`}
+                                />
+                                <span className="text-xs text-muted-foreground w-8">{post.backgroundOpacity ?? 100}%</span>
+                              </div>
+                            )}
                             {post.status === "draft" && (
                               <>
                                 <Button
