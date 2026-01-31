@@ -20,6 +20,7 @@ import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
 import { TranscriptAnalyzer } from "@/components/transcript-analyzer";
 import { ViralTitleHelper } from "@/components/viral-title-helper";
+import { LayerPanel } from "@/components/layer-panel";
 import { SocialMediaDashboard } from "@/components/social-media-dashboard";
 import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -554,33 +555,13 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Text Layers */}
-            {config.overlays.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Type className="h-4 w-4" />
-                    Text Layers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2 flex-wrap">
-                    {config.overlays.map((overlay) => (
-                      <Button
-                        key={overlay.id}
-                        variant={selectedTextId === overlay.id ? "default" : "secondary"}
-                        size="sm"
-                        onClick={() => setSelectedTextId(overlay.id)}
-                        data-testid={`button-layer-${overlay.id}`}
-                      >
-                        {overlay.text.substring(0, 20)}
-                        {overlay.text.length > 20 ? "..." : ""}
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Layer Panel with Drag & Drop */}
+            <LayerPanel
+              config={config}
+              onConfigChange={setConfig}
+              selectedLayerId={selectedTextId}
+              onLayerSelect={(id) => setSelectedTextId(id)}
+            />
           </div>
 
           {/* Controls Sidebar */}

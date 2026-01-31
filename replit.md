@@ -93,6 +93,8 @@ Key entities:
   - **Export Optimization (Feature 14)**: Advanced export controls with 4 formats (PNG, JPG, WebP, AVIF), quality slider (10-100%), platform presets (YouTube, Instagram, Twitter, LinkedIn, Custom), transparency preservation, web optimization, metadata stripping, estimated file size preview
   - **Keyboard Shortcuts (Feature 15)**: Global shortcuts with useKeyboardShortcuts hook - Ctrl+S (save), Ctrl+E (export), Ctrl+Z (undo), Ctrl+Y/Ctrl+Shift+Z (redo), Ctrl+N (new), Ctrl+R (reset), Ctrl+T (toggle theme), Shift+? (show help), plus keyboard shortcuts help modal
   - **Undo/Redo System (Feature 16)**: Full history stack with useHistory hook, 50-step history limit, undo/redo buttons in header with visual disabled states, integrated with keyboard shortcuts
+- **Tier 4 Features Complete**:
+  - **Drag & Drop Layers (Feature 17)**: LayerPanel component with drag-and-drop reordering, visual layer list showing all elements (background, highlight, text lines, person image), layer visibility toggle, move up/down buttons, delete layer functionality, layer selection with visual highlighting
 
 ### Previous Updates (January 30, 2026)
 - **Transcript Analyzer**: New AI-powered feature to analyze podcast transcripts and generate:
