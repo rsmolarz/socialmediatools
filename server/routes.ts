@@ -373,6 +373,18 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
           });
           const savedViral = await storage.createViralContent(contentData);
 
+          // Generate AI thumbnail for the post
+          let thumbnailUrl: string | null = null;
+          try {
+            const thumbnailPrompt = content.thumbnailPrompt || 
+              `Professional social media thumbnail for "${content.title}" - Medicine & Money Show branding, featuring a doctor in white coat overlooking a city skyline at sunset, bold text overlay "${topic.toUpperCase()}", photorealistic, high quality, 16:9 aspect ratio`;
+            
+            const imageBuffer = await generateImageBuffer(thumbnailPrompt, "1024x1024");
+            thumbnailUrl = `data:image/png;base64,${imageBuffer.toString("base64")}`;
+          } catch (imgErr) {
+            console.error("Error generating thumbnail:", imgErr);
+          }
+
           // Also save to social_posts for the Manage queue
           const postData = insertSocialPostSchema.parse({
             viralContentId: savedViral.id,
@@ -383,6 +395,7 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
             hashtags: content.hashtags,
             hooks: content.hooks,
             viralityScore: content.viralityScore,
+            thumbnailUrl: thumbnailUrl,
             status: "draft",
           });
           await storage.createSocialPost(postData);

@@ -63,6 +63,7 @@ interface SocialPost {
   viralityScore: number | null;
   status: string | null;
   approvedBy: string | null;
+  thumbnailUrl: string | null;
   createdAt: string;
 }
 
@@ -425,9 +426,19 @@ export function SocialMediaDashboard() {
                     {posts.map((post) => (
                       <Card key={post.id} className="overflow-hidden">
                         <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
+                          <div className="flex gap-4">
+                            {post.thumbnailUrl && (
+                              <div className="flex-shrink-0">
+                                <img 
+                                  src={post.thumbnailUrl} 
+                                  alt={post.title}
+                                  className="w-32 h-20 object-cover rounded-md border"
+                                  data-testid={`thumbnail-${post.id}`}
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 {getPlatformIcon(post.platform)}
                                 <span className="font-medium capitalize">{post.platform}</span>
                                 <Badge className={getStatusColor(post.status)}>
@@ -439,7 +450,7 @@ export function SocialMediaDashboard() {
                                   </Badge>
                                 )}
                               </div>
-                              <p className="font-semibold">{post.title}</p>
+                              <p className="font-semibold truncate">{post.title}</p>
                               {post.description && (
                                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                                   {post.description}
