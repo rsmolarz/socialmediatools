@@ -38,8 +38,17 @@ import {
   FlaskConical,
   PieChart as PieChartIcon,
   LineChart as LineChartIcon,
-  Trophy
+  Trophy,
+  Download,
+  FileText,
+  FileSpreadsheet
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -213,6 +222,133 @@ export function AnalyticsDashboard() {
     return abTests.filter(test => test.status === "completed" || test.status === "active");
   };
 
+  const exportToCSV = () => {
+    if (!summary?.thumbnails) {
+      toast({ title: "No data to export", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["Thumbnail", "Impressions", "Clicks", "CTR (%)"];
+    const rows = summary.thumbnails.map(thumb => [
+      thumb.title,
+      thumb.impressions.toString(),
+      thumb.clicks.toString(),
+      thumb.engagementRate.toFixed(2),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const summarySection = [
+      "",
+      "Summary",
+      `Total Impressions,${summary.totalImpressions}`,
+      `Total Clicks,${summary.totalClicks}`,
+      `Overall CTR,${summary.overallEngagementRate.toFixed(2)}%`,
+    ].join("\n");
+
+    const fullContent = csvContent + "\n" + summarySection;
+    const blob = new Blob([fullContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `analytics-report-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    toast({ title: "CSV report downloaded" });
+  };
+
+  const exportToPDF = () => {
+    if (!summary?.thumbnails) {
+      toast({ title: "No data to export", variant: "destructive" });
+      return;
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Analytics Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          h1 { color: #1a1a1a; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+          h2 { color: #4b5563; margin-top: 30px; }
+          .summary { display: flex; gap: 30px; margin: 20px 0; }
+          .stat-card { background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; flex: 1; }
+          .stat-value { font-size: 28px; font-weight: bold; color: #1a1a1a; }
+          .stat-label { color: #6b7280; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
+          th { background: #3b82f6; color: white; }
+          tr:nth-child(even) { background: #f9fafb; }
+          .ctr-high { color: #10b981; font-weight: bold; }
+          .ctr-medium { color: #f59e0b; font-weight: bold; }
+          .ctr-low { color: #ef4444; font-weight: bold; }
+          .footer { margin-top: 40px; color: #9ca3af; font-size: 12px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <h1>Analytics Report</h1>
+        <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        
+        <h2>Summary</h2>
+        <div class="summary">
+          <div class="stat-card">
+            <div class="stat-value">${formatNumber(summary.totalImpressions)}</div>
+            <div class="stat-label">Total Impressions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${formatNumber(summary.totalClicks)}</div>
+            <div class="stat-label">Total Clicks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${summary.overallEngagementRate.toFixed(2)}%</div>
+            <div class="stat-label">Overall CTR</div>
+          </div>
+        </div>
+
+        <h2>Thumbnail Performance</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Thumbnail</th>
+              <th>Impressions</th>
+              <th>Clicks</th>
+              <th>CTR</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${summary.thumbnails.map(thumb => `
+              <tr>
+                <td>${thumb.title}</td>
+                <td>${thumb.impressions.toLocaleString()}</td>
+                <td>${thumb.clicks.toLocaleString()}</td>
+                <td class="${thumb.engagementRate >= 10 ? 'ctr-high' : thumb.engagementRate >= 5 ? 'ctr-medium' : 'ctr-low'}">${thumb.engagementRate.toFixed(2)}%</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <p>Medicine & Money Show - Thumbnail Analytics</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+      toast({ title: "PDF report opened for printing" });
+    } else {
+      toast({ title: "Please allow popups to export PDF", variant: "destructive" });
+    }
+  };
+
   if (summaryLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -238,6 +374,24 @@ export function AnalyticsDashboard() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-export-analytics">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToCSV} data-testid="button-export-csv">
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF} data-testid="button-export-pdf">
+                <FileText className="w-4 h-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
               <Button size="sm" data-testid="button-add-analytics">

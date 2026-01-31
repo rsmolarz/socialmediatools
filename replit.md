@@ -107,6 +107,7 @@ Key entities:
   - **Performance Charts**: Line graphs for views over time, bar charts for thumbnail comparison using recharts library
   - **Engagement Visualization**: Pie chart showing impressions vs clicks breakdown, CTR leaderboard ranking top performers
   - **A/B Test Results**: Compare thumbnail variants side-by-side with winner highlighting
+  - **Export Reports**: Export analytics as CSV spreadsheet or PDF report with summary and per-thumbnail data
   - Database tables: thumbnail_analytics, analytics_events
   - API endpoints: /api/analytics/summary, /api/analytics/thumbnail/:id, /api/analytics/event, /api/analytics/bulk, /api/analytics/events/:id
 
