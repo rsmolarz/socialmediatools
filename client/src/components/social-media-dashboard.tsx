@@ -80,6 +80,7 @@ interface SocialPost {
   backgroundOpacity: number | null;
   showLogo: boolean | null;
   logoSize: number | null;
+  logoPosition: string | null;
   selectedHook: string | null;
   callToAction: string | null;
   createdAt: string;
@@ -275,6 +276,41 @@ export function SocialMediaDashboard() {
         queryClient.setQueryData(["/api/viral/posts"], context.previousData);
       }
       toast({ title: "Update Failed", description: "Failed to update logo size", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+    },
+  });
+
+  const updateLogoPositionMutation = useMutation({
+    mutationFn: async ({ postId, logoPosition }: { postId: number; logoPosition: string }) => {
+      const response = await apiRequest("PATCH", `/api/viral/posts/${postId}`, {
+        logoPosition,
+      });
+      return response.json();
+    },
+    onMutate: async ({ postId, logoPosition }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/viral/posts"] });
+      const previousData = queryClient.getQueryData(["/api/viral/posts"]);
+      queryClient.setQueryData(["/api/viral/posts"], (old: { posts: SocialPost[]; total: number } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          posts: old.posts.map((p: SocialPost) =>
+            p.id === postId ? { ...p, logoPosition } : p
+          ),
+        };
+      });
+      if (previewPost && previewPost.id === postId) {
+        setPreviewPost({ ...previewPost, logoPosition });
+      }
+      return { previousData };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["/api/viral/posts"], context.previousData);
+      }
+      toast({ title: "Update Failed", description: "Failed to update logo position", variant: "destructive" });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
@@ -590,7 +626,12 @@ export function SocialMediaDashboard() {
                       />
                     )}
                     {previewPost.showLogo && (
-                      <div className="absolute top-3 right-3">
+                      <div className={`absolute ${
+                        previewPost.logoPosition === "top-left" ? "top-3 left-3" :
+                        previewPost.logoPosition === "bottom-left" ? "bottom-3 left-3" :
+                        previewPost.logoPosition === "bottom-right" ? "bottom-3 right-3" :
+                        "top-3 right-3"
+                      }`}>
                         <img 
                           src={logoImage} 
                           alt="Medicine & Money Logo"
@@ -897,7 +938,12 @@ export function SocialMediaDashboard() {
                                     data-testid={`thumbnail-${post.id}`}
                                   />
                                   {post.showLogo && (
-                                    <div className="absolute top-1 right-1">
+                                    <div className={`absolute ${
+                                      post.logoPosition === "top-left" ? "top-1 left-1" :
+                                      post.logoPosition === "bottom-left" ? "bottom-1 left-1" :
+                                      post.logoPosition === "bottom-right" ? "bottom-1 right-1" :
+                                      "top-1 right-1"
+                                    }`}>
                                       <img 
                                         src={logoImage} 
                                         alt="Logo"
@@ -1060,21 +1106,64 @@ export function SocialMediaDashboard() {
                               {post.showLogo ? "Logo On" : "Add Logo"}
                             </Button>
                             {post.showLogo && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">Size:</span>
-                                <input
-                                  type="range"
-                                  min="20"
-                                  max="100"
-                                  value={post.logoSize || 50}
-                                  onChange={(e) => updateLogoSizeMutation.mutate({ 
-                                    postId: post.id, 
-                                    logoSize: parseInt(e.target.value) 
-                                  })}
-                                  className="w-16 h-1 accent-primary"
-                                  data-testid={`slider-logo-size-${post.id}`}
-                                />
-                                <span className="text-xs text-muted-foreground w-6" data-testid={`text-logo-size-${post.id}`}>{post.logoSize || 50}%</span>
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">Size:</span>
+                                  <input
+                                    type="range"
+                                    min="20"
+                                    max="100"
+                                    value={post.logoSize || 50}
+                                    onChange={(e) => updateLogoSizeMutation.mutate({ 
+                                      postId: post.id, 
+                                      logoSize: parseInt(e.target.value) 
+                                    })}
+                                    className="w-16 h-1 accent-primary"
+                                    data-testid={`slider-logo-size-${post.id}`}
+                                  />
+                                  <span className="text-xs text-muted-foreground w-6" data-testid={`text-logo-size-${post.id}`}>{post.logoSize || 50}%</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-muted-foreground">Pos:</span>
+                                  <div className="grid grid-cols-2 gap-0.5">
+                                    <Button
+                                      size="sm"
+                                      variant={(post.logoPosition || "top-right") === "top-left" ? "default" : "outline"}
+                                      className="h-5 w-5 p-0 text-[8px]"
+                                      onClick={() => updateLogoPositionMutation.mutate({ postId: post.id, logoPosition: "top-left" })}
+                                      data-testid={`button-logo-tl-${post.id}`}
+                                    >
+                                      TL
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={(post.logoPosition || "top-right") === "top-right" ? "default" : "outline"}
+                                      className="h-5 w-5 p-0 text-[8px]"
+                                      onClick={() => updateLogoPositionMutation.mutate({ postId: post.id, logoPosition: "top-right" })}
+                                      data-testid={`button-logo-tr-${post.id}`}
+                                    >
+                                      TR
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={(post.logoPosition || "top-right") === "bottom-left" ? "default" : "outline"}
+                                      className="h-5 w-5 p-0 text-[8px]"
+                                      onClick={() => updateLogoPositionMutation.mutate({ postId: post.id, logoPosition: "bottom-left" })}
+                                      data-testid={`button-logo-bl-${post.id}`}
+                                    >
+                                      BL
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={(post.logoPosition || "top-right") === "bottom-right" ? "default" : "outline"}
+                                      className="h-5 w-5 p-0 text-[8px]"
+                                      onClick={() => updateLogoPositionMutation.mutate({ postId: post.id, logoPosition: "bottom-right" })}
+                                      data-testid={`button-logo-br-${post.id}`}
+                                    >
+                                      BR
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
                             )}
                             {post.thumbnailUrl && (
