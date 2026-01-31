@@ -13,6 +13,7 @@ import { TrendAnalysis } from "@/components/trend-analysis";
 import { ViralHookGenerator } from "@/components/viral-hook-generator";
 import { BrandKitManagement } from "@/components/brand-kit-management";
 import { AdvancedImageEditor } from "@/components/advanced-image-editor";
+import { BackgroundRemover } from "@/components/background-remover";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -27,7 +28,8 @@ import {
   TrendingUp,
   Zap,
   Palette,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Eraser
 } from "lucide-react";
 
 const TOOLS = [
@@ -42,6 +44,7 @@ const TOOLS = [
   { id: "hooks", name: "Viral Hooks", icon: Zap, description: "Generate attention-grabbing hooks" },
   { id: "brand", name: "Brand Kit", icon: Palette, description: "Colors, fonts & logos" },
   { id: "editor", name: "Image Editor", icon: SlidersHorizontal, description: "Crop, filters & overlays" },
+  { id: "bgremove", name: "BG Remover", icon: Eraser, description: "Remove or blur backgrounds" },
 ];
 
 export default function ToolsPage() {
@@ -134,6 +137,10 @@ export default function ToolsPage() {
 
           <TabsContent value="editor" className="mt-0">
             <AdvancedImageEditor />
+          </TabsContent>
+
+          <TabsContent value="bgremove" className="mt-0">
+            <BackgroundRemover />
           </TabsContent>
         </Tabs>
       </div>
