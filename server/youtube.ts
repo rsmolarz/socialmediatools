@@ -69,25 +69,38 @@ async function getUncachableYouTubeClient() {
   return google.youtube({ version: "v3", auth: oauth2Client });
 }
 
+// The Medicine & Money Show channel handle
+const TARGET_CHANNEL_HANDLE = "medicineandmoneyshow";
+
 export async function fetchYouTubeVideos(
-  maxResults: number = 10,
-  daysBack: number = 30
+  maxResults: number = 50,
+  daysBack: number = 365
 ): Promise<{ videos: YouTubeVideo[]; totalFetched: number }> {
   try {
     const youtube = await getUncachableYouTubeClient();
 
-    // Get the authenticated user's channel
+    // Get The Medicine & Money Show channel by handle
     const channelResponse = await youtube.channels.list({
       part: ["contentDetails"],
-      mine: true,
+      forHandle: TARGET_CHANNEL_HANDLE,
     });
 
-    const uploadsPlaylistId =
+    let uploadsPlaylistId =
       channelResponse.data.items?.[0]?.contentDetails?.relatedPlaylists
         ?.uploads;
 
     if (!uploadsPlaylistId) {
-      return { videos: [], totalFetched: 0 };
+      // Fallback: try with mine=true if handle lookup fails
+      const fallbackResponse = await youtube.channels.list({
+        part: ["contentDetails"],
+        mine: true,
+      });
+      uploadsPlaylistId =
+        fallbackResponse.data.items?.[0]?.contentDetails?.relatedPlaylists
+          ?.uploads;
+      if (!uploadsPlaylistId) {
+        return { videos: [], totalFetched: 0 };
+      }
     }
 
     // Get playlist items (recent uploads)
