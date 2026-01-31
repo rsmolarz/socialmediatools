@@ -186,12 +186,14 @@ Analyze the transcript and return a JSON object with:
    The background should be dark/black with dramatic lighting on the real objects. Futuristic, cinematic, hyper-realistic 3D style. NO text, NO people, NO abstract patterns.
 3. "style" - One of: futuristic, cinematic, medical, finance, tech, dramatic
 4. "mood" - One of: dramatic, professional, bold, mysterious, luxurious
-5. "suggestedHeadline" - Array of exactly 3 strings for thumbnail text lines:
-   - Line 1: Short hook/question (3-5 words, attention-grabbing)
-   - Line 2: Key topic/benefit (4-6 words)
-   - Line 3: Call-to-action or result (3-5 words)
+5. "suggestedHeadline" - Array of exactly 1 string - a SINGLE short viral title:
+   - MAXIMUM 3-4 words only
+   - ALL CAPS format
+   - Use power words: SECRET, NOW, STOP, FREE, TRUTH, RICH, WEALTH
+   - Examples: "GET RICH NOW", "DOCTOR'S SECRET", "STOP THIS NOW", "WEALTH SECRET"
+   - DO NOT write full sentences or long phrases
 
-Focus on finance, medicine, investing, entrepreneurship, and wealth-building themes. Make headlines punchy and clickable.
+Focus on finance, medicine, investing, entrepreneurship, and wealth-building themes. Make it punchy, viral, and clickable like top YouTube thumbnails.
 
 Return ONLY valid JSON, no markdown or explanation.`;
 
