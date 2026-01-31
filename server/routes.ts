@@ -451,6 +451,40 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     }
   });
 
+  // Update a social post (for photo, etc.)
+  app.patch("/api/viral/posts/:id", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ success: false, error: "Invalid post ID" });
+      }
+
+      const updateSchema = insertSocialPostSchema.partial().pick({
+        thumbnailUrl: true,
+        title: true,
+        description: true,
+      });
+
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, error: "Invalid update data" });
+      }
+
+      const updated = await storage.updateSocialPost(postId, parsed.data);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: "Post not found" });
+      }
+
+      res.json({
+        success: true,
+        post: updated,
+      });
+    } catch (error) {
+      console.error("Error updating post:", error);
+      res.status(500).json({ success: false, error: "Failed to update post" });
+    }
+  });
+
   // Approve a social post
   app.post("/api/viral/posts/:id/approve", async (req, res) => {
     try {
