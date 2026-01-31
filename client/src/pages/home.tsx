@@ -21,6 +21,10 @@ import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
 import { TranscriptAnalyzer } from "@/components/transcript-analyzer";
 import { ViralTitleHelper } from "@/components/viral-title-helper";
 import { SocialMediaDashboard } from "@/components/social-media-dashboard";
+import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useHistory } from "@/hooks/use-history";
+import { useTheme } from "@/lib/theme-provider";
 import {
   Plus,
   Download,
@@ -34,6 +38,9 @@ import {
   Users,
   TrendingUp,
   Wrench,
+  Undo2,
+  Redo2,
+  Keyboard,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
@@ -77,13 +84,27 @@ const DEFAULT_CONFIG: ThumbnailConfig = {
 
 export default function Home() {
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const canvasRef = useRef<ThumbnailCanvasRef>(null);
   
-  const [config, setConfig] = useState<ThumbnailConfig>(DEFAULT_CONFIG);
+  const {
+    state: config,
+    setState: setConfig,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    reset: resetHistory,
+  } = useHistory<ThumbnailConfig>({
+    initialState: DEFAULT_CONFIG,
+    maxHistorySize: 50,
+  });
+  
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [thumbnailTitle, setThumbnailTitle] = useState("My Thumbnail");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [canvasDataUrl, setCanvasDataUrl] = useState<string | null>(null);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   useEffect(() => {
     const updatePreview = () => {
@@ -251,12 +272,48 @@ export default function Home() {
   };
 
   const handleResetToDefault = () => {
-    setConfig(DEFAULT_CONFIG);
+    resetHistory(DEFAULT_CONFIG);
     toast({
       title: "Reset Complete",
       description: "All settings have been reset to defaults.",
     });
   };
+
+  const handleUndo = useCallback(() => {
+    if (canUndo) {
+      undo();
+      toast({
+        title: "Undo",
+        description: "Previous action undone.",
+      });
+    }
+  }, [canUndo, undo, toast]);
+
+  const handleRedo = useCallback(() => {
+    if (canRedo) {
+      redo();
+      toast({
+        title: "Redo",
+        description: "Action restored.",
+      });
+    }
+  }, [canRedo, redo, toast]);
+
+  const handleToggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
+
+  useKeyboardShortcuts({
+    onExport: handleDownload,
+    onSave: handleSave,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onNew: handleNewThumbnail,
+    onReset: handleResetToDefault,
+    onToggleTheme: handleToggleTheme,
+    onShowHelp: () => setShowShortcutsHelp(true),
+    enabled: true,
+  });
 
   const handlePresetBackground = (background: string) => {
     if (background.startsWith("linear-gradient")) {
@@ -411,10 +468,46 @@ export default function Home() {
                 Tools
               </Button>
             </Link>
+            <div className="flex items-center gap-1 border-l pl-3 ml-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title="Undo (Ctrl+Z)"
+                data-testid="button-undo"
+              >
+                <Undo2 className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleRedo}
+                disabled={!canRedo}
+                title="Redo (Ctrl+Y)"
+                data-testid="button-redo"
+              >
+                <Redo2 className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowShortcutsHelp(true)}
+                title="Keyboard Shortcuts (Shift+?)"
+                data-testid="button-shortcuts"
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
+            </div>
             <ThemeToggle />
           </div>
         </div>
       </header>
+
+      <KeyboardShortcutsHelp 
+        open={showShortcutsHelp} 
+        onOpenChange={setShowShortcutsHelp} 
+      />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">

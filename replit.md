@@ -91,6 +91,8 @@ Key entities:
   - **Stock Image Integration (Feature 12)**: Curated stock photo library with 4 categories (Medical, Finance, Podcast, Abstract), search functionality, grid/list view toggle, favorites system, one-click background application
   - **User Authentication (Feature 13)**: Replit Auth integration with OIDC, session management via PostgreSQL, users/sessions tables, /api/login, /api/logout, /api/auth/user endpoints, useAuth hook for React
   - **Export Optimization (Feature 14)**: Advanced export controls with 4 formats (PNG, JPG, WebP, AVIF), quality slider (10-100%), platform presets (YouTube, Instagram, Twitter, LinkedIn, Custom), transparency preservation, web optimization, metadata stripping, estimated file size preview
+  - **Keyboard Shortcuts (Feature 15)**: Global shortcuts with useKeyboardShortcuts hook - Ctrl+S (save), Ctrl+E (export), Ctrl+Z (undo), Ctrl+Y/Ctrl+Shift+Z (redo), Ctrl+N (new), Ctrl+R (reset), Ctrl+T (toggle theme), Shift+? (show help), plus keyboard shortcuts help modal
+  - **Undo/Redo System (Feature 16)**: Full history stack with useHistory hook, 50-step history limit, undo/redo buttons in header with visual disabled states, integrated with keyboard shortcuts
 
 ### Previous Updates (January 30, 2026)
 - **Transcript Analyzer**: New AI-powered feature to analyze podcast transcripts and generate:
