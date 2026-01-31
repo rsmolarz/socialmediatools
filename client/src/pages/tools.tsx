@@ -8,6 +8,7 @@ import { SchedulingCalendar } from "@/components/scheduling-calendar";
 import { FontManagement } from "@/components/font-management";
 import { CollaborationPanel } from "@/components/collaboration-panel";
 import { CollectionsPanel } from "@/components/collections-panel";
+import { VideoSeoOptimizer } from "@/components/video-seo-optimizer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -17,7 +18,8 @@ import {
   Users, 
   Folder,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Youtube
 } from "lucide-react";
 
 const TOOLS = [
@@ -27,6 +29,7 @@ const TOOLS = [
   { id: "fonts", name: "Typography", icon: Type, description: "Font management" },
   { id: "collaborate", name: "Collaborate", icon: Users, description: "Share & comment" },
   { id: "collections", name: "Collections", icon: Folder, description: "Organize thumbnails" },
+  { id: "youtube", name: "YouTube Upgrade", icon: Youtube, description: "Optimize & update videos" },
 ];
 
 export default function ToolsPage() {
@@ -99,6 +102,10 @@ export default function ToolsPage() {
 
           <TabsContent value="collections" className="mt-0">
             <CollectionsPanel />
+          </TabsContent>
+
+          <TabsContent value="youtube" className="mt-0">
+            <VideoSeoOptimizer />
           </TabsContent>
         </Tabs>
       </div>

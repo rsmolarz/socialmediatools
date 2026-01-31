@@ -24,15 +24,16 @@ interface YouTubeVideo {
 
 interface VideoSeoOptimizerProps {
   onTitleSelect?: (title: string) => void;
+  defaultExpanded?: boolean;
 }
 
-export function VideoSeoOptimizer({ onTitleSelect }: VideoSeoOptimizerProps) {
+export function VideoSeoOptimizer({ onTitleSelect, defaultExpanded = true }: VideoSeoOptimizerProps) {
   const { toast } = useToast();
   const [selectedVideo, setSelectedVideo] = useState<YouTubeVideo | null>(null);
   const [optimizedDescription, setOptimizedDescription] = useState("");
   const [optimizedTags, setOptimizedTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const { data: connectionStatus } = useQuery<{ connected: boolean }>({
     queryKey: ["/api/youtube/status"],
