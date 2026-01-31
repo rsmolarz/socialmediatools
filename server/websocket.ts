@@ -12,13 +12,22 @@ interface CollaborationClient {
 }
 
 interface CollaborationMessage {
-  type: "join" | "leave" | "cursor" | "edit" | "presence" | "chat" | "sync" | "selection";
+  type: "join" | "leave" | "cursor" | "edit" | "presence" | "chat" | "sync" | "selection" | "activity";
   thumbnailId?: string;
   userId?: string;
   username?: string;
   data?: any;
   timestamp?: number;
 }
+
+interface ActivityItem {
+  userId: string;
+  username: string;
+  action: string;
+  timestamp: string;
+}
+
+const activityLogs = new Map<string, ActivityItem[]>();
 
 interface SelectionState {
   layerId: string | null;
@@ -171,6 +180,25 @@ export function setupWebSocket(server: Server) {
                   userId: client.odisId
                 });
                 
+                // Add to activity log
+                if (!activityLogs.has(client.thumbnailId)) {
+                  activityLogs.set(client.thumbnailId, []);
+                }
+                const log = activityLogs.get(client.thumbnailId)!;
+                const activityItem = {
+                  userId: client.odisId,
+                  username: client.username || "Anonymous",
+                  action: `Edited ${message.data.type || 'thumbnail'}`,
+                  timestamp: new Date().toISOString()
+                };
+                log.push(activityItem);
+                if (log.length > 50) log.shift();
+
+                broadcast(client.thumbnailId, {
+                  type: "activity",
+                  data: activityItem
+                });
+
                 broadcast(client.thumbnailId, {
                   type: "edit",
                   userId: client.odisId,
@@ -194,6 +222,19 @@ export function setupWebSocket(server: Server) {
                   reason: "Newer edit exists"
                 }));
               }
+            }
+            break;
+
+          case "join":
+            if (message.thumbnailId) {
+              // ... existing join logic ...
+              
+              // Send existing activity log to newly joined user
+              const log = activityLogs.get(message.thumbnailId) || [];
+              ws.send(JSON.stringify({
+                type: "activity_history",
+                data: log
+              }));
             }
             break;
             

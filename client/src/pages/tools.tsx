@@ -25,6 +25,7 @@ import { CollaborationChat } from "@/components/collaboration-chat";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { PresenceIndicator } from "@/components/presence-indicator";
 import { LiveCursors } from "@/components/live-cursors";
+import { ActivityLog } from "@/components/activity-log";
 import { AISmartLayouts } from "@/components/ai-smart-layouts";
 import { ColorPaletteGenerator } from "@/components/color-palette-generator";
 import { 
@@ -88,7 +89,8 @@ export default function ToolsPage() {
     sendChat,
     userId,
     selections,
-    sendSelection
+    sendSelection,
+    activityLog
   } = useCollaboration({
     thumbnailId: "default-tool-room", 
     username: "User", 

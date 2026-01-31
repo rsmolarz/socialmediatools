@@ -40,6 +40,7 @@ export function useCollaboration(options: UseCollaborationOptions) {
   const [cursors, setCursors] = useState<Map<string, CursorPosition>>(new Map());
   const [selections, setSelections] = useState<Map<string, {layerId: string; userId: string; username: string; color: string}>>(new Map());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [activityLog, setActivityLog] = useState<any[]>([]);
 
   const connect = useCallback(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -121,6 +122,14 @@ export function useCollaboration(options: UseCollaborationOptions) {
               message: message.data.message,
               timestamp: message.timestamp
             }]);
+            break;
+
+          case "activity":
+            setActivityLog(prev => [...prev.slice(-49), message.data]);
+            break;
+
+          case "activity_history":
+            setActivityLog(message.data || []);
             break;
 
           case "selection":
@@ -216,6 +225,7 @@ export function useCollaboration(options: UseCollaborationOptions) {
     sendEdit,
     sendSync,
     sendChat,
+    activityLog,
     selections: Array.from(selections.values()),
     sendSelection: useCallback((layerId: string | null) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
