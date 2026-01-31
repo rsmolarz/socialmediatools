@@ -373,16 +373,16 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
           });
           const savedViral = await storage.createViralContent(contentData);
 
-          // Generate AI thumbnail for the post
-          let thumbnailUrl: string | null = null;
+          // Generate AI background image for the post (layered behind person)
+          let backgroundUrl: string | null = null;
           try {
-            const thumbnailPrompt = content.thumbnailPrompt || 
-              `Professional social media thumbnail for "${content.title}" - Medicine & Money Show branding, featuring a doctor in white coat overlooking a city skyline at sunset, bold text overlay "${topic.toUpperCase()}", photorealistic, high quality, 16:9 aspect ratio`;
+            const backgroundPrompt = content.thumbnailPrompt || 
+              `Professional background for social media about "${content.title}" - Medicine & Money Show style, featuring real objects: stethoscope, gold coins, medical equipment, financial charts. Dark moody lighting, photorealistic, high quality, no people`;
             
-            const imageBuffer = await generateImageBuffer(thumbnailPrompt, "1024x1024");
-            thumbnailUrl = `data:image/png;base64,${imageBuffer.toString("base64")}`;
+            const imageBuffer = await generateImageBuffer(backgroundPrompt, "1024x1024");
+            backgroundUrl = `data:image/png;base64,${imageBuffer.toString("base64")}`;
           } catch (imgErr) {
-            console.error("Error generating thumbnail:", imgErr);
+            console.error("Error generating background:", imgErr);
           }
 
           // Also save to social_posts for the Manage queue
@@ -395,7 +395,9 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
             hashtags: content.hashtags,
             hooks: content.hooks,
             viralityScore: content.viralityScore,
-            thumbnailUrl: thumbnailUrl,
+            thumbnailUrl: null,
+            backgroundUrl: backgroundUrl,
+            backgroundOpacity: 50,
             status: "draft",
           });
           await storage.createSocialPost(postData);
@@ -559,6 +561,38 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     } catch (error) {
       console.error("Error deleting post:", error);
       res.status(500).json({ success: false, error: "Failed to delete post" });
+    }
+  });
+
+  // Regenerate AI background for a post
+  app.post("/api/viral/posts/:id/regenerate-background", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ success: false, error: "Invalid post ID" });
+      }
+
+      const post = await storage.getSocialPost(postId);
+      if (!post) {
+        return res.status(404).json({ success: false, error: "Post not found" });
+      }
+
+      // Generate new background image
+      const backgroundPrompt = `Professional background for social media about "${post.title}" - Medicine & Money Show style, featuring real objects: stethoscope, gold coins, cash, medical equipment, financial charts, luxury items. Dark moody cinematic lighting, photorealistic, high quality, no people`;
+      
+      const imageBuffer = await generateImageBuffer(backgroundPrompt, "1024x1024");
+      const backgroundUrl = `data:image/png;base64,${imageBuffer.toString("base64")}`;
+
+      // Update the post with new background
+      const updated = await storage.updateSocialPost(postId, { 
+        backgroundUrl,
+        backgroundOpacity: post.backgroundOpacity ?? 50
+      });
+
+      res.json({ success: true, post: updated });
+    } catch (error) {
+      console.error("Error regenerating background:", error);
+      res.status(500).json({ success: false, error: "Failed to regenerate background" });
     }
   });
 

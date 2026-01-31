@@ -130,9 +130,7 @@ export function SocialMediaDashboard() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([]);
   const [previewPost, setPreviewPost] = useState<SocialPost | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const backgroundInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPostId, setUploadingPostId] = useState<number | null>(null);
-  const [uploadingBackgroundPostId, setUploadingBackgroundPostId] = useState<number | null>(null);
   const [dragOverPostId, setDragOverPostId] = useState<number | null>(null);
   const [processingPostId, setProcessingPostId] = useState<number | null>(null);
 
@@ -271,6 +269,20 @@ export function SocialMediaDashboard() {
     },
   });
 
+  const regenerateBackgroundMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const response = await apiRequest("POST", `/api/viral/posts/${postId}/regenerate-background`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+      toast({ title: "Background Generated", description: "New AI background has been created" });
+    },
+    onError: () => {
+      toast({ title: "Generation Failed", description: "Failed to generate new background", variant: "destructive" });
+    },
+  });
+
   const removeBackgroundFromImage = async (imageData: string): Promise<string> => {
     const blob = await imglyRemoveBackground(imageData, {
       progress: (key, current, total) => {
@@ -332,25 +344,6 @@ export function SocialMediaDashboard() {
         } finally {
           setProcessingPostId(null);
         }
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = "";
-  };
-
-  const handleBackgroundUpload = (postId: number) => {
-    setUploadingBackgroundPostId(postId);
-    backgroundInputRef.current?.click();
-  };
-
-  const handleBackgroundFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && uploadingBackgroundPostId) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        updateBackgroundMutation.mutate({ postId: uploadingBackgroundPostId, backgroundUrl: base64 });
-        setUploadingBackgroundPostId(null);
       };
       reader.readAsDataURL(file);
     }
@@ -424,14 +417,6 @@ export function SocialMediaDashboard() {
         className="hidden"
         data-testid="input-photo-upload"
       />
-      <input
-        type="file"
-        ref={backgroundInputRef}
-        onChange={handleBackgroundFileChange}
-        accept="image/*"
-        className="hidden"
-        data-testid="input-background-upload"
-      />
       
       <Dialog open={!!previewPost} onOpenChange={(open) => !open && setPreviewPost(null)}>
         <DialogContent className="max-w-lg">
@@ -458,8 +443,8 @@ export function SocialMediaDashboard() {
                     {previewPost.description}
                   </div>
                 )}
-                {previewPost.thumbnailUrl && (
-                  <div className="relative overflow-hidden bg-muted">
+                {(previewPost.thumbnailUrl || previewPost.backgroundUrl) && (
+                  <div className={`relative overflow-hidden bg-muted ${previewPost.platform === "youtube" ? "aspect-video" : previewPost.platform === "tiktok" ? "aspect-[9/16] max-h-[400px]" : "aspect-square"}`}>
                     {previewPost.backgroundUrl && (
                       <img 
                         src={previewPost.backgroundUrl} 
@@ -468,11 +453,14 @@ export function SocialMediaDashboard() {
                         style={{ opacity: (previewPost.backgroundOpacity ?? 100) / 100 }}
                       />
                     )}
-                    <img 
-                      src={previewPost.thumbnailUrl} 
-                      alt={previewPost.title}
-                      className="relative w-full aspect-video object-contain"
-                    />
+                    {previewPost.thumbnailUrl && (
+                      <img 
+                        src={previewPost.thumbnailUrl} 
+                        alt={previewPost.title}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        style={{ objectPosition: "center" }}
+                      />
+                    )}
                     {previewPost.showLogo && (
                       <div className="absolute top-3 right-3">
                         <img 
@@ -563,8 +551,7 @@ export function SocialMediaDashboard() {
                     {topics.map((topic, idx) => (
                       <div
                         key={idx}
-                        className="p-3 rounded-lg border bg-card hover-elevate cursor-pointer transition-all"
-                        onClick={() => handleGenerateFromTopic(topic)}
+                        className="p-3 rounded-lg border bg-card hover-elevate transition-all"
                         data-testid={`topic-${idx}`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -583,9 +570,24 @@ export function SocialMediaDashboard() {
                               {topic.contentSuggestion.title}
                             </p>
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold">{topic.averageInterest}</div>
-                            <div className="text-xs text-muted-foreground">Interest Score</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-2xl font-bold">{topic.averageInterest}</div>
+                              <div className="text-xs text-muted-foreground">Interest Score</div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleGenerateFromTopic(topic)}
+                              disabled={generateContentMutation.isPending}
+                              data-testid={`button-generate-topic-${idx}`}
+                            >
+                              {generateContentMutation.isPending && selectedTopic?.keyword === topic.keyword ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Sparkles className="w-4 h-4" />
+                              )}
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -746,7 +748,7 @@ export function SocialMediaDashboard() {
                               data-testid={`dropzone-${post.id}`}
                             >
                               {post.thumbnailUrl ? (
-                                <div className="relative group h-20 rounded-md transition-all overflow-hidden border bg-muted">
+                                <div className="relative group aspect-square w-32 rounded-md transition-all overflow-hidden border bg-muted">
                                   {post.backgroundUrl && (
                                     <img 
                                       src={post.backgroundUrl} 
@@ -759,7 +761,7 @@ export function SocialMediaDashboard() {
                                   <img 
                                     src={post.thumbnailUrl} 
                                     alt={post.title}
-                                    className="relative w-full h-full object-contain"
+                                    className="absolute inset-0 w-full h-full object-contain"
                                     data-testid={`thumbnail-${post.id}`}
                                   />
                                   {post.showLogo && (
@@ -800,7 +802,7 @@ export function SocialMediaDashboard() {
                                 </div>
                               ) : (
                                 <div 
-                                  className={`h-20 flex items-center justify-center border-2 border-dashed rounded-md transition-all cursor-pointer ${dragOverPostId === post.id ? "border-primary bg-primary/10" : "border-muted-foreground/30 hover:border-muted-foreground/50"}`}
+                                  className={`aspect-square w-32 flex items-center justify-center border-2 border-dashed rounded-md transition-all cursor-pointer ${dragOverPostId === post.id ? "border-primary bg-primary/10" : "border-muted-foreground/30 hover:border-muted-foreground/50"}`}
                                   onClick={() => handlePhotoUpload(post.id)}
                                   data-testid={`button-add-photo-${post.id}`}
                                 >
@@ -878,12 +880,32 @@ export function SocialMediaDashboard() {
                               <Button
                                 size="sm"
                                 variant={post.backgroundUrl ? "default" : "outline"}
-                                onClick={() => handleBackgroundUpload(post.id)}
-                                disabled={updateBackgroundMutation.isPending}
+                                onClick={() => regenerateBackgroundMutation.mutate(post.id)}
+                                disabled={regenerateBackgroundMutation.isPending}
                                 data-testid={`button-background-${post.id}`}
                               >
-                                <Layers className="w-3 h-3 mr-1" />
-                                {post.backgroundUrl ? "Change BG" : "Add BG"}
+                                {regenerateBackgroundMutation.isPending ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                )}
+                                {post.backgroundUrl ? "New BG" : "Generate BG"}
+                              </Button>
+                            )}
+                            {!post.thumbnailUrl && (
+                              <Button
+                                size="sm"
+                                variant={post.backgroundUrl ? "default" : "outline"}
+                                onClick={() => regenerateBackgroundMutation.mutate(post.id)}
+                                disabled={regenerateBackgroundMutation.isPending}
+                                data-testid={`button-background-only-${post.id}`}
+                              >
+                                {regenerateBackgroundMutation.isPending ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                )}
+                                {post.backgroundUrl ? "New BG" : "Generate BG"}
                               </Button>
                             )}
                             {post.backgroundUrl && (
@@ -936,12 +958,13 @@ export function SocialMediaDashboard() {
                             )}
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="destructive"
                               onClick={() => deleteMutation.mutate(post.id)}
                               disabled={deleteMutation.isPending}
                               data-testid={`button-delete-${post.id}`}
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3 h-3 mr-1" />
+                              Delete
                             </Button>
                           </div>
                         </CardContent>
