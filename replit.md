@@ -53,7 +53,14 @@ Key entities:
 ## Recent Changes
 
 ### Latest Updates (January 31, 2026)
-- **Tools Page (Tier 1 Features)**: New dedicated tools page accessible via header button with 6 feature tabs:
+- **YouTube Video Upgrade**: New tab in Tools page for managing YouTube channel videos:
+  - **Video Library**: View all videos from connected YouTube channel
+  - **AI SEO Optimizer**: AI-powered optimization for video descriptions and tags
+  - **Direct YouTube Updates**: Push optimized metadata directly to YouTube
+  - **Tag Management**: Add, remove, and edit video tags
+  - API endpoints: /api/youtube/status, /api/youtube/videos, /api/youtube/optimize-seo, /api/youtube/videos/:videoId (PATCH)
+  - Uses Replit's YouTube integration for OAuth authentication
+- **Tools Page (Tier 1 Features)**: New dedicated tools page accessible via header button with 7 feature tabs:
   - **Template Library**: Browse and apply pre-made thumbnail templates with categories (Health, Finance, Tech, Gaming, Lifestyle, Business), search functionality, and 6 default templates
   - **Batch Export**: Export multiple thumbnails at once in PNG/JPG/WebP formats with quality control (10-100%) and ZIP download, includes configuration file export option
   - **Content Scheduling Calendar**: Visual calendar interface for scheduling content across platforms (YouTube, TikTok, Instagram, Twitter), date navigation, and scheduled item management
