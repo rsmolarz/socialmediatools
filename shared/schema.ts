@@ -179,6 +179,8 @@ export const socialPosts = pgTable("social_posts", {
   backgroundOpacity: integer("background_opacity").default(100),
   showLogo: boolean("show_logo").default(false),
   logoSize: integer("logo_size").default(50),
+  selectedHook: text("selected_hook"),
+  callToAction: text("call_to_action"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });

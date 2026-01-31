@@ -385,6 +385,20 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
             console.error("Error generating background:", imgErr);
           }
 
+          // Auto-pick the best hook using AI
+          let selectedHook: string | null = null;
+          if (content.hooks && content.hooks.length > 0) {
+            try {
+              selectedHook = await viralAnalyzer.pickBestHook(content.hooks, content.title);
+            } catch (hookErr) {
+              console.error("Error picking best hook:", hookErr);
+              selectedHook = content.hooks[0];
+            }
+          }
+
+          // Get default CTA
+          const callToAction = viralAnalyzer.getDefaultCallToAction();
+
           // Also save to social_posts for the Manage queue
           const postData = insertSocialPostSchema.parse({
             viralContentId: savedViral.id,
@@ -394,6 +408,8 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
             script: content.script || null,
             hashtags: content.hashtags,
             hooks: content.hooks,
+            selectedHook: selectedHook,
+            callToAction: callToAction,
             viralityScore: content.viralityScore,
             thumbnailUrl: null,
             backgroundUrl: backgroundUrl,
@@ -470,6 +486,8 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
         showLogo: true,
         logoSize: true,
         platform: true,
+        selectedHook: true,
+        callToAction: true,
       });
 
       const parsed = updateSchema.safeParse(req.body);

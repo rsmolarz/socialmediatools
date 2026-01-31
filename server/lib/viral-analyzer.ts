@@ -24,6 +24,8 @@ interface GeneratedContent {
   script?: string;
   hashtags: string[];
   hooks: string[];
+  selectedHook?: string;
+  callToAction?: string;
   viralityScore: number;
   thumbnailPrompt: string;
 }
@@ -35,6 +37,8 @@ interface SocialPost {
   script?: string;
   hashtags: string[];
   hooks: string[];
+  selectedHook?: string;
+  callToAction?: string;
   targetLength: string;
   viralityScore: number;
 }
@@ -334,6 +338,53 @@ Return JSON:
       factors: ["Topic relevance", "Niche appeal"],
       improvements: ["Add emotional hook", "Include statistics"],
     };
+  }
+
+  async pickBestHook(hooks: string[], topic: string): Promise<string> {
+    if (!hooks || hooks.length === 0) {
+      return "";
+    }
+    if (hooks.length === 1) {
+      return hooks[0];
+    }
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a viral content expert for The Medicine & Money Show. Pick the single best hook that will grab attention and drive engagement. Return ONLY the chosen hook text, nothing else.`,
+          },
+          {
+            role: "user",
+            content: `Topic: "${topic}"
+
+Choose the BEST hook from these options for maximum viral potential:
+${hooks.map((h, i) => `${i + 1}. ${h}`).join("\n")}
+
+Return ONLY the chosen hook text.`,
+          },
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+      });
+
+      const chosen = response.choices[0]?.message?.content?.trim();
+      if (chosen) {
+        // Clean up quotes if present
+        return chosen.replace(/^["']|["']$/g, "");
+      }
+    } catch (error) {
+      console.error("Error picking best hook:", error);
+    }
+
+    // Fallback to first hook
+    return hooks[0];
+  }
+
+  getDefaultCallToAction(): string {
+    return "Come join us at medmoneyincubator.com to talk with your peers about investing";
   }
 }
 
