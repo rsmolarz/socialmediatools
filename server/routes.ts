@@ -1379,13 +1379,20 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
   });
 
   // AI-optimize SEO for a video
+  const optimizeSeoSchema = z.object({
+    title: z.string().min(1).max(500),
+    description: z.string().max(5000).optional().default(""),
+    tags: z.array(z.string().max(100)).max(500).optional().default([]),
+  });
+
   app.post("/api/youtube/optimize-seo", async (req, res) => {
     try {
-      const { title, description, tags } = req.body;
-      
-      if (!title) {
-        return res.status(400).json({ error: "Title is required" });
+      const parsed = optimizeSeoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request data", details: parsed.error });
       }
+
+      const { title, description, tags } = parsed.data;
 
       const prompt = `You are a YouTube SEO expert for "The Medicine & Money Show" podcast. Optimize the following video metadata for maximum discoverability and engagement.
 
@@ -1420,7 +1427,14 @@ Return JSON format:
       });
 
       const content = response.choices[0]?.message?.content || "{}";
-      const result = JSON.parse(content);
+      
+      let result;
+      try {
+        result = JSON.parse(content);
+      } catch (parseError) {
+        console.error("Error parsing OpenAI response:", parseError);
+        return res.status(500).json({ error: "Failed to parse AI response" });
+      }
 
       res.json({
         optimizedDescription: result.optimizedDescription || description,
@@ -1433,20 +1447,32 @@ Return JSON format:
   });
 
   // Update a YouTube video
+  const updateVideoSchema = z.object({
+    title: z.string().min(1).max(100),
+    description: z.string().max(5000).optional().default(""),
+    tags: z.array(z.string().max(100)).max(500).optional().default([]),
+    categoryId: z.string().optional(),
+  });
+
   app.patch("/api/youtube/videos/:videoId", async (req, res) => {
     try {
       const { videoId } = req.params;
-      const { title, description, tags, categoryId } = req.body;
-
-      if (!videoId || !title) {
-        return res.status(400).json({ error: "Video ID and title are required" });
+      if (!videoId) {
+        return res.status(400).json({ error: "Video ID is required" });
       }
+
+      const parsed = updateVideoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request data", details: parsed.error });
+      }
+
+      const { title, description, tags, categoryId } = parsed.data;
 
       const result = await updateYouTubeVideo(
         videoId,
         title,
-        description || "",
-        tags || [],
+        description,
+        tags,
         categoryId
       );
 
