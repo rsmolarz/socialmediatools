@@ -25,6 +25,8 @@ import { CollaborationChat } from "@/components/collaboration-chat";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { PresenceIndicator } from "@/components/presence-indicator";
 import { LiveCursors } from "@/components/live-cursors";
+import { AISmartLayouts } from "@/components/ai-smart-layouts";
+import { ColorPaletteGenerator } from "@/components/color-palette-generator";
 import { 
   LayoutTemplate, 
   Download, 
@@ -46,9 +48,6 @@ import {
   Search,
   BarChart3
 } from "lucide-react";
-
-import { AISmartLayouts } from "@/components/ai-smart-layouts";
-import { ColorPaletteGenerator } from "@/components/color-palette-generator";
 
 const TOOLS = [
   { id: "templates", name: "Templates", icon: LayoutTemplate, description: "Pre-made thumbnail designs" },
@@ -72,16 +71,6 @@ const TOOLS = [
   { id: "search", name: "Search & Organize", icon: Search, description: "Full-text search, tags & folders" },
   { id: "analytics", name: "Analytics", icon: BarChart3, description: "Track performance & engagement" },
 ];
-
-// ... inside ToolsPage render, after templates TabsContent
-          <TabsContent value="smart-layout" className="mt-0">
-            <AISmartLayouts onApply={(config) => console.log("Applying layout:", config)} />
-          </TabsContent>
-
-          <TabsContent value="palettes" className="mt-0">
-            <ColorPaletteGenerator />
-          </TabsContent>
-
 
 export default function ToolsPage() {
   const [activeTab, setActiveTab] = useState("templates");
@@ -170,85 +159,87 @@ export default function ToolsPage() {
             ))}
           </TabsList>
 
-          <TabsContent value="templates" className="mt-0">
-            <TemplateLibrary onApplyTemplate={handleApplyTemplate} />
-          </TabsContent>
+          <div className="mt-6">
+            <TabsContent value="templates" className="mt-0">
+              <TemplateLibrary onApplyTemplate={handleApplyTemplate} />
+            </TabsContent>
 
-          <TabsContent value="smart-layout" className="mt-0">
-            <AISmartLayouts onApply={(config) => console.log("Applying layout:", config)} />
-          </TabsContent>
+            <TabsContent value="smart-layout" className="mt-0">
+              <AISmartLayouts onApply={(config) => console.log("Applying layout:", config)} />
+            </TabsContent>
 
-          <TabsContent value="palettes" className="mt-0">
-            <ColorPaletteGenerator />
-          </TabsContent>
+            <TabsContent value="palettes" className="mt-0">
+              <ColorPaletteGenerator />
+            </TabsContent>
 
-          <TabsContent value="export" className="mt-0">
-            <BatchExport />
-          </TabsContent>
+            <TabsContent value="export" className="mt-0">
+              <BatchExport />
+            </TabsContent>
 
-          <TabsContent value="schedule" className="mt-0">
-            <SchedulingCalendar />
-          </TabsContent>
+            <TabsContent value="schedule" className="mt-0">
+              <SchedulingCalendar />
+            </TabsContent>
 
-          <TabsContent value="fonts" className="mt-0">
-            <FontManagement previewText="THE MEDICINE & MONEY SHOW" />
-          </TabsContent>
+            <TabsContent value="fonts" className="mt-0">
+              <FontManagement previewText="THE MEDICINE & MONEY SHOW" />
+            </TabsContent>
 
-          <TabsContent value="collaborate" className="mt-0">
-            <CollaborationPanel thumbnailId={selectedThumbnailId} />
-          </TabsContent>
+            <TabsContent value="collaborate" className="mt-0">
+              <CollaborationPanel thumbnailId={selectedThumbnailId} />
+            </TabsContent>
 
-          <TabsContent value="collections" className="mt-0">
-            <CollectionsPanel />
-          </TabsContent>
+            <TabsContent value="collections" className="mt-0">
+              <CollectionsPanel />
+            </TabsContent>
 
-          <TabsContent value="youtube" className="mt-0">
-            <VideoSeoOptimizer />
-          </TabsContent>
+            <TabsContent value="youtube" className="mt-0">
+              <VideoSeoOptimizer />
+            </TabsContent>
 
-          <TabsContent value="trends" className="mt-0">
-            <TrendAnalysis niche="Medicine & Money" />
-          </TabsContent>
+            <TabsContent value="trends" className="mt-0">
+              <TrendAnalysis niche="Medicine & Money" />
+            </TabsContent>
 
-          <TabsContent value="hooks" className="mt-0">
-            <ViralHookGenerator />
-          </TabsContent>
+            <TabsContent value="hooks" className="mt-0">
+              <ViralHookGenerator />
+            </TabsContent>
 
-          <TabsContent value="brand" className="mt-0">
-            <BrandKitManagement />
-          </TabsContent>
+            <TabsContent value="brand" className="mt-0">
+              <BrandKitManagement />
+            </TabsContent>
 
-          <TabsContent value="editor" className="mt-0">
-            <AdvancedImageEditor />
-          </TabsContent>
+            <TabsContent value="editor" className="mt-0">
+              <AdvancedImageEditor />
+            </TabsContent>
 
-          <TabsContent value="bgremove" className="mt-0">
-            <BackgroundRemover />
-          </TabsContent>
+            <TabsContent value="bgremove" className="mt-0">
+              <BackgroundRemover />
+            </TabsContent>
 
-          <TabsContent value="stock" className="mt-0">
-            <StockImageBrowser onSelectImage={handleStockImageSelect} />
-          </TabsContent>
+            <TabsContent value="stock" className="mt-0">
+              <StockImageBrowser onSelectImage={handleStockImageSelect} />
+            </TabsContent>
 
-          <TabsContent value="optimize" className="mt-0">
-            <ExportOptimizer onExport={handleExportOptimized} thumbnailDataUrl={selectedStockImage} />
-          </TabsContent>
+            <TabsContent value="optimize" className="mt-0">
+              <ExportOptimizer onExport={handleExportOptimized} thumbnailDataUrl={selectedStockImage} />
+            </TabsContent>
 
-          <TabsContent value="abtest" className="mt-0">
-            <ABTestingPanel />
-          </TabsContent>
+            <TabsContent value="abtest" className="mt-0">
+              <ABTestingPanel />
+            </TabsContent>
 
-          <TabsContent value="filters" className="mt-0">
-            <ImageFiltersPanel />
-          </TabsContent>
+            <TabsContent value="filters" className="mt-0">
+              <ImageFiltersPanel />
+            </TabsContent>
 
-          <TabsContent value="search" className="mt-0">
-            <SearchOrganization />
-          </TabsContent>
+            <TabsContent value="search" className="mt-0">
+              <SearchOrganization />
+            </TabsContent>
 
-          <TabsContent value="analytics" className="mt-0">
-            <AnalyticsDashboard />
-          </TabsContent>
+            <TabsContent value="analytics" className="mt-0">
+              <AnalyticsDashboard />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
 
