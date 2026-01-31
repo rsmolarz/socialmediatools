@@ -8,7 +8,50 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: "Medicine & Money Show - Thumbnail Generator API",
       version: "1.0.0",
-      description: "API documentation for the YouTube Thumbnail Generator platform featuring analytics, A/B testing, social media integration, and more.",
+      description: `API documentation for the YouTube Thumbnail Generator platform featuring analytics, A/B testing, social media integration, and more.
+
+## Rate Limiting
+
+To ensure fair usage and system stability, the API implements the following rate limits:
+
+| Endpoint Category | Rate Limit | Window |
+|-------------------|------------|--------|
+| Analytics Read | 100 requests | per minute |
+| Analytics Write | 30 requests | per minute |
+| Image Generation | 10 requests | per minute |
+| YouTube API | 50 requests | per minute |
+| General Endpoints | 200 requests | per minute |
+
+### Rate Limit Headers
+All responses include rate limit headers:
+- \`X-RateLimit-Limit\`: Maximum requests allowed
+- \`X-RateLimit-Remaining\`: Requests remaining in current window
+- \`X-RateLimit-Reset\`: Unix timestamp when the limit resets
+
+### Handling Rate Limits
+When rate limited, the API returns HTTP 429 with a \`Retry-After\` header indicating seconds to wait.
+
+## Best Practices
+
+### Authentication
+- Store session cookies securely
+- Implement token refresh before expiration
+- Use HTTPS for all requests
+
+### Performance
+- Cache frequently accessed data locally
+- Use date range filters to limit response size
+- Batch analytics events when possible
+
+### Error Handling
+- Implement exponential backoff for retries
+- Check response status codes before parsing
+- Log errors with request IDs for debugging
+
+### Analytics
+- Use bulk import endpoint for historical data
+- Poll summary endpoint no more than once per minute
+- Enable auto-refresh only when dashboard is visible`,
       contact: {
         name: "Medicine & Money Show",
         url: "https://medicineandmoneyshow.com"
