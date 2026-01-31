@@ -14,6 +14,8 @@ import { ViralHookGenerator } from "@/components/viral-hook-generator";
 import { BrandKitManagement } from "@/components/brand-kit-management";
 import { AdvancedImageEditor } from "@/components/advanced-image-editor";
 import { BackgroundRemover } from "@/components/background-remover";
+import { StockImageBrowser } from "@/components/stock-image-browser";
+import { ExportOptimizer } from "@/components/export-optimizer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutTemplate, 
@@ -29,7 +31,9 @@ import {
   Zap,
   Palette,
   SlidersHorizontal,
-  Eraser
+  Eraser,
+  ImagePlus,
+  Settings2
 } from "lucide-react";
 
 const TOOLS = [
@@ -45,14 +49,26 @@ const TOOLS = [
   { id: "brand", name: "Brand Kit", icon: Palette, description: "Colors, fonts & logos" },
   { id: "editor", name: "Image Editor", icon: SlidersHorizontal, description: "Crop, filters & overlays" },
   { id: "bgremove", name: "BG Remover", icon: Eraser, description: "Remove or blur backgrounds" },
+  { id: "stock", name: "Stock Images", icon: ImagePlus, description: "Browse stock photo library" },
+  { id: "optimize", name: "Export Options", icon: Settings2, description: "WebP, AVIF & optimization" },
 ];
 
 export default function ToolsPage() {
   const [activeTab, setActiveTab] = useState("templates");
   const [selectedThumbnailId, setSelectedThumbnailId] = useState<number | undefined>();
+  const [selectedStockImage, setSelectedStockImage] = useState<string | undefined>();
 
   const handleApplyTemplate = (config: any) => {
     console.log("Apply template config:", config);
+  };
+
+  const handleStockImageSelect = (imageUrl: string) => {
+    setSelectedStockImage(imageUrl);
+    console.log("Selected stock image:", imageUrl);
+  };
+
+  const handleExportOptimized = (settings: any) => {
+    console.log("Export settings:", settings);
   };
 
   return (
@@ -141,6 +157,14 @@ export default function ToolsPage() {
 
           <TabsContent value="bgremove" className="mt-0">
             <BackgroundRemover />
+          </TabsContent>
+
+          <TabsContent value="stock" className="mt-0">
+            <StockImageBrowser onSelectImage={handleStockImageSelect} />
+          </TabsContent>
+
+          <TabsContent value="optimize" className="mt-0">
+            <ExportOptimizer onExport={handleExportOptimized} thumbnailDataUrl={selectedStockImage} />
           </TabsContent>
         </Tabs>
       </div>

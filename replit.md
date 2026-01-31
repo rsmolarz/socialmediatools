@@ -86,6 +86,11 @@ Key entities:
 - **Three-Line Text Fix**: Viral title handlers now preserve all three text lines (only updates line 1)
 - **Viral Title Helper**: AI-powered feature in Text tab to create short, punchy viral titles
 - **Background Opacity Control**: Slider to adjust background image transparency (10-100%)
+- **Tier 3 Features Complete**:
+  - **Background Remover (Feature 11)**: New component with 3 modes (remove, blur, replace), blur presets (slight/moderate/heavy), 8 background colors, transparent background support, accessible via BG Remover tab in Tools page
+  - **Stock Image Integration (Feature 12)**: Curated stock photo library with 4 categories (Medical, Finance, Podcast, Abstract), search functionality, grid/list view toggle, favorites system, one-click background application
+  - **User Authentication (Feature 13)**: Replit Auth integration with OIDC, session management via PostgreSQL, users/sessions tables, /api/login, /api/logout, /api/auth/user endpoints, useAuth hook for React
+  - **Export Optimization (Feature 14)**: Advanced export controls with 4 formats (PNG, JPG, WebP, AVIF), quality slider (10-100%), platform presets (YouTube, Instagram, Twitter, LinkedIn, Custom), transparency preservation, web optimization, metadata stripping, estimated file size preview
 
 ### Previous Updates (January 30, 2026)
 - **Transcript Analyzer**: New AI-powered feature to analyze podcast transcripts and generate:
