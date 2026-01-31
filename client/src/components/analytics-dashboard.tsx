@@ -41,7 +41,8 @@ import {
   Trophy,
   Download,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CalendarDays
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -94,11 +95,20 @@ interface ABTest {
 
 const CHART_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
+type DateRangeOption = "7d" | "30d" | "90d" | "custom";
+
 export function AnalyticsDashboard() {
   const { toast } = useToast();
   const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [dateRange, setDateRange] = useState<DateRangeOption>("30d");
+  const [customStartDate, setCustomStartDate] = useState(
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
+  const [customEndDate, setCustomEndDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
   const [newData, setNewData] = useState({
     thumbnailId: "",
     impressions: "",
@@ -107,8 +117,43 @@ export function AnalyticsDashboard() {
     date: new Date().toISOString().split("T")[0],
   });
 
+  const getDateRangeParams = () => {
+    const end = new Date();
+    let start = new Date();
+    
+    switch (dateRange) {
+      case "7d":
+        start.setDate(end.getDate() - 7);
+        break;
+      case "30d":
+        start.setDate(end.getDate() - 30);
+        break;
+      case "90d":
+        start.setDate(end.getDate() - 90);
+        break;
+      case "custom":
+        start = new Date(customStartDate);
+        end.setTime(new Date(customEndDate).getTime());
+        break;
+    }
+    
+    return {
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
+    };
+  };
+
+  const dateParams = getDateRangeParams();
+
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useQuery<AnalyticsSummary>({
-    queryKey: ["/api/analytics/summary"],
+    queryKey: ["/api/analytics/summary", dateParams.startDate, dateParams.endDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/summary?startDate=${dateParams.startDate}&endDate=${dateParams.endDate}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    },
   });
 
   const { data: thumbnails } = useQuery<any[]>({
@@ -359,10 +404,65 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6" data-testid="analytics-dashboard">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
           <p className="text-muted-foreground">Track thumbnail performance and engagement</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 border rounded-lg p-1">
+            <Button
+              variant={dateRange === "7d" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setDateRange("7d")}
+              data-testid="button-date-7d"
+            >
+              7 Days
+            </Button>
+            <Button
+              variant={dateRange === "30d" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setDateRange("30d")}
+              data-testid="button-date-30d"
+            >
+              30 Days
+            </Button>
+            <Button
+              variant={dateRange === "90d" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setDateRange("90d")}
+              data-testid="button-date-90d"
+            >
+              90 Days
+            </Button>
+            <Button
+              variant={dateRange === "custom" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setDateRange("custom")}
+              data-testid="button-date-custom"
+            >
+              Custom
+            </Button>
+          </div>
+          {dateRange === "custom" && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="w-36"
+                data-testid="input-start-date"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="w-36"
+                data-testid="input-end-date"
+              />
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button 

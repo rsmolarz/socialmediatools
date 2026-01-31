@@ -1850,21 +1850,35 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
   // Analytics Dashboard Routes
   
   // Get analytics summary for all thumbnails
-  app.get("/api/analytics/summary", async (_req, res) => {
+  app.get("/api/analytics/summary", async (req, res) => {
     try {
-      // Get total impressions and clicks
+      // Parse date range from query params
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = endDate ? new Date(endDate as string) : new Date();
+      end.setHours(23, 59, 59, 999);
+      
+      // Get total impressions and clicks within date range
       const totals = await db.select({
         totalImpressions: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.impressions}), 0)`,
         totalClicks: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.clicks}), 0)`,
-      }).from(thumbnailAnalyticsTable);
+      }).from(thumbnailAnalyticsTable)
+        .where(and(
+          gte(thumbnailAnalyticsTable.date, start),
+          sql`${thumbnailAnalyticsTable.date} <= ${end}`
+        ));
       
-      // Get per-thumbnail stats
+      // Get per-thumbnail stats within date range
       const thumbnailStats = await db.select({
         thumbnailId: thumbnailAnalyticsTable.thumbnailId,
         impressions: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.impressions}), 0)`,
         clicks: sql<number>`COALESCE(SUM(${thumbnailAnalyticsTable.clicks}), 0)`,
       })
       .from(thumbnailAnalyticsTable)
+      .where(and(
+        gte(thumbnailAnalyticsTable.date, start),
+        sql`${thumbnailAnalyticsTable.date} <= ${end}`
+      ))
       .groupBy(thumbnailAnalyticsTable.thumbnailId);
       
       // Get thumbnails for title lookup
