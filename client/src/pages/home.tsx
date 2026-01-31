@@ -19,6 +19,7 @@ import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
 import { TranscriptAnalyzer } from "@/components/transcript-analyzer";
 import { ViralTitleHelper } from "@/components/viral-title-helper";
+import { SocialMediaDashboard } from "@/components/social-media-dashboard";
 import {
   Plus,
   Download,
@@ -30,6 +31,7 @@ import {
   Layers,
   RotateCcw,
   Users,
+  TrendingUp,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
@@ -483,21 +485,25 @@ export default function Home() {
           {/* Controls Sidebar */}
           <div className="space-y-4">
             <Tabs defaultValue="text" className="w-full">
-              <TabsList className="w-full grid grid-cols-4">
+              <TabsList className="w-full grid grid-cols-5">
                 <TabsTrigger value="text" data-testid="tab-text">
-                  <Type className="h-4 w-4 mr-2" />
+                  <Type className="h-4 w-4 mr-1" />
                   Text
                 </TabsTrigger>
                 <TabsTrigger value="photos" data-testid="tab-photos">
-                  <Users className="h-4 w-4 mr-2" />
+                  <Users className="h-4 w-4 mr-1" />
                   Photos
                 </TabsTrigger>
                 <TabsTrigger value="background" data-testid="tab-background">
-                  <ImageIcon className="h-4 w-4 mr-2" />
+                  <ImageIcon className="h-4 w-4 mr-1" />
                   BG
                 </TabsTrigger>
+                <TabsTrigger value="social" data-testid="tab-social">
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  Social
+                </TabsTrigger>
                 <TabsTrigger value="saved" data-testid="tab-saved">
-                  <FolderOpen className="h-4 w-4 mr-2" />
+                  <FolderOpen className="h-4 w-4 mr-1" />
                   Saved
                 </TabsTrigger>
               </TabsList>
@@ -595,6 +601,12 @@ export default function Home() {
                     <PresetBackgrounds onSelect={handlePresetBackground} />
                     <MobilePreview canvasDataUrl={canvasDataUrl} />
                   </div>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="social" className="mt-4">
+                <ScrollArea className="h-[calc(100vh-340px)]">
+                  <SocialMediaDashboard />
                 </ScrollArea>
               </TabsContent>
 

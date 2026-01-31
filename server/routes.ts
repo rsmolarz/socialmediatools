@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertThumbnailSchema } from "@shared/schema";
+import { insertThumbnailSchema, insertViralContentSchema, insertSocialPostSchema, insertViralTopicSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateImageBuffer } from "./replit_integrations/image";
 import OpenAI, { toFile } from "openai";
 import { Readable } from "stream";
+import { viralAnalyzer } from "./lib/viral-analyzer";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -301,6 +302,221 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     } catch (error) {
       console.error("Error generating viral titles:", error);
       res.status(500).json({ error: "Failed to generate viral titles" });
+    }
+  });
+
+  // ===== SOCIAL MEDIA SUITE API ROUTES =====
+
+  // Discover viral topics
+  app.get("/api/viral/discover-topics", async (_req, res) => {
+    try {
+      const topics = await viralAnalyzer.discoverViralTopics();
+      
+      // Save topics to database using storage
+      for (const topic of topics) {
+        try {
+          const topicData = insertViralTopicSchema.parse({
+            keyword: topic.keyword,
+            averageInterest: topic.averageInterest,
+            trendDirection: topic.trendDirection,
+            popularity: topic.popularity,
+            contentSuggestion: topic.contentSuggestion,
+            source: "ai_analysis",
+          });
+          await storage.createViralTopic(topicData);
+        } catch (e) {
+          // Ignore duplicate/validation errors
+        }
+      }
+
+      res.json({
+        success: true,
+        topics,
+        total: topics.length,
+      });
+    } catch (error) {
+      console.error("Error discovering viral topics:", error);
+      res.status(500).json({ success: false, error: "Failed to discover viral topics" });
+    }
+  });
+
+  // Generate viral content from topic
+  app.post("/api/viral/generate-content", async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        topic: z.string().min(1),
+        platforms: z.array(z.string()).default(["youtube", "tiktok", "instagram"]),
+      });
+
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, error: "Topic is required" });
+      }
+
+      const { topic, platforms } = parsed.data;
+      const generatedContent = await viralAnalyzer.generateViralContent(topic, platforms);
+
+      // Save to database using storage
+      const savedContent = [];
+      for (const content of generatedContent) {
+        try {
+          const contentData = insertViralContentSchema.parse({
+            title: content.title,
+            description: content.description,
+            videoType: "generated",
+            platform: content.platform,
+            generatedContent: content,
+            viralityScore: content.viralityScore,
+            brandVoiceApplied: "Medicine and Money Show",
+            themes: content.hashtags,
+          });
+          const saved = await storage.createViralContent(contentData);
+          savedContent.push(saved);
+        } catch (e) {
+          console.error("Error saving content:", e);
+        }
+      }
+
+      res.json({
+        success: true,
+        content: generatedContent,
+        saved: savedContent.length,
+      });
+    } catch (error) {
+      console.error("Error generating viral content:", error);
+      res.status(500).json({ success: false, error: "Failed to generate viral content" });
+    }
+  });
+
+  // Get viral content history
+  app.get("/api/viral/content", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const content = await storage.getAllViralContent(limit);
+
+      res.json({
+        success: true,
+        content,
+        total: content.length,
+      });
+    } catch (error) {
+      console.error("Error fetching viral content:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch content" });
+    }
+  });
+
+  // Get all social posts
+  app.get("/api/viral/posts", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const posts = await storage.getAllSocialPosts(limit);
+
+      res.json({
+        success: true,
+        posts,
+        total: posts.length,
+      });
+    } catch (error) {
+      console.error("Error fetching social posts:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch posts" });
+    }
+  });
+
+  // Approve a social post
+  app.post("/api/viral/posts/:id/approve", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ success: false, error: "Invalid post ID" });
+      }
+
+      const { approvedBy = "User" } = req.body;
+      const updated = await storage.updateSocialPost(postId, {
+        status: "approved",
+        approvedBy,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ success: false, error: "Post not found" });
+      }
+
+      res.json({
+        success: true,
+        post: updated,
+      });
+    } catch (error) {
+      console.error("Error approving post:", error);
+      res.status(500).json({ success: false, error: "Failed to approve post" });
+    }
+  });
+
+  // Reject a social post
+  app.post("/api/viral/posts/:id/reject", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ success: false, error: "Invalid post ID" });
+      }
+
+      const updated = await storage.updateSocialPost(postId, {
+        status: "rejected",
+      });
+
+      if (!updated) {
+        return res.status(404).json({ success: false, error: "Post not found" });
+      }
+
+      res.json({
+        success: true,
+        post: updated,
+      });
+    } catch (error) {
+      console.error("Error rejecting post:", error);
+      res.status(500).json({ success: false, error: "Failed to reject post" });
+    }
+  });
+
+  // Delete a social post
+  app.delete("/api/viral/posts/:id", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ success: false, error: "Invalid post ID" });
+      }
+
+      const deleted = await storage.deleteSocialPost(postId);
+      if (!deleted) {
+        return res.status(404).json({ success: false, error: "Post not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      res.status(500).json({ success: false, error: "Failed to delete post" });
+    }
+  });
+
+  // Analyze content for viral potential
+  app.post("/api/viral/analyze", async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        content: z.string().min(1),
+      });
+
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, error: "Content is required" });
+      }
+
+      const analysis = await viralAnalyzer.analyzeViralPotential(parsed.data.content);
+
+      res.json({
+        success: true,
+        analysis,
+      });
+    } catch (error) {
+      console.error("Error analyzing content:", error);
+      res.status(500).json({ success: false, error: "Failed to analyze content" });
     }
   });
 

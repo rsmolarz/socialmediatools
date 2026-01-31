@@ -53,10 +53,15 @@ Key entities:
 ## Recent Changes
 
 ### Latest Updates (January 31, 2026)
-- **Viral Title Helper**: New AI-powered feature in Text tab to create short, punchy viral titles:
-  - AI generates 6 viral title options (3-5 words max, all caps)
-  - Quick templates organized by hook type (Money, Medical, Urgency, Curiosity)
-  - Viral title tips and best practices
+- **Social Media Suite**: New comprehensive social media dashboard (Social tab) with:
+  - **Viral Topic Discovery**: AI-powered trending topic analysis for Medicine & Money niche
+  - **Multi-Platform Content Generation**: Generate optimized content for YouTube, TikTok, and Instagram
+  - **Content Queue Management**: Review, approve, reject, and delete generated content
+  - **Virality Scoring**: AI-assessed viral potential scores for all content
+  - Database tables: viral_content, social_posts, social_thumbnails, viral_topics
+  - API endpoints: /api/viral/discover-topics, /api/viral/generate-content, /api/viral/posts
+- **Three-Line Text Fix**: Viral title handlers now preserve all three text lines (only updates line 1)
+- **Viral Title Helper**: AI-powered feature in Text tab to create short, punchy viral titles
 - **Background Opacity Control**: Slider to adjust background image transparency (10-100%)
 
 ### Previous Updates (January 30, 2026)

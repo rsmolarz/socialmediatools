@@ -131,3 +131,105 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+// Viral Content table - stores AI-generated viral content ideas
+export const viralContent = pgTable("viral_content", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  videoType: text("video_type").default("generated"),
+  platform: text("platform").default("multi-platform"),
+  originalData: jsonb("original_data"),
+  generatedContent: jsonb("generated_content"),
+  viralityScore: integer("virality_score").default(0),
+  brandVoiceApplied: text("brand_voice_applied"),
+  themes: jsonb("themes").$type<string[]>(),
+  status: text("status").default("draft"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertViralContentSchema = createInsertSchema(viralContent).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ViralContent = typeof viralContent.$inferSelect;
+export type InsertViralContent = z.infer<typeof insertViralContentSchema>;
+
+// Social Posts table - stores generated social media posts
+export const socialPosts = pgTable("social_posts", {
+  id: serial("id").primaryKey(),
+  viralContentId: integer("viral_content_id").references(() => viralContent.id, { onDelete: "set null" }),
+  platform: text("platform").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  script: text("script"),
+  hashtags: jsonb("hashtags").$type<string[]>(),
+  hooks: jsonb("hooks").$type<string[]>(),
+  targetLength: text("target_length"),
+  viralityScore: integer("virality_score").default(0),
+  status: text("status").default("draft"),
+  approvedBy: text("approved_by"),
+  postedAt: timestamp("posted_at"),
+  platformPostId: text("platform_post_id"),
+  thumbnailUrl: text("thumbnail_url"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
+
+// Social Thumbnails table - stores generated thumbnails for social posts
+export const socialThumbnails = pgTable("social_thumbnails", {
+  id: serial("id").primaryKey(),
+  viralContentId: integer("viral_content_id").references(() => viralContent.id, { onDelete: "set null" }),
+  socialPostId: integer("social_post_id").references(() => socialPosts.id, { onDelete: "cascade" }),
+  platform: text("platform").notNull(),
+  title: text("title"),
+  description: text("description"),
+  style: text("style").default("professional"),
+  dimensions: jsonb("dimensions").$type<{ width: number; height: number }>(),
+  imageUrl: text("image_url"),
+  prompt: text("prompt"),
+  generationData: jsonb("generation_data"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertSocialThumbnailSchema = createInsertSchema(socialThumbnails).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SocialThumbnail = typeof socialThumbnails.$inferSelect;
+export type InsertSocialThumbnail = z.infer<typeof insertSocialThumbnailSchema>;
+
+// Viral Topics table - stores discovered trending topics
+export const viralTopics = pgTable("viral_topics", {
+  id: serial("id").primaryKey(),
+  keyword: text("keyword").notNull(),
+  averageInterest: integer("average_interest").default(0),
+  trendDirection: text("trend_direction").default("stable"),
+  popularity: text("popularity").default("medium"),
+  contentSuggestion: jsonb("content_suggestion"),
+  source: text("source").default("google_trends"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertViralTopicSchema = createInsertSchema(viralTopics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ViralTopic = typeof viralTopics.$inferSelect;
+export type InsertViralTopic = z.infer<typeof insertViralTopicSchema>;
