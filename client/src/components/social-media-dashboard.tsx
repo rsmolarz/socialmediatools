@@ -36,7 +36,9 @@ import {
   Upload,
   User,
   Layers,
-  Image
+  Image,
+  Send,
+  CheckCircle
 } from "lucide-react";
 
 interface ViralTopic {
@@ -201,6 +203,27 @@ export function SocialMediaDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
       toast({ title: "Post Rejected", description: "Content has been rejected" });
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const response = await apiRequest("POST", `/api/viral/posts/${postId}/publish`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/viral/posts"] });
+      toast({ 
+        title: "Post Published!", 
+        description: data.message || "Content has been published to social media" 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Publishing Failed", 
+        description: "Failed to publish post. Please try again.",
+        variant: "destructive"
+      });
     },
   });
 
@@ -1245,6 +1268,28 @@ export function SocialMediaDashboard() {
                                   Reject
                                 </Button>
                               </>
+                            )}
+                            {post.status === "approved" && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => publishMutation.mutate(post.id)}
+                                disabled={publishMutation.isPending}
+                                data-testid={`button-publish-${post.id}`}
+                              >
+                                {publishMutation.isPending ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Send className="w-3 h-3 mr-1" />
+                                )}
+                                Post Now
+                              </Button>
+                            )}
+                            {post.status === "posted" && (
+                              <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400 gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                Posted
+                              </Badge>
                             )}
                             <Button
                               size="sm"

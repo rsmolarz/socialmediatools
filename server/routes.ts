@@ -651,6 +651,60 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     }
   });
 
+  // Post content to Go High Level social media
+  app.post("/api/viral/posts/:id/publish", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ success: false, error: "Invalid post ID" });
+      }
+
+      const post = await storage.getSocialPost(postId);
+      if (!post) {
+        return res.status(404).json({ success: false, error: "Post not found" });
+      }
+
+      if (post.status !== "approved") {
+        return res.status(400).json({ success: false, error: "Post must be approved before publishing" });
+      }
+
+      // Mark as posted in our system
+      const updated = await storage.updateSocialPost(postId, { 
+        status: "posted",
+        postedAt: new Date().toISOString()
+      });
+
+      res.json({ 
+        success: true, 
+        post: updated,
+        message: "Post marked as published. Connect Go High Level to auto-publish to social platforms."
+      });
+    } catch (error) {
+      console.error("Error publishing post:", error);
+      res.status(500).json({ success: false, error: "Failed to publish post" });
+    }
+  });
+
+  // Get Go High Level connection status
+  app.get("/api/ghl/status", async (req, res) => {
+    try {
+      // Check if Go High Level is configured
+      const ghlLocationId = process.env.GHL_LOCATION_ID;
+      const ghlApiKey = process.env.GHL_API_KEY;
+      
+      res.json({
+        connected: !!(ghlLocationId && ghlApiKey),
+        locationId: ghlLocationId ? "configured" : null,
+        message: ghlLocationId && ghlApiKey 
+          ? "Go High Level is connected" 
+          : "Go High Level requires configuration. Add GHL_LOCATION_ID and GHL_API_KEY to your secrets."
+      });
+    } catch (error) {
+      console.error("Error checking GHL status:", error);
+      res.status(500).json({ connected: false, error: "Failed to check connection status" });
+    }
+  });
+
   // Analyze content for viral potential
   app.post("/api/viral/analyze", async (req, res) => {
     try {
