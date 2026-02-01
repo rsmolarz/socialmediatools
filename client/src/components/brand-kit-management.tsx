@@ -156,7 +156,27 @@ export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
       toast({ title: "Name required", variant: "destructive" });
       return;
     }
-    createMutation.mutate(newKit);
+    
+    // Map internal flat state to the nested structure expected by schema
+    const brandKitData = {
+      name: newKit.name,
+      userId: "user_123", // Placeholder, should ideally come from auth
+      colors: {
+        primary: newKit.primaryColor,
+        secondary: newKit.secondaryColor,
+        accent: newKit.accentColor,
+        background: newKit.backgroundColor,
+        text: "#000000" // Default text color
+      },
+      fonts: {
+        heading: newKit.primaryFont,
+        body: newKit.secondaryFont,
+        accent: newKit.primaryFont
+      },
+      logos: newKit.logoUrl ? [{ url: newKit.logoUrl, variant: "primary" }] : []
+    };
+    
+    createMutation.mutate(brandKitData);
   };
 
   return (
@@ -313,11 +333,17 @@ export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
               <div>
                 <Label>Primary Color</Label>
                 <div className="flex gap-2">
+                  <div 
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
+                    style={{ backgroundColor: newKit.primaryColor }}
+                    onClick={() => document.getElementById('primary-color-input')?.click()}
+                  />
                   <Input
+                    id="primary-color-input"
                     type="color"
                     value={newKit.primaryColor}
                     onChange={(e) => setNewKit({ ...newKit, primaryColor: e.target.value })}
-                    className="w-12 h-10 p-1"
+                    className="sr-only"
                   />
                   <Input
                     value={newKit.primaryColor}
@@ -329,11 +355,17 @@ export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
               <div>
                 <Label>Secondary Color</Label>
                 <div className="flex gap-2">
+                  <div 
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
+                    style={{ backgroundColor: newKit.secondaryColor }}
+                    onClick={() => document.getElementById('secondary-color-input')?.click()}
+                  />
                   <Input
+                    id="secondary-color-input"
                     type="color"
                     value={newKit.secondaryColor}
                     onChange={(e) => setNewKit({ ...newKit, secondaryColor: e.target.value })}
-                    className="w-12 h-10 p-1"
+                    className="sr-only"
                   />
                   <Input
                     value={newKit.secondaryColor}
@@ -345,11 +377,17 @@ export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
               <div>
                 <Label>Accent Color</Label>
                 <div className="flex gap-2">
+                  <div 
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
+                    style={{ backgroundColor: newKit.accentColor }}
+                    onClick={() => document.getElementById('accent-color-input')?.click()}
+                  />
                   <Input
+                    id="accent-color-input"
                     type="color"
                     value={newKit.accentColor}
                     onChange={(e) => setNewKit({ ...newKit, accentColor: e.target.value })}
-                    className="w-12 h-10 p-1"
+                    className="sr-only"
                   />
                   <Input
                     value={newKit.accentColor}
@@ -361,11 +399,17 @@ export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
               <div>
                 <Label>Background</Label>
                 <div className="flex gap-2">
+                  <div 
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
+                    style={{ backgroundColor: newKit.backgroundColor }}
+                    onClick={() => document.getElementById('bg-color-input')?.click()}
+                  />
                   <Input
+                    id="bg-color-input"
                     type="color"
                     value={newKit.backgroundColor}
                     onChange={(e) => setNewKit({ ...newKit, backgroundColor: e.target.value })}
-                    className="w-12 h-10 p-1"
+                    className="sr-only"
                   />
                   <Input
                     value={newKit.backgroundColor}
