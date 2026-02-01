@@ -167,6 +167,23 @@ export async function updateYouTubeVideo(
   try {
     const youtube = await getUncachableYouTubeClient();
 
+    // First, get the current video details to preserve category if not provided
+    const currentVideo = await youtube.videos.list({
+      part: ["snippet"],
+      id: [videoId],
+    });
+
+    const currentSnippet = currentVideo.data.items?.[0]?.snippet;
+    if (!currentSnippet) {
+      return {
+        success: false,
+        message: `Video ${videoId} not found or not accessible`,
+      };
+    }
+
+    // Use provided categoryId, or fall back to current category, or default
+    const effectiveCategoryId = categoryId || currentSnippet.categoryId || "22";
+
     await youtube.videos.update({
       part: ["snippet"],
       requestBody: {
@@ -175,7 +192,7 @@ export async function updateYouTubeVideo(
           title,
           description,
           tags,
-          categoryId: categoryId || "22", // Default to "People & Blogs"
+          categoryId: effectiveCategoryId,
         },
       },
     });
@@ -184,11 +201,27 @@ export async function updateYouTubeVideo(
       success: true,
       message: `Successfully updated video ${videoId}`,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating YouTube video:", error);
+    
+    // Extract detailed error from YouTube API response
+    let errorMessage = "Unknown error";
+    if (error?.response?.data?.error?.message) {
+      errorMessage = error.response.data.error.message;
+    } else if (error?.errors?.[0]?.message) {
+      errorMessage = error.errors[0].message;
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+    
+    // Check for common permission errors
+    if (errorMessage.includes("forbidden") || errorMessage.includes("403")) {
+      errorMessage = "Permission denied. Make sure the YouTube account is connected and has write access to this video.";
+    }
+    
     return {
       success: false,
-      message: `Failed to update video: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Failed to update video: ${errorMessage}`,
     };
   }
 }
