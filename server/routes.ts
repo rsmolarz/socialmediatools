@@ -1412,8 +1412,40 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
       }
 
       const { title, description, tags } = parsed.data;
+      const isShort = req.body.isShort === true;
 
-      const prompt = `You are a YouTube SEO expert for "The Medicine & Money Show" podcast. Optimize the following video metadata for maximum discoverability and engagement.
+      let prompt;
+      
+      if (isShort) {
+        prompt = `You are a YouTube Shorts viral optimization expert for "The Medicine & Money Show" podcast about medicine and money/finance. Optimize the following Short for maximum virality and engagement.
+
+Current Title: ${title}
+Current Description: ${description || "(no description)"}
+Current Tags: ${tags?.join(", ") || "(no tags)"}
+
+Generate a VIRAL optimized description and tags specifically for YouTube Shorts. The description should:
+- Start with a powerful hook or controversy that stops scrolling
+- Be punchy and short (under 150 words) - Shorts viewers don't read long descriptions
+- Include trending hashtags like #shorts #viral #fyp
+- Include niche-specific hashtags for medicine, money, healthcare, finance
+- Have an urgent call-to-action (Follow for more, Like if you agree, etc.)
+- Use emojis strategically to catch attention
+
+Generate 20-30 highly viral tags that:
+- Include #shorts (MANDATORY)
+- Include viral hashtags (#viral, #fyp, #trending, #foryou)
+- Include medicine/health hashtags (#health, #doctor, #medical, #healthcare)
+- Include money/finance hashtags (#money, #finance, #investing, #wealth)
+- Include engagement hashtags (#motivation, #success, #tips)
+- Include The Medicine & Money Show branding
+
+Return JSON format:
+{
+  "optimizedDescription": "your viral short description here",
+  "optimizedTags": ["shorts", "viral", "fyp", ...]
+}`;
+      } else {
+        prompt = `You are a YouTube SEO expert for "The Medicine & Money Show" podcast. Optimize the following video metadata for maximum discoverability and engagement.
 
 Current Title: ${title}
 Current Description: ${description || "(no description)"}
@@ -1437,6 +1469,7 @@ Return JSON format:
   "optimizedDescription": "your optimized description here",
   "optimizedTags": ["tag1", "tag2", ...]
 }`;
+      }
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
