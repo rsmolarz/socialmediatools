@@ -2286,5 +2286,227 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     }
   });
 
+  // ===== ADMIN AGENT ROUTES =====
+  
+  // Get agent logs
+  app.get("/api/admin/agent-logs", async (req, res) => {
+    try {
+      const agentType = req.query.type as string;
+      const { agentLogsTable } = await import("@shared/schema");
+      
+      let query = db.select().from(agentLogsTable).orderBy(desc(agentLogsTable.createdAt)).limit(100);
+      
+      if (agentType) {
+        query = db.select().from(agentLogsTable)
+          .where(eq(agentLogsTable.agentType, agentType))
+          .orderBy(desc(agentLogsTable.createdAt))
+          .limit(100);
+      }
+      
+      const logs = await query;
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching agent logs:", error);
+      res.status(500).json({ error: "Failed to fetch agent logs" });
+    }
+  });
+
+  // Update agent log status
+  app.patch("/api/admin/agent-logs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      const { agentLogsTable } = await import("@shared/schema");
+      
+      const updates: any = { status };
+      if (status === "resolved") {
+        updates.resolvedAt = new Date();
+      }
+      
+      const [updated] = await db.update(agentLogsTable)
+        .set(updates)
+        .where(eq(agentLogsTable.id, id))
+        .returning();
+        
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating agent log:", error);
+      res.status(500).json({ error: "Failed to update agent log" });
+    }
+  });
+
+  // Get feature recommendations
+  app.get("/api/admin/recommendations", async (req, res) => {
+    try {
+      const { featureRecommendationsTable } = await import("@shared/schema");
+      const recommendations = await db.select().from(featureRecommendationsTable)
+        .orderBy(desc(featureRecommendationsTable.createdAt))
+        .limit(50);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      res.status(500).json({ error: "Failed to fetch recommendations" });
+    }
+  });
+
+  // Update recommendation status
+  app.patch("/api/admin/recommendations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      const { featureRecommendationsTable } = await import("@shared/schema");
+      
+      const [updated] = await db.update(featureRecommendationsTable)
+        .set({ status, reviewedAt: new Date() })
+        .where(eq(featureRecommendationsTable.id, id))
+        .returning();
+        
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating recommendation:", error);
+      res.status(500).json({ error: "Failed to update recommendation" });
+    }
+  });
+
+  // Run Code Guardian scan
+  app.post("/api/admin/run-guardian", async (req, res) => {
+    try {
+      const { agentLogsTable, insertAgentLogSchema } = await import("@shared/schema");
+      
+      // Simulate code guardian analysis with AI
+      const guardianPrompt = `You are a Code Guardian agent analyzing a YouTube thumbnail generator application. 
+      Generate 3-5 potential code issues that might exist in such an application.
+      For each issue, provide:
+      - title: Short issue name
+      - description: What the issue is
+      - severity: one of 'info', 'warning', 'error', 'critical'
+      - filePath: A realistic file path
+      - recommendation: How to fix it
+      
+      Return ONLY valid JSON array format: [{ title, description, severity, filePath, recommendation }]`;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: guardianPrompt }],
+        max_tokens: 1000,
+      });
+      
+      const content = response.choices[0]?.message?.content || "[]";
+      let issues = [];
+      try {
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          issues = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        issues = [];
+      }
+      
+      // Save issues to database
+      for (const issue of issues) {
+        const logData = insertAgentLogSchema.parse({
+          agentType: "guardian",
+          action: "error_detected",
+          severity: issue.severity || "info",
+          title: issue.title,
+          description: issue.description,
+          filePath: issue.filePath,
+          recommendation: issue.recommendation,
+          status: "pending"
+        });
+        await db.insert(agentLogsTable).values(logData);
+      }
+      
+      // Add scan complete log
+      await db.insert(agentLogsTable).values({
+        agentType: "guardian",
+        action: "scan_complete",
+        severity: "info",
+        title: "Code Guardian Scan Complete",
+        description: `Found ${issues.length} potential issues`,
+        status: "resolved"
+      });
+      
+      res.json({ success: true, issuesFound: issues.length });
+    } catch (error) {
+      console.error("Error running guardian:", error);
+      res.status(500).json({ error: "Failed to run guardian scan" });
+    }
+  });
+
+  // Run Code Upgrade analysis
+  app.post("/api/admin/run-upgrade", async (req, res) => {
+    try {
+      const { agentLogsTable, featureRecommendationsTable, insertAgentLogSchema, insertFeatureRecommendationSchema } = await import("@shared/schema");
+      
+      // Generate upgrade suggestions
+      const upgradePrompt = `You are a Code Upgrade agent analyzing a YouTube thumbnail generator application.
+      The app has: thumbnail editor, AI backgrounds, social media suite, analytics, collaboration features.
+      
+      Generate 2-3 code upgrade suggestions AND 2-3 new feature recommendations.
+      
+      Return JSON:
+      {
+        "upgrades": [{ "title": string, "description": string, "filePath": string, "recommendation": string }],
+        "features": [{ "title": string, "description": string, "priority": "low"|"medium"|"high", "category": "enhancement"|"performance"|"security"|"ux", "estimatedEffort": "small"|"medium"|"large", "rationale": string }]
+      }`;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: upgradePrompt }],
+        max_tokens: 1500,
+      });
+      
+      const content = response.choices[0]?.message?.content || "{}";
+      let result = { upgrades: [], features: [] };
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        // ignore
+      }
+      
+      // Save upgrade suggestions
+      for (const upgrade of result.upgrades || []) {
+        const logData = insertAgentLogSchema.parse({
+          agentType: "upgrade",
+          action: "recommendation",
+          severity: "info",
+          title: upgrade.title,
+          description: upgrade.description,
+          filePath: upgrade.filePath,
+          recommendation: upgrade.recommendation,
+          status: "pending"
+        });
+        await db.insert(agentLogsTable).values(logData);
+      }
+      
+      // Save feature recommendations
+      for (const feature of result.features || []) {
+        const recData = insertFeatureRecommendationSchema.parse({
+          title: feature.title,
+          description: feature.description,
+          priority: feature.priority || "medium",
+          category: feature.category || "enhancement",
+          estimatedEffort: feature.estimatedEffort,
+          rationale: feature.rationale,
+          status: "pending"
+        });
+        await db.insert(featureRecommendationsTable).values(recData);
+      }
+      
+      res.json({ 
+        success: true, 
+        upgradesFound: (result.upgrades || []).length,
+        featuresFound: (result.features || []).length 
+      });
+    } catch (error) {
+      console.error("Error running upgrade agent:", error);
+      res.status(500).json({ error: "Failed to run upgrade analysis" });
+    }
+  });
+
   return httpServer;
 }

@@ -61,6 +61,19 @@ const COLOR_PRESETS = [
   { name: "Bold Red", colors: { primary: "#EF4444", secondary: "#B91C1C", accent: "#FCA5A5", bg: "#FEF2F2" } },
 ];
 
+// Helper to normalize hex color (ensure # prefix and valid format)
+const normalizeHex = (color: string): string => {
+  let hex = color.trim().toUpperCase();
+  if (!hex.startsWith("#")) {
+    hex = "#" + hex;
+  }
+  // Validate hex format
+  if (/^#[0-9A-F]{6}$/i.test(hex) || /^#[0-9A-F]{3}$/i.test(hex)) {
+    return hex;
+  }
+  return "#000000"; // fallback
+};
+
 export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -332,89 +345,77 @@ export function BrandKitManagement({ onApplyKit }: BrandKitManagementProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Primary Color</Label>
-                <div className="flex gap-2">
-                  <div 
-                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
-                    style={{ backgroundColor: newKit.primaryColor }}
-                    onClick={() => document.getElementById('primary-color-input')?.click()}
-                  />
-                  <Input
+                <div className="flex gap-2 items-center">
+                  <input
                     id="primary-color-input"
                     type="color"
-                    value={newKit.primaryColor}
+                    value={normalizeHex(newKit.primaryColor)}
                     onChange={(e) => setNewKit({ ...newKit, primaryColor: e.target.value })}
-                    className="sr-only"
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0 p-0"
                   />
                   <Input
                     value={newKit.primaryColor}
                     onChange={(e) => setNewKit({ ...newKit, primaryColor: e.target.value })}
+                    onBlur={(e) => setNewKit({ ...newKit, primaryColor: normalizeHex(e.target.value) })}
                     className="flex-1"
+                    placeholder="#RRGGBB"
                   />
                 </div>
               </div>
               <div>
                 <Label>Secondary Color</Label>
-                <div className="flex gap-2">
-                  <div 
-                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
-                    style={{ backgroundColor: newKit.secondaryColor }}
-                    onClick={() => document.getElementById('secondary-color-input')?.click()}
-                  />
-                  <Input
+                <div className="flex gap-2 items-center">
+                  <input
                     id="secondary-color-input"
                     type="color"
-                    value={newKit.secondaryColor}
+                    value={normalizeHex(newKit.secondaryColor)}
                     onChange={(e) => setNewKit({ ...newKit, secondaryColor: e.target.value })}
-                    className="sr-only"
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0 p-0"
                   />
                   <Input
                     value={newKit.secondaryColor}
                     onChange={(e) => setNewKit({ ...newKit, secondaryColor: e.target.value })}
+                    onBlur={(e) => setNewKit({ ...newKit, secondaryColor: normalizeHex(e.target.value) })}
                     className="flex-1"
+                    placeholder="#RRGGBB"
                   />
                 </div>
               </div>
               <div>
                 <Label>Accent Color</Label>
-                <div className="flex gap-2">
-                  <div 
-                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
-                    style={{ backgroundColor: newKit.accentColor }}
-                    onClick={() => document.getElementById('accent-color-input')?.click()}
-                  />
-                  <Input
+                <div className="flex gap-2 items-center">
+                  <input
                     id="accent-color-input"
                     type="color"
-                    value={newKit.accentColor}
+                    value={normalizeHex(newKit.accentColor)}
                     onChange={(e) => setNewKit({ ...newKit, accentColor: e.target.value })}
-                    className="sr-only"
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0 p-0"
                   />
                   <Input
                     value={newKit.accentColor}
                     onChange={(e) => setNewKit({ ...newKit, accentColor: e.target.value })}
+                    onBlur={(e) => setNewKit({ ...newKit, accentColor: normalizeHex(e.target.value) })}
                     className="flex-1"
+                    placeholder="#RRGGBB"
                   />
                 </div>
               </div>
               <div>
                 <Label>Background</Label>
-                <div className="flex gap-2">
-                  <div 
-                    className="w-10 h-10 rounded border cursor-pointer shrink-0" 
-                    style={{ backgroundColor: newKit.backgroundColor }}
-                    onClick={() => document.getElementById('bg-color-input')?.click()}
-                  />
-                  <Input
+                <div className="flex gap-2 items-center">
+                  <input
                     id="bg-color-input"
                     type="color"
-                    value={newKit.backgroundColor}
+                    value={normalizeHex(newKit.backgroundColor)}
                     onChange={(e) => setNewKit({ ...newKit, backgroundColor: e.target.value })}
-                    className="sr-only"
+                    className="w-10 h-10 rounded border cursor-pointer shrink-0 p-0"
                   />
                   <Input
                     value={newKit.backgroundColor}
                     onChange={(e) => setNewKit({ ...newKit, backgroundColor: e.target.value })}
+                    onBlur={(e) => setNewKit({ ...newKit, backgroundColor: normalizeHex(e.target.value) })}
                     className="flex-1"
+                    placeholder="#RRGGBB"
                   />
                 </div>
               </div>

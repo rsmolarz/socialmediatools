@@ -495,5 +495,53 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEventsTabl
     createdAt: true,
 });
 
+// Agent Logs table - stores logs from Code Guardian and Code Upgrade agents
+export const agentLogsTable = pgTable("agent_logs", {
+    id: serial("id").primaryKey(),
+    agentType: text("agent_type").notNull(), // 'guardian' or 'upgrade'
+    action: text("action").notNull(), // 'error_detected', 'fix_applied', 'recommendation', 'scan_complete'
+    severity: text("severity").default("info"), // 'info', 'warning', 'error', 'critical'
+    title: text("title").notNull(),
+    description: text("description"),
+    filePath: text("file_path"),
+    lineNumber: integer("line_number"),
+    recommendation: text("recommendation"),
+    status: text("status").default("pending"), // 'pending', 'resolved', 'ignored', 'in_progress'
+    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+});
+
+export type AgentLog = typeof agentLogsTable.$inferSelect;
+export type InsertAgentLog = z.infer<typeof insertAgentLogSchema>;
+export const insertAgentLogSchema = createInsertSchema(agentLogsTable).omit({
+    id: true,
+    createdAt: true,
+    resolvedAt: true,
+});
+
+// Feature Recommendations table - AI-suggested features
+export const featureRecommendationsTable = pgTable("feature_recommendations", {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    priority: text("priority").default("medium"), // 'low', 'medium', 'high', 'critical'
+    category: text("category").default("enhancement"), // 'enhancement', 'performance', 'security', 'ux'
+    estimatedEffort: text("estimated_effort"), // 'small', 'medium', 'large'
+    status: text("status").default("pending"), // 'pending', 'approved', 'rejected', 'implemented'
+    rationale: text("rationale"),
+    metadata: jsonb("metadata").$type<Record<string, any>>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    reviewedAt: timestamp("reviewed_at"),
+});
+
+export type FeatureRecommendation = typeof featureRecommendationsTable.$inferSelect;
+export type InsertFeatureRecommendation = z.infer<typeof insertFeatureRecommendationSchema>;
+export const insertFeatureRecommendationSchema = createInsertSchema(featureRecommendationsTable).omit({
+    id: true,
+    createdAt: true,
+    reviewedAt: true,
+});
+
 // Auth models
 export * from "./models/auth";
