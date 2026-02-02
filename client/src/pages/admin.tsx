@@ -1,485 +1,533 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import {
-    Link,
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from "@/components/ui/card";
+import { Link } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import {
-    Shield,
-    Zap,
-    AlertTriangle,
-    CheckCircle,
-    Clock,
-    RefreshCw,
-    ArrowLeft,
-    Lightbulb,
-    Bug,
-    Wrench,
-    TrendingUp,
-    Activity,
-    FileCode,
-    Loader2,
-    AlertCircle,
-    BarChart3,
+  Shield,
+  Zap,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  RefreshCw,
+  ArrowLeft,
+  Lightbulb,
+  Bug,
+  Wrench,
+  TrendingUp,
+  Activity,
+  FileCode,
+  Loader2
 } from "lucide-react";
 
-// Interfaces
-interface HealthStatus {
-    status: "healthy" | "degraded" | "critical";
-    uptime: number;
-    memory: {
-          used: number;
-          total: number;
-          percentage: number;
-    };
-    errorCount: number;
-    avgResponseTime: number;
-    circuitBreakerStatus: {
-          youtube: "closed" | "open" | "half-open";
-          database: "closed" | "open" | "half-open";
-          externalApi: "closed" | "open" | "half-open";
-    };
-    youtubeQuota: {
-          used: number;
-          limit: number;
-          percentage: number;
-    };
-    activeFeatureFlags: number;
-    lastUpdate: string;
+interface AgentLog {
+  id: number;
+  agentType: string;
+  action: string;
+  severity: string;
+  title: string;
+  description: string | null;
+  filePath: string | null;
+  lineNumber: number | null;
+  recommendation: string | null;
+  status: string;
+  metadata: Record<string, any> | null;
+  createdAt: string;
+  resolvedAt: string | null;
 }
 
-interface FeatureFlag {
-    id: string;
-    name: string;
-    enabled: boolean;
-    rolloutPercentage?: number;
-    environment?: string;
+interface FeatureRecommendation {
+  id: number;
+  title: string;
+  description: string;
+  priority: string;
+  category: string;
+  estimatedEffort: string | null;
+  status: string;
+  rationale: string | null;
+  metadata: Record<string, any> | null;
+  createdAt: string;
+  reviewedAt: string | null;
 }
 
-interface MetricData {
-    timestamp: string;
-    value: number;
-    p50: number;
-    p95: number;
-    p99: number;
-}
+const getSeverityColor = (severity: string) => {
+  switch (severity) {
+    case "critical": return "bg-red-500";
+    case "error": return "bg-orange-500";
+    case "warning": return "bg-yellow-500";
+    default: return "bg-blue-500";
+  }
+};
 
-// Helper functions
-const getStatusColor = (status: string): string => {
-    switch (status) {
-      case "healthy":
-      case "closed":
-              return "bg-green-500";
-      case "degraded":
-      case "half-open":
-              return "bg-yellow-500";
-      case "critical":
-      case "open":
-              return "bg-red-500";
-      default:
-              return "bg-gray-500";
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case "critical": return "destructive";
+    case "high": return "destructive";
+    case "medium": return "secondary";
+    default: return "outline";
+  }
+};
+
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case "resolved": return <CheckCircle className="w-4 h-4 text-green-500" />;
+    case "in_progress": return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+    case "ignored": return <Clock className="w-4 h-4 text-gray-500" />;
+    default: return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+  }
+};
+
+export default function AdminPage() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("guardian");
+
+  const { data: guardianLogs = [], isLoading: loadingGuardian } = useQuery<AgentLog[]>({
+    queryKey: ["/api/admin/agent-logs", "guardian"],
+    queryFn: () => fetch("/api/admin/agent-logs?type=guardian").then(r => r.json()),
+  });
+
+  const { data: upgradeLogs = [], isLoading: loadingUpgrade } = useQuery<AgentLog[]>({
+    queryKey: ["/api/admin/agent-logs", "upgrade"],
+    queryFn: () => fetch("/api/admin/agent-logs?type=upgrade").then(r => r.json()),
+  });
+
+  const { data: recommendations = [], isLoading: loadingRecommendations } = useQuery<FeatureRecommendation[]>({
+    queryKey: ["/api/admin/recommendations"],
+  });
+
+  const runGuardianMutation = useMutation({
+    mutationFn: () => apiRequest("/api/admin/run-guardian", { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      toast({ title: "Code Guardian scan complete" });
+    },
+    onError: () => {
+      toast({ title: "Scan failed", variant: "destructive" });
     }
-};
+  });
 
-const getStatusLabel = (status: string): string => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-};
+  const runUpgradeMutation = useMutation({
+    mutationFn: () => apiRequest("/api/admin/run-upgrade", { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/recommendations"] });
+      toast({ title: "Code Upgrade analysis complete" });
+    },
+    onError: () => {
+      toast({ title: "Analysis failed", variant: "destructive" });
+    }
+  });
 
-const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-};
+  const updateLogStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiRequest(`/api/admin/agent-logs/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      toast({ title: "Status updated" });
+    }
+  });
 
-const formatPercentage = (percent: number): string => {
-    return Math.round(percent * 100) / 100 + "%";
-};
+  const updateRecommendationStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiRequest(`/api/admin/recommendations/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/recommendations"] });
+      toast({ title: "Recommendation updated" });
+    }
+  });
 
-// Health Status Card Component
-function HealthStatusCard({ health }: { health: HealthStatus }) {
-    return (
+  const pendingGuardian = guardianLogs.filter(l => l.status === "pending").length;
+  const pendingUpgrade = upgradeLogs.filter(l => l.status === "pending").length;
+  const pendingRecommendations = recommendations.filter(r => r.status === "pending").length;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" data-testid="button-back-home">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Editor
+              </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Shield className="w-6 h-6 text-primary" />
+              <h1 className="text-xl font-bold">Admin Dashboard</h1>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
-                <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                                  <Activity className="w-5 h-5" />
-                                  System Health
-                        </CardTitle>CardTitle>
-                </CardHeader>CardHeader>
-                <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium">Status</span>span>
-                                  <div className="flex items-center gap-2">
-                                              <div
-                                                              className={`w-3 h-3 rounded-full ${getStatusColor(
-                                                                                health.status
-                                                                              )}`}
-                                                            />
-                                              <span className="text-sm font-medium">
-                                                {getStatusLabel(health.status)}
-                                              </span>span>
-                                  </div>div>
-                        </div>div>
-                
-                        <div className="space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                              <span>Memory Usage</span>span>
-                                              <span>{formatPercentage(health.memory.percentage)}</span>span>
-                                  </div>div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
-                                              <div
-                                                              className={`h-2 rounded-full transition-all ${
-                                                                                health.memory.percentage > 80
-                                                                                  ? "bg-red-500"
-                                                                                  : health.memory.percentage > 60
-                                                                                  ? "bg-yellow-500"
-                                                                                  : "bg-green-500"
-                                                              }`}
-                                                             alth.memory.used)} / {formatBytes(health.memory.total)}
-                                  </div>p>
-                        </div>div>
-                  
-                          <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                                <span>YouTube Quota</span>span>
-                                                <span>{formatPercentage(health.youtubeQuota.percentage)}</span>span>
-                                    </div>div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                                className={`h-2 rounded-full transition-all ${
-                                                                                  health.youtubeQuota.percentage > 80
-                                                                                    ? "bg-red-500"
-                                                                                    : health.youtubeQuota.percentage > 60
-                                                                                    ? "bg-yellow-500"
-                                                                                    : "bg-green-500"
-                                                                }`}
-                                                             %` }}
-                                                  />
-                                    </div>div>
-                                      <p className="text-xs text-gray-600">
-                                        {health.youtubeQuota.used} / {health.youtubeQuota.limit} units
-                                      </p>p>
-                          </div>div>
-                
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                                  <div>
-                                              <p className="text-xs text-gray-600">Avg Response Time</p>p>
-                                              <p className="text-sm font-medium">
-                                                {Math.round(health.avgResponseTime)}ms
-                                              </p>p>
-                                  </div>div>
-                                  <div>
-                                              <p className="text-xs text-gray-600">Error Count</p>p>
-                                              <p className="text-sm font-medium">{health.errorCount}</p>p>
-                                  </div>div>
-                                  <div>
-                                              <p className="text-xs text-gray-600">Uptime</p>p>
-                                              <p className="text-sm font-medium">
-                                                {formatDistanceToNow(new Date(Date.now() - health.uptime))}
-                                              </p>p>
-                                  </div>div>
-                                  <div>
-                                              <p className="text-xs text-gray-600">Feature Flags</p>p>
-                                              <p className="text-sm font-medium">{health.activeFeatureFlags}</p>p>
-                                  </div>div>
-                        </div>div>
-                </CardContent>CardContent>
-          </Card>Card>
-        );
-}
-
-// Circuit Breaker Status Component
-function CircuitBreakerCard({ status }: { status: HealthStatus }) {
-    return (
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Guardian Issues</p>
+                  <p className="text-2xl font-bold">{pendingGuardian}</p>
+                </div>
+                <Shield className="w-8 h-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
           <Card>
-                <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                                  <Zap className="w-5 h-5" />
-                                  Circuit Breakers
-                        </CardTitle>CardTitle>
-                </CardHeader>CardHeader>
-                <CardContent className="space-y-3">
-                  {Object.entries(status.circuitBreakerStatus).map(([name, state]) => (
-                      <div
-                                    key={name}
-                                    className="flex items-center justify-between p-3 border rounded-lg"
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Upgrade Suggestions</p>
+                  <p className="text-2xl font-bold">{pendingUpgrade}</p>
+                </div>
+                <Zap className="w-8 h-8 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Feature Ideas</p>
+                  <p className="text-2xl font-bold">{pendingRecommendations}</p>
+                </div>
+                <Lightbulb className="w-8 h-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Logs</p>
+                  <p className="text-2xl font-bold">{guardianLogs.length + upgradeLogs.length}</p>
+                </div>
+                <Activity className="w-8 h-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="guardian" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Code Guardian
+              {pendingGuardian > 0 && (
+                <Badge variant="destructive" className="ml-1">{pendingGuardian}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="upgrade" className="flex items-center gap-2">
+              <Zap className="w-4 h-4" />
+              Code Upgrade
+              {pendingUpgrade > 0 && (
+                <Badge variant="secondary" className="ml-1">{pendingUpgrade}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="recommendations" className="flex items-center gap-2">
+              <Lightbulb className="w-4 h-4" />
+              Feature Ideas
+              {pendingRecommendations > 0 && (
+                <Badge className="ml-1">{pendingRecommendations}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="guardian">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="w-5 h-5" />
+                      Code Guardian Agent
+                    </CardTitle>
+                    <CardDescription>
+                      Monitors code for errors, security issues, and best practices
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => runGuardianMutation.mutate()}
+                    disabled={runGuardianMutation.isPending}
+                    data-testid="button-run-guardian"
+                  >
+                    {runGuardianMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    Run Scan
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingGuardian ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : guardianLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No issues detected. Run a scan to check your code.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px]">
+                    <div className="space-y-3">
+                      {guardianLogs.map((log) => (
+                        <Card key={log.id} className="border-l-4" style={{ borderLeftColor: getSeverityColor(log.severity).replace("bg-", "") }}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {getStatusIcon(log.status)}
+                                  <h4 className="font-medium">{log.title}</h4>
+                                  <Badge variant="outline" className="text-xs">
+                                    {log.severity}
+                                  </Badge>
+                                </div>
+                                {log.description && (
+                                  <p className="text-sm text-muted-foreground mb-2">{log.description}</p>
+                                )}
+                                {log.filePath && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <FileCode className="w-3 h-3" />
+                                    {log.filePath}{log.lineNumber ? `:${log.lineNumber}` : ""}
+                                  </div>
+                                )}
+                                {log.recommendation && (
+                                  <div className="mt-2 p-2 bg-muted rounded text-sm">
+                                    <strong>Recommendation:</strong> {log.recommendation}
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                                </p>
+                              </div>
+                              <div className="flex gap-1">
+                                {log.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateLogStatus.mutate({ id: log.id, status: "resolved" })}
+                                    >
+                                      <CheckCircle className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => updateLogStatus.mutate({ id: log.id, status: "ignored" })}
+                                    >
+                                      Ignore
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="upgrade">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="w-5 h-5" />
+                      Code Upgrade Agent
+                    </CardTitle>
+                    <CardDescription>
+                      Suggests improvements, optimizations, and modern patterns
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => runUpgradeMutation.mutate()}
+                    disabled={runUpgradeMutation.isPending}
+                    data-testid="button-run-upgrade"
+                  >
+                    {runUpgradeMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                    )}
+                    Analyze Code
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingUpgrade ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : upgradeLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Zap className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No upgrade suggestions. Run an analysis to get recommendations.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px]">
+                    <div className="space-y-3">
+                      {upgradeLogs.map((log) => (
+                        <Card key={log.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {getStatusIcon(log.status)}
+                                  <h4 className="font-medium">{log.title}</h4>
+                                  <Badge variant="outline" className="text-xs">
+                                    {log.action}
+                                  </Badge>
+                                </div>
+                                {log.description && (
+                                  <p className="text-sm text-muted-foreground mb-2">{log.description}</p>
+                                )}
+                                {log.filePath && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <FileCode className="w-3 h-3" />
+                                    {log.filePath}
+                                  </div>
+                                )}
+                                {log.recommendation && (
+                                  <div className="mt-2 p-2 bg-muted rounded text-sm">
+                                    <Wrench className="w-3 h-3 inline mr-1" />
+                                    {log.recommendation}
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                                </p>
+                              </div>
+                              <div className="flex gap-1">
+                                {log.status === "pending" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateLogStatus.mutate({ id: log.id, status: "resolved" })}
                                   >
-                                  <span className="font-medium capitalize">{name}</span>span>
-                                  <div className="flex items-center gap-2">
-                                                <div
-                                                                  className={`w-3 h-3 rounded-full ${getStatusColor(state)}`}
-                                                                />
-                                                <span className="text-sm">{getStatusLabel(state)}</span>span>
-                                  </div>div>
-                      </div>div>
-                        ))}
-                </CardContent>CardContent>
-          </Card>Card>
-        );
-}
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Done
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-// Feature Flags Component
-function FeatureFlagsSection({ flags }: { flags: FeatureFlag[] }) {
-    const { toast } = useToast();
-    const [selectedFlag, setSelectedFlag] = useState<FeatureFlag | null>(null);
-  
-    const toggleFlagMutation = useMutation({
-          mutationFn: async (flag: FeatureFlag) => {
-                  return await apiRequest("/api/admin/feature-flags", {
-                            method: "PATCH",
-                            body: JSON.stringify({
-                                        id: flag.id,
-                                        enabled: !flag.enabled,
-                            }),
-                  });
-          },
-          onSuccess: () => {
-                  toast({
-                            title: "Feature flag updated",
-                            description: "The feature flag has been toggled successfully.",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["/api/health"] });
-          },
-          onError: () => {
-                  toast({
-                            title: "Error",
-                            description: "Failed to update feature flag.",
-                            variant: "destructive",
-                  });
-          },
-    });
-  
-    return (
-          <Card>
-                <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                                  <Lightbulb className="w-5 h-5" />
-                                  Feature Flags
-                        </CardTitle>CardTitle>
-                        <CardDescription>
-                          {flags.filter((f) => f.enabled).length} of {flags.length} enabled
-                        </CardDescription>CardDescription>
-                </CardHeader>CardHeader>
-                <CardContent>
-                        <div className="space-y-2 max-h-96 overflow-y-auto">
-                          {flags.map((flag) => (
-                        <div
-                                        key={flag.id}
-                                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-                                      >
-                                      <div>
-                                                      <p className="font-medium">{flag.name}</p>p>
-                                        {flag.rolloutPercentage && (
-                                                          <p className="text-xs text-gray-600">
-                                                                              Rollout: {flag.rolloutPercentage}%
-                                                          </p>p>
-                                                      )}
-                                      </div>div>
-                                      <Button
-                                                        size="sm"
-                                                        variant={flag.enabled ? "default" : "outline"}
-                                                        onClick={() => toggleFlagMutation.mutate(flag)}
-                                                        disabled={toggleFlagMutation.isPending}
-                                                      >
-                                        {flag.enabled ? "Enabled" : "Disabled"}
-                                      </Button>Button>
-                        </div>div>
-                                  ))}
-                        </div>div>
-                </CardContent>CardContent>
-          </Card>Card>
-        );
-}
-
-// Main Admin Component
-export default function Admin() {
-    const { toast } = useToast();
-    const [activeTab, setActiveTab] = useState("overview");
-  
-    // Fetch health status
-    const { data: health, isLoading: healthLoading } = useQuery({
-          queryKey: ["/api/health"],
-          queryFn: () => fetch("/api/health").then((r) => r.json()),
-          refetchInterval: 30000, // Refetch every 30 seconds
-    });
-  
-    // Fetch metrics
-    const { data: metrics, isLoading: metricsLoading } = useQuery({
-          queryKey: ["/api/admin/metrics"],
-          queryFn: () => fetch("/api/admin/metrics").then((r) => r.json()),
-          refetchInterval: 60000,
-    });
-  
-    // Fetch feature flags
-    const { data: flags, isLoading: flagsLoading } = useQuery({
-          queryKey: ["/api/admin/feature-flags"],
-          queryFn: () => fetch("/api/admin/feature-flags").then((r) => r.json()),
-    });
-  
-    const clearCacheMutation = useMutation({
-          mutationFn: async () => {
-                  return await apiRequest("/api/admin/cache/clear", { method: "POST" });
-          },
-          onSuccess: () => {
-                  toast({
-                            title: "Cache cleared",
-                            description: "Application cache has been cleared successfully.",
-                  });
-          },
-    });
-  
-    const exportMetricsMutation = useMutation({
-          mutationFn: async () => {
-                  return await apiRequest("/api/admin/export-metrics", { method: "POST" });
-          },
-          onSuccess: (data: any) => {
-                  const blob = new Blob([JSON.stringify(data, null, 2)], {
-                            type: "application/json",
-                  });
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `metrics-${new Date().toISOString()}.json`;
-                  a.click();
-                  toast({
-                            title: "Metrics exported",
-                            description: "Metrics have been exported to a JSON file.",
-                  });
-          },
-    });
-  
-    if (healthLoading) {
-          return (
-                  <div className="flex items-center justify-center min-h-screen">
-                          <Loader2 className="w-8 h-8 animate-spin" />
-                  </div>div>
-                );
-    }
-  
-    return (
-          <div className="min-h-screen bg-background">
-                <header className="border-b sticky top-0 z-10 bg-background">
-                        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-                                  <div className="flex items-center gap-4">
-                                              <Link href="/" className="inline-flex items-center gap-2 mr-8">
-                                                            <Shield className="w-5 h-5" />
-                                                            <span>Back to Home</span>span>
-                                              </Link>Link>
-                                              <h1 className="text-3xl font-bold">Admin Dashboard</h1>h1>
-                                  </div>div>
-                                  <div className="flex items-center gap-4">
-                                              <ThemeToggle />
-                                  </div>div>
-                        </div>div>
-                </header>header>
-          
-                <main className="container mx-auto px-4 py-8">
-                        <Tabs value={activeTab} onValueChange={setActiveTab}>
-                                  <TabsList className="grid w-full grid-cols-4 mb-8">
-                                              <TabsTrigger value="overview" className="flex items-center gap-2">
-                                                            <BarChart3 className="w-4 h-4" />
-                                                            <span className="hidden sm:inline">Overview</span>span>
-                                              </TabsTrigger>TabsTrigger>
-                                              <TabsTrigger value="flags" className="flex items-center gap-2">
-                                                            <Lightbulb className="w-4 h-4" />
-                                                            <span className="hidden sm:inline">Feature Flags</span>span>
-                                              </TabsTrigger>TabsTrigger>
-                                              <TabsTrigger value="metrics" className="flex items-center gap-2">
-                                                            <TrendingUp className="w-4 h-4" />
-                                                            <span className="hidden sm:inline">Metrics</span>span>
-                                              </TabsTrigger>TabsTrigger>
-                                              <TabsTrigger value="tools" className="flex items-center gap-2">
-                                                            <Wrench className="w-4 h-4" />
-                                                            <span className="hidden sm:inline">Tools</span>span>
-                                              </TabsTrigger>TabsTrigger>
-                                  </TabsList>TabsList>
-                        
-                          {/* Overview Tab */}
-                                  <TabsContent value="overview" className="space-y-6">
-                                    {health && <HealthStatusCard health={health} />}
-                                    {health && <CircuitBreakerCard status={health} />}
-                                  </TabsContent>TabsContent>
-                        
-                          {/* Feature Flags Tab */}
-                                  <TabsContent value="flags" className="space-y-6">
-                                    {flagsLoading ? (
-                          <Card>
-                                          <CardContent className="flex items-center justify-center py-8">
-                                                            <Loader2 className="w-6 h-6 animate-spin" />
-                                          </CardContent>CardContent>
-                          </Card>Card>
-                                              ) : flags ? (
-                          <FeatureFlagsSection flags={flags} />
-                        ) : (
-                          <Card>
-                                          <CardContent className="flex items-center justify-center py-8">
-                                                            <p className="text-gray-600">No feature flags available</p>p>
-                                          </CardContent>CardContent>
-                          </Card>Card>
-                                              )}
-                                  </TabsContent>TabsContent>
-                        
-                          {/* Metrics Tab */}
-                                  <TabsContent value="metrics" className="space-y-6">
-                                              <Card>
-                                                            <CardHeader>
-                                                                            <CardTitle className="flex items-center gap-2">
-                                                                                              <TrendingUp className="w-5 h-5" />
-                                                                                              Performance Metrics
-                                                                            </CardTitle>CardTitle>
-                                                            </CardHeader>CardHeader>
-                                                            <CardContent>
-                                                              {metricsLoading ? (
-                              <div className="flex items-center justify-center py-8">
-                                                  <Loader2 className="w-6 h-6 animate-spin" />
-                              </div>div>
-                                                                            ) : metrics ? (
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                  <div className="p-4 border rounded-lg">
-                                                                        <p className="text-sm text-gray-600">P50 Response Time</p>p>
-                                                                        <p className="text-2xl font-bold">
-                                                                          {metrics.p50 || 0}ms
-                                                                        </p>p>
-                                                  </div>div>
-                                                  <div className="p-4 border rounded-lg">
-                                                                        <p className="text-sm text-gray-600">P95 Response Time</p>p>
-                                                                        <p className="text-2xl font-bold">
-                                                                                          </p>le={idth: `${health.youtubeQuota.percentage}`</div>={{ width: `${health.memory.percent}%` }}
-                                                            />
-                                  </div>div>
-                                  <p className="text-xs text-gray-600">
-                                    {formatBytes(he</Card>
-    )
-}
-}
-}
-}
-    }
-}
-}
-}
-    }
-    }
-    }
-}
-}
-}
+          <TabsContent value="recommendations">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5" />
+                  Feature Recommendations
+                </CardTitle>
+                <CardDescription>
+                  AI-generated suggestions for new features based on usage patterns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingRecommendations ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : recommendations.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No feature recommendations yet. Run the Code Upgrade agent to generate ideas.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px]">
+                    <div className="space-y-3">
+                      {recommendations.map((rec) => (
+                        <Card key={rec.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium">{rec.title}</h4>
+                                  <Badge variant={getPriorityColor(rec.priority) as any}>
+                                    {rec.priority}
+                                  </Badge>
+                                  <Badge variant="outline">{rec.category}</Badge>
+                                  {rec.estimatedEffort && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {rec.estimatedEffort} effort
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-2">{rec.description}</p>
+                                {rec.rationale && (
+                                  <div className="mt-2 p-2 bg-muted rounded text-sm">
+                                    <strong>Why:</strong> {rec.rationale}
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Suggested {formatDistanceToNow(new Date(rec.createdAt), { addSuffix: true })}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {rec.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => updateRecommendationStatus.mutate({ id: rec.id, status: "approved" })}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateRecommendationStatus.mutate({ id: rec.id, status: "rejected" })}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                                {rec.status !== "pending" && (
+                                  <Badge variant={rec.status === "approved" ? "default" : "secondary"}>
+                                    {rec.status}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
 }
