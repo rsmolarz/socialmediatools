@@ -83,12 +83,13 @@ export function VideoSeoOptimizer({ onTitleSelect, defaultExpanded = true }: Vid
     refetchInterval: 30000,
   });
 
-  const { data: videosData, isLoading: isLoadingVideos, refetch: refetchVideos } = useQuery<{
+  const { data: videosData, isLoading: isLoadingVideos, refetch: refetchVideos, error: videosError } = useQuery<{
     videos: YouTubeVideo[];
     totalFetched: number;
   }>({
     queryKey: ["/api/youtube/videos"],
     enabled: connectionStatus?.connected === true,
+    retry: false,
   });
 
   const optimizeMutation = useMutation({
@@ -265,6 +266,37 @@ export function VideoSeoOptimizer({ onTitleSelect, defaultExpanded = true }: Vid
               <p className="text-sm text-muted-foreground" data-testid="text-youtube-help">
                 Connect your YouTube account using Replit's integrations panel to optimize video SEO
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (videosError) {
+    return (
+      <Card className="border-orange-500/30 bg-orange-500/5" data-testid="card-youtube-error">
+        <CardContent className="py-6">
+          <div className="flex flex-col items-center justify-center text-center space-y-3">
+            <AlertCircle className="h-10 w-10 text-orange-500" data-testid="icon-youtube-error" />
+            <div>
+              <p className="font-medium text-orange-700 dark:text-orange-400" data-testid="text-youtube-error-title">YouTube API Quota Exceeded</p>
+              <p className="text-sm text-muted-foreground mt-2" data-testid="text-youtube-error-help">
+                You've exceeded the daily YouTube API quota limit. The quota resets at midnight Pacific Time (approximately 3:00 AM Eastern).
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Please try again tomorrow, or request a quota increase from Google Cloud Console.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => refetchVideos()}
+                data-testid="button-retry-videos"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
+              </Button>
             </div>
           </div>
         </CardContent>
