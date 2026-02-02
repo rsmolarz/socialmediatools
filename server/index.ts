@@ -5,6 +5,9 @@ import { createServer } from "http";
 import { setupSwagger } from "./swagger";
 import { setupWebSocket } from "./websocket";
 
+import { alertMiddleware } from "./middleware/alert-middleware";
+import { loggingService } from "./lib/logging-service";
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -80,6 +83,9 @@ app.use((req, res, next) => {
 
     return res.status(status).json({ message });
   });
+
+  // Alert and logging middleware
+  app.use(alertMiddleware.middleware());
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
