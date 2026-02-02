@@ -238,19 +238,6 @@ export function setupWebSocket(server: Server) {
               }
             }
             break;
-
-          case "join":
-            if (message.thumbnailId) {
-              // ... existing join logic ...
-              
-              // Send existing activity log to newly joined user
-              const log = activityLogs.get(message.thumbnailId) || [];
-              ws.send(JSON.stringify({
-                type: "activity_history",
-                data: log
-              }));
-            }
-            break;
             
           case "presence":
             if (message.data?.status) {
