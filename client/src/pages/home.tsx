@@ -42,6 +42,7 @@ import {
   Undo2,
   Redo2,
   Keyboard,
+  Shield,
 } from "lucide-react";
 import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
 
@@ -467,6 +468,12 @@ export default function Home() {
               <Button variant="outline" data-testid="button-tools">
                 <Wrench className="h-4 w-4 mr-2" />
                 Tools
+              </Button>
+            </Link>
+            <Link href="/admin">
+              <Button variant="outline" data-testid="button-admin">
+                <Shield className="h-4 w-4 mr-2" />
+                Admin
               </Button>
             </Link>
             <div className="flex items-center gap-1 border-l pl-3 ml-2">
