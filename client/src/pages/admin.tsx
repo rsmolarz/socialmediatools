@@ -103,7 +103,7 @@ export default function AdminPage() {
   });
 
   const runGuardianMutation = useMutation({
-    mutationFn: () => apiRequest("/api/admin/run-guardian", { method: "POST" }),
+    mutationFn: () => apiRequest("POST", "/api/admin/run-guardian"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
       toast({ title: "Code Guardian scan complete" });
@@ -114,7 +114,7 @@ export default function AdminPage() {
   });
 
   const runUpgradeMutation = useMutation({
-    mutationFn: () => apiRequest("/api/admin/run-upgrade", { method: "POST" }),
+    mutationFn: () => apiRequest("POST", "/api/admin/run-upgrade"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/recommendations"] });
@@ -127,10 +127,7 @@ export default function AdminPage() {
 
   const updateLogStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
-      apiRequest(`/api/admin/agent-logs/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }),
+      apiRequest("PATCH", `/api/admin/agent-logs/${id}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
       toast({ title: "Status updated" });
@@ -139,10 +136,7 @@ export default function AdminPage() {
 
   const updateRecommendationStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
-      apiRequest(`/api/admin/recommendations/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }),
+      apiRequest("PATCH", `/api/admin/recommendations/${id}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/recommendations"] });
       toast({ title: "Recommendation updated" });

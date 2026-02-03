@@ -2545,7 +2545,7 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
       });
       
       const content = response.choices[0]?.message?.content || "{}";
-      let result = { upgrades: [], features: [] };
+      let result: { upgrades: any[], features: any[] } = { upgrades: [], features: [] };
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
