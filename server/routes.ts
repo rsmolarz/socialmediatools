@@ -36,7 +36,7 @@ import { viralAnalyzer } from "./lib/viral-analyzer";
 import { randomBytes } from "crypto";
 import archiver from "archiver";
 import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo } from "./youtube";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupOAuthRoutes } from "./auth/oauth-routes";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -48,9 +48,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Setup authentication (must be before other routes)
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // Setup custom OAuth authentication (Google, Facebook, GitHub, Apple)
+  setupOAuthRoutes(app);
   
   // Get all thumbnails
   app.get("/api/thumbnails", async (_req, res) => {

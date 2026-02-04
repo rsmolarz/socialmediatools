@@ -9,15 +9,22 @@ import {
   Image,
   Palette,
   BarChart3,
-  Users,
   Zap,
   ArrowRight,
   CheckCircle,
   Stethoscope,
   DollarSign
 } from "lucide-react";
+import { SiGoogle, SiFacebook, SiGithub, SiApple } from "react-icons/si";
+import { useQuery } from "@tanstack/react-query";
 
 export default function LandingPage() {
+  const { data: providersData } = useQuery<{ providers: string[] }>({
+    queryKey: ["/api/auth/providers"],
+  });
+
+  const configuredProviders = providersData?.providers || [];
+
   const features = [
     {
       icon: <Sparkles className="w-6 h-6" />,
@@ -52,11 +59,39 @@ export default function LandingPage() {
   ];
 
   const authProviders = [
-    { name: "Google", icon: "🔍" },
-    { name: "Apple", icon: "🍎" },
-    { name: "GitHub", icon: "💻" },
-    { name: "Email", icon: "✉️" }
+    { 
+      id: "google", 
+      name: "Google", 
+      icon: <SiGoogle className="w-5 h-5" />,
+      href: "/api/auth/google",
+      color: "hover:bg-red-500/10 hover:border-red-500/50"
+    },
+    { 
+      id: "facebook", 
+      name: "Facebook", 
+      icon: <SiFacebook className="w-5 h-5" />,
+      href: "/api/auth/facebook",
+      color: "hover:bg-blue-500/10 hover:border-blue-500/50"
+    },
+    { 
+      id: "github", 
+      name: "GitHub", 
+      icon: <SiGithub className="w-5 h-5" />,
+      href: "/api/auth/github",
+      color: "hover:bg-gray-500/10 hover:border-gray-500/50"
+    },
+    { 
+      id: "apple", 
+      name: "Apple", 
+      icon: <SiApple className="w-5 h-5" />,
+      href: "/api/auth/apple",
+      color: "hover:bg-gray-500/10 hover:border-gray-500/50"
+    }
   ];
+
+  const isProviderConfigured = (providerId: string) => {
+    return configuredProviders.includes(providerId);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,7 +108,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Button asChild data-testid="button-header-login">
-              <a href="/api/login">Sign In</a>
+              <a href="#login-section">Sign In</a>
             </Button>
           </div>
         </div>
@@ -99,7 +134,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" asChild data-testid="button-hero-get-started">
-                  <a href="/api/login" className="gap-2">
+                  <a href="#login-section" className="gap-2">
                     Get Started Free
                     <ArrowRight className="w-4 h-4" />
                   </a>
@@ -121,7 +156,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right Column - Auth Card */}
-            <div className="lg:pl-8">
+            <div id="login-section" className="lg:pl-8">
               <Card className="w-full max-w-md mx-auto border-2">
                 <CardHeader className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-4">
@@ -130,35 +165,46 @@ export default function LandingPage() {
                   </div>
                   <CardTitle className="text-2xl">Welcome Back</CardTitle>
                   <CardDescription>
-                    Sign in to access your content creation dashboard
+                    Sign in with your preferred social account
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button 
-                    className="w-full h-12 text-base" 
-                    size="lg" 
-                    asChild
-                    data-testid="button-signin-main"
-                  >
-                    <a href="/api/login">
-                      <Users className="w-5 h-5 mr-2" />
-                      Sign in with Replit
-                    </a>
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Supports Google, Apple, GitHub, and email login
-                  </p>
-                  <div className="flex justify-center gap-4 pt-2">
-                    {authProviders.map((provider) => (
-                      <div 
-                        key={provider.name}
-                        className="flex flex-col items-center gap-1 text-muted-foreground"
+                <CardContent className="space-y-3">
+                  {authProviders.map((provider) => {
+                    const isConfigured = isProviderConfigured(provider.id);
+                    return (
+                      <Button 
+                        key={provider.id}
+                        className={`w-full h-12 text-base justify-start gap-3 ${provider.color}`}
+                        variant="outline"
+                        size="lg" 
+                        asChild={isConfigured}
+                        disabled={!isConfigured}
+                        data-testid={`button-signin-${provider.id}`}
                       >
-                        <span className="text-xl">{provider.icon}</span>
-                        <span className="text-xs">{provider.name}</span>
-                      </div>
-                    ))}
-                  </div>
+                        {isConfigured ? (
+                          <a href={provider.href}>
+                            {provider.icon}
+                            Continue with {provider.name}
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-3 opacity-50">
+                            {provider.icon}
+                            {provider.name} (Not Configured)
+                          </span>
+                        )}
+                      </Button>
+                    );
+                  })}
+                  
+                  {configuredProviders.length === 0 && (
+                    <p className="text-xs text-center text-amber-600 dark:text-amber-400 mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+                      No OAuth providers configured yet. Please add your OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, etc.) to enable login.
+                    </p>
+                  )}
+                  
+                  <p className="text-xs text-center text-muted-foreground pt-2">
+                    By signing in, you agree to our Terms of Service and Privacy Policy
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -207,7 +253,7 @@ export default function LandingPage() {
               Join thousands of content creators using AI to boost their engagement and grow their audience.
             </p>
             <Button size="lg" asChild data-testid="button-cta-start">
-              <a href="/api/login" className="gap-2">
+              <a href="#login-section" className="gap-2">
                 Start Creating Now
                 <ArrowRight className="w-4 h-4" />
               </a>
