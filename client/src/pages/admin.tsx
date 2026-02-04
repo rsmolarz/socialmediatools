@@ -24,8 +24,18 @@ import {
   TrendingUp,
   Activity,
   FileCode,
-  Loader2
+  Loader2,
+  Youtube,
+  Play,
+  Eye,
+  Tag,
+  Check,
+  X
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
 interface AgentLog {
   id: number;
@@ -84,9 +94,34 @@ const getStatusIcon = (status: string) => {
   }
 };
 
+interface BulkOptimizeResult {
+  videoId: string;
+  title: string;
+  status: "success" | "failed" | "skipped";
+  message: string;
+  optimizedDescription?: string;
+  optimizedTags?: string[];
+}
+
+interface OptimizationStatus {
+  totalVideos: number;
+  optimizedCount: number;
+  videos: Array<{
+    videoId: string;
+    title: string;
+    isOptimized: boolean;
+    hasDescription: boolean;
+    tagsCount: number;
+  }>;
+}
+
 export default function AdminPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("guardian");
+  const [maxVideos, setMaxVideos] = useState(5);
+  const [dryRun, setDryRun] = useState(true);
+  const [skipOptimized, setSkipOptimized] = useState(true);
+  const [optimizeResults, setOptimizeResults] = useState<BulkOptimizeResult[]>([]);
 
   const { data: guardianLogs = [], isLoading: loadingGuardian } = useQuery<AgentLog[]>({
     queryKey: ["/api/admin/agent-logs", "guardian"],
@@ -140,6 +175,35 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/recommendations"] });
       toast({ title: "Recommendation updated" });
+    }
+  });
+
+  // YouTube Bulk Optimization
+  const { data: optimizationStatus, isLoading: loadingOptStatus, refetch: refetchOptStatus } = useQuery<OptimizationStatus>({
+    queryKey: ["/api/youtube/optimization-status"],
+    queryFn: () => fetch("/api/youtube/optimization-status").then(r => r.json()),
+  });
+
+  const bulkOptimizeMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/youtube/bulk-optimize", {
+      maxVideos,
+      skipAlreadyOptimized: skipOptimized,
+      dryRun,
+    }),
+    onSuccess: (data: any) => {
+      setOptimizeResults(data.results || []);
+      refetchOptStatus();
+      toast({ 
+        title: dryRun ? "Preview Generated" : "Optimization Complete",
+        description: data.message 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Optimization Failed", 
+        description: error.message,
+        variant: "destructive" 
+      });
     }
   });
 
@@ -237,6 +301,10 @@ export default function AdminPage() {
               {pendingRecommendations > 0 && (
                 <Badge className="ml-1">{pendingRecommendations}</Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="youtube" className="flex items-center gap-2">
+              <Youtube className="w-4 h-4" />
+              YouTube Optimizer
             </TabsTrigger>
           </TabsList>
 
@@ -516,6 +584,227 @@ export default function AdminPage() {
                       ))}
                     </div>
                   </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="youtube">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Youtube className="w-5 h-5 text-red-500" />
+                      YouTube Bulk Metadata Optimizer
+                    </CardTitle>
+                    <CardDescription>
+                      Use AI to optimize video descriptions and tags for better SEO and discoverability
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => bulkOptimizeMutation.mutate()}
+                    disabled={bulkOptimizeMutation.isPending}
+                    data-testid="button-bulk-optimize"
+                  >
+                    {bulkOptimizeMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : dryRun ? (
+                      <Eye className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
+                    {dryRun ? "Preview Changes" : "Optimize Now"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  {/* Status Card */}
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-primary">
+                          {loadingOptStatus ? "..." : optimizationStatus?.totalVideos || 0}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Total Videos</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-green-500">
+                          {loadingOptStatus ? "..." : optimizationStatus?.optimizedCount || 0}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Optimized</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-orange-500">
+                          {loadingOptStatus ? "..." : (optimizationStatus?.totalVideos || 0) - (optimizationStatus?.optimizedCount || 0)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Pending</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Settings */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-base">Optimization Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Videos to Process: {maxVideos}</Label>
+                      </div>
+                      <Slider
+                        value={[maxVideos]}
+                        onValueChange={([v]) => setMaxVideos(v)}
+                        min={1}
+                        max={20}
+                        step={1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Higher numbers use more API quota. Start small to test.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Preview Mode (Dry Run)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Generate optimizations without updating YouTube
+                        </p>
+                      </div>
+                      <Switch
+                        checked={dryRun}
+                        onCheckedChange={setDryRun}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Skip Already Optimized</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Don't re-optimize videos that were previously processed
+                        </p>
+                      </div>
+                      <Switch
+                        checked={skipOptimized}
+                        onCheckedChange={setSkipOptimized}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Progress indicator */}
+                {bulkOptimizeMutation.isPending && (
+                  <Card className="mb-6 border-primary">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        <div className="flex-1">
+                          <p className="font-medium">Optimizing videos...</p>
+                          <p className="text-sm text-muted-foreground">
+                            This may take a few minutes. Processing {maxVideos} videos.
+                          </p>
+                          <Progress value={33} className="mt-2" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Results */}
+                {optimizeResults.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Activity className="w-4 h-4" />
+                        Optimization Results
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[400px]">
+                        <div className="space-y-3">
+                          {optimizeResults.map((result, idx) => (
+                            <Card key={idx} className={`border-l-4 ${
+                              result.status === "success" ? "border-l-green-500" :
+                              result.status === "failed" ? "border-l-red-500" : "border-l-gray-500"
+                            }`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      {result.status === "success" ? (
+                                        <Check className="w-4 h-4 text-green-500" />
+                                      ) : result.status === "failed" ? (
+                                        <X className="w-4 h-4 text-red-500" />
+                                      ) : (
+                                        <Clock className="w-4 h-4 text-gray-500" />
+                                      )}
+                                      <h4 className="font-medium text-sm truncate max-w-md">
+                                        {result.title}
+                                      </h4>
+                                      <Badge variant={
+                                        result.status === "success" ? "default" :
+                                        result.status === "failed" ? "destructive" : "secondary"
+                                      }>
+                                        {result.status}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                      {result.message}
+                                    </p>
+                                    {result.optimizedDescription && (
+                                      <div className="mt-2 p-2 bg-muted rounded text-xs max-h-32 overflow-y-auto">
+                                        <strong>New Description:</strong>
+                                        <p className="mt-1 whitespace-pre-wrap">
+                                          {result.optimizedDescription.substring(0, 300)}
+                                          {result.optimizedDescription.length > 300 && "..."}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {result.optimizedTags && result.optimizedTags.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-1">
+                                        <Tag className="w-3 h-3 text-muted-foreground" />
+                                        {result.optimizedTags.slice(0, 8).map((tag, i) => (
+                                          <Badge key={i} variant="outline" className="text-xs">
+                                            {tag}
+                                          </Badge>
+                                        ))}
+                                        {result.optimizedTags.length > 8 && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            +{result.optimizedTags.length - 8} more
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Empty state */}
+                {optimizeResults.length === 0 && !bulkOptimizeMutation.isPending && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Youtube className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Configure settings above and click "Preview Changes" to see AI-generated optimizations.</p>
+                    <p className="text-sm mt-2">When ready, disable Preview Mode and click "Optimize Now" to update YouTube.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>

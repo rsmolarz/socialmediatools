@@ -1593,6 +1593,226 @@ Return JSON format:
     }
   });
 
+  // Bulk YouTube Metadata Optimization
+  const bulkOptimizeSchema = z.object({
+    videoIds: z.array(z.string()).optional(), // If not provided, optimize all videos
+    maxVideos: z.number().min(1).max(50).optional().default(10),
+    skipAlreadyOptimized: z.boolean().optional().default(true),
+    dryRun: z.boolean().optional().default(false), // Preview without updating
+  });
+
+  // Track optimized videos in memory (in production, use database)
+  const optimizedVideos = new Set<string>();
+
+  app.post("/api/youtube/bulk-optimize", async (req, res) => {
+    try {
+      const parsed = bulkOptimizeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request data", details: parsed.error });
+      }
+
+      const { videoIds, maxVideos, skipAlreadyOptimized, dryRun } = parsed.data;
+
+      // Fetch videos from channel
+      const { videos: allVideos } = await fetchYouTubeVideos(50, 365);
+      
+      // Filter to requested videos or all videos
+      let videosToProcess = videoIds 
+        ? allVideos.filter(v => videoIds.includes(v.videoId))
+        : allVideos;
+
+      // Skip already optimized if requested
+      if (skipAlreadyOptimized) {
+        videosToProcess = videosToProcess.filter(v => !optimizedVideos.has(v.videoId));
+      }
+
+      // Limit to maxVideos
+      videosToProcess = videosToProcess.slice(0, maxVideos);
+
+      if (videosToProcess.length === 0) {
+        return res.json({
+          success: true,
+          message: "No videos to optimize. All videos may already be optimized.",
+          processed: 0,
+          results: [],
+        });
+      }
+
+      const results: Array<{
+        videoId: string;
+        title: string;
+        status: "success" | "failed" | "skipped";
+        message: string;
+        optimizedDescription?: string;
+        optimizedTags?: string[];
+      }> = [];
+
+      // Process each video with rate limiting (1 per second to respect API quotas)
+      for (const video of videosToProcess) {
+        try {
+          // Generate optimized metadata using AI
+          const isShort = video.title.toLowerCase().includes("#shorts") || 
+                          video.description?.toLowerCase().includes("#shorts");
+
+          const prompt = isShort
+            ? `You are a YouTube Shorts viral optimization expert for "The Medicine & Money Show" podcast about medicine and finance.
+
+Video Title: ${video.title}
+Current Description: ${video.description || "(no description)"}
+Current Tags: ${video.tags?.join(", ") || "(no tags)"}
+
+Generate a VIRAL optimized description and tags for this Short. Include:
+- A powerful hook that stops scrolling
+- Punchy and short (under 150 words)
+- Trending hashtags: #shorts #viral #fyp
+- Niche hashtags: #health #doctor #money #finance
+- Urgent call-to-action
+
+Return JSON:
+{
+  "optimizedDescription": "your viral description",
+  "optimizedTags": ["shorts", "viral", ...]
+}`
+            : `You are a YouTube SEO expert for "The Medicine & Money Show" podcast about physician finance and entrepreneurship.
+
+Video Title: ${video.title}
+Current Description: ${video.description || "(no description)"}
+Current Tags: ${video.tags?.join(", ") || "(no tags)"}
+
+Generate an optimized description and tags. The description should:
+- Start with a compelling hook (appears in search results)
+- Include relevant keywords naturally
+- Have a clear call-to-action
+- Be 200-400 words
+- Include "The Medicine & Money Show" branding
+
+Generate 15-25 relevant tags ordered from specific to general.
+
+Return JSON:
+{
+  "optimizedDescription": "your optimized description",
+  "optimizedTags": ["tag1", "tag2", ...]
+}`;
+
+          const aiResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.7,
+          });
+
+          const content = aiResponse.choices[0]?.message?.content || "{}";
+          const optimized = JSON.parse(content);
+
+          if (!optimized.optimizedDescription) {
+            results.push({
+              videoId: video.videoId,
+              title: video.title,
+              status: "failed",
+              message: "AI did not return a valid description",
+            });
+            continue;
+          }
+
+          if (dryRun) {
+            // Preview mode - don't actually update
+            results.push({
+              videoId: video.videoId,
+              title: video.title,
+              status: "success",
+              message: "Preview generated (dry run - not updated on YouTube)",
+              optimizedDescription: optimized.optimizedDescription,
+              optimizedTags: optimized.optimizedTags,
+            });
+          } else {
+            // Actually update the video on YouTube
+            const updateResult = await updateYouTubeVideo(
+              video.videoId,
+              video.title, // Keep original title
+              optimized.optimizedDescription,
+              optimized.optimizedTags || video.tags,
+              video.categoryId
+            );
+
+            if (updateResult.success) {
+              optimizedVideos.add(video.videoId);
+              results.push({
+                videoId: video.videoId,
+                title: video.title,
+                status: "success",
+                message: "Successfully updated on YouTube",
+                optimizedDescription: optimized.optimizedDescription,
+                optimizedTags: optimized.optimizedTags,
+              });
+            } else {
+              results.push({
+                videoId: video.videoId,
+                title: video.title,
+                status: "failed",
+                message: updateResult.message,
+              });
+            }
+          }
+
+          // Rate limiting: wait 1 second between API calls
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        } catch (videoError: any) {
+          results.push({
+            videoId: video.videoId,
+            title: video.title,
+            status: "failed",
+            message: videoError.message || "Unknown error",
+          });
+        }
+      }
+
+      const successCount = results.filter(r => r.status === "success").length;
+      const failedCount = results.filter(r => r.status === "failed").length;
+
+      res.json({
+        success: true,
+        message: dryRun 
+          ? `Preview generated for ${successCount} videos (dry run)`
+          : `Optimized ${successCount} videos, ${failedCount} failed`,
+        processed: results.length,
+        successCount,
+        failedCount,
+        results,
+      });
+
+    } catch (error: any) {
+      console.error("Error in bulk optimize:", error);
+      res.status(500).json({ 
+        error: "Failed to bulk optimize videos",
+        details: error.message 
+      });
+    }
+  });
+
+  // Get optimization status
+  app.get("/api/youtube/optimization-status", async (_req, res) => {
+    try {
+      const { videos } = await fetchYouTubeVideos(50, 365);
+      
+      const status = videos.map(v => ({
+        videoId: v.videoId,
+        title: v.title,
+        isOptimized: optimizedVideos.has(v.videoId),
+        hasDescription: !!v.description && v.description.length > 50,
+        tagsCount: v.tags?.length || 0,
+      }));
+
+      res.json({
+        totalVideos: videos.length,
+        optimizedCount: status.filter(s => s.isOptimized).length,
+        videos: status,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Trend Analysis API
   app.post("/api/trends/analyze", async (req, res) => {
     try {

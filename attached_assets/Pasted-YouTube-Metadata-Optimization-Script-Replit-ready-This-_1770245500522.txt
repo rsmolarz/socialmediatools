@@ -1,0 +1,294 @@
+YouTube Metadata Optimization Script (Replit-ready)
+
+This solution provides a comprehensive Python script that uses the YouTube Data API and OpenAI’s GPT to bulk-update video descriptions and tags. It is structured to run in Replit’s console environment with simple file-based storage for credentials and logs.
+
+main.py
+import os
+import json
+import openai
+
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+
+# Define the required OAuth scope for YouTube Data API (updating videos requires full YouTube access)
+SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+
+def main():
+    print("Starting YouTube metadata optimization script...")
+
+    # 1. Authentication: Load or request OAuth credentials for YouTube API
+    creds = None
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            print("Refreshing YouTube API access token...")
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"Failed to refresh token: {e}")
+                creds = None
+        if not creds or not creds.valid:
+            print("No valid credentials found. Performing OAuth flow...")
+            flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", SCOPES)
+            creds = flow.run_console()  # Will prompt user via console for authorization
+        # Save the credentials for next run
+        with open("token.json", "w") as token_file:
+            token_file.write(creds.to_json())
+            print("Saved new credentials to token.json")
+
+    # Build the YouTube API client
+    youtube = build("youtube", "v3", credentials=creds)
+    print("Authenticated with YouTube API successfully.")
+
+    # 2. Retrieve the list of videos uploaded to the authenticated user's channel
+    print("Fetching the list of uploaded videos from your channel...")
+    videos = []
+    try:
+        channel_response = youtube.channels().list(part="contentDetails", mine=True).execute()
+    except Exception as e:
+        print(f"Error: Could not fetch channel details - {e}")
+        return
+    uploads_playlist_id = channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    next_page_token = None
+    while True:
+        playlist_response = youtube.playlistItems().list(
+            part="snippet",
+            playlistId=uploads_playlist_id,
+            maxResults=50,
+            pageToken=next_page_token
+        ).execute()
+        for item in playlist_response.get("items", []):
+            video_id = item["snippet"]["resourceId"]["videoId"]
+            title = item["snippet"]["title"]
+            videos.append({"id": video_id, "title": title})
+        next_page_token = playlist_response.get("nextPageToken")
+        if not next_page_token:
+            break
+    print(f"Found {len(videos)} videos in your channel.")
+
+    if not videos:
+        print("No videos found in your channel. Exiting.")
+        return
+
+    # 3. Load the record of already updated videos (to avoid reprocessing them)
+    updated_ids = []
+    if os.path.exists("updated_videos.json"):
+        try:
+            with open("updated_videos.json", "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    updated_ids = data
+                elif isinstance(data, dict):
+                    # If stored as dict (e.g., id->timestamp), take keys
+                    updated_ids = list(data.keys())
+        except Exception as e:
+            print(f"Warning: Could not read updated_videos.json (ignoring it) - {e}")
+            updated_ids = []
+    else:
+        updated_ids = []
+
+    # Filter out videos that have been updated in a previous run
+    videos_to_process = [v for v in videos if v["id"] not in updated_ids]
+    if not videos_to_process:
+        print("All videos have already been updated. Nothing to do.")
+        return
+    print(f"{len(videos_to_process)} videos will be processed (skipping {len(videos) - len(videos_to_process)} that were already updated).")
+
+    # Prompt for user confirmation before making changes
+    proceed = input("Proceed to generate new descriptions/tags and update these videos? (yes/no): ").strip().lower()
+    if proceed != "yes":
+        print("Operation cancelled by user. No changes were made.")
+        return
+
+    # 4. Initialize OpenAI API (ensure API key is set in environment or code)
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    if not openai.api_key:
+        print("Error: OpenAI API key not found. Please set OPENAI_API_KEY as an environment variable or assign openai.api_key in the script.")
+        return
+    # Choose the OpenAI model (you can switch to "gpt-4" if available for better results)
+    model = "gpt-3.5-turbo"
+
+    # 5. Loop through each video and update its metadata
+    for video in videos_to_process:
+        video_id = video["id"]
+        title = video["title"]
+        print(f"\nProcessing video: {title} (ID: {video_id})")
+
+        # Retrieve full video snippet details (to get current description, tags, categoryId, etc.)
+        try:
+            video_response = youtube.videos().list(part="snippet", id=video_id).execute()
+            if not video_response.get("items"):
+                print(f"  - Skipping: Video ID {video_id} not found via API.")
+                continue
+            snippet = video_response["items"][0]["snippet"]
+            original_description = snippet.get("description", "") or ""
+            original_tags = snippet.get("tags", [])
+            category_id = snippet.get("categoryId", "")
+            default_lang = snippet.get("defaultLanguage")
+            default_audio_lang = snippet.get("defaultAudioLanguage")
+        except Exception as e:
+            print(f"  - Error retrieving details for video {video_id}: {e}")
+            continue
+
+        # Determine what context to feed to OpenAI (transcript if available, otherwise current description or title)
+        transcript_path = os.path.join("transcripts", f"{video_id}.txt")
+        transcript_text = None
+        if os.path.exists(transcript_path):
+            try:
+                with open(transcript_path, "r", encoding="utf-8") as tf:
+                    transcript_text = tf.read()
+                # If the transcript is very long, you might truncate it here to fit into the model's context limit.
+                print("  - Using provided transcript for context.")
+            except Exception as e:
+                print(f"  - Warning: Could not read transcript file for {video_id} ({e}). Proceeding without transcript.")
+                transcript_text = None
+        if transcript_text is None:
+            if original_description:
+                print("  - No transcript found. Using current description as context for GPT.")
+            else:
+                print("  - No transcript or existing description available. Using video title as the only context.")
+
+        # Construct the prompt for OpenAI GPT
+        user_prompt = f"Video Title: {title}\n"
+        if transcript_text:
+            user_prompt += f"Video Transcript: {transcript_text}\n"
+        elif original_description:
+            user_prompt += f"Current Description: {original_description}\n"
+        user_prompt += (
+            "Generate an improved YouTube video description and a list of relevant tags for this video. "
+            "The new description should be SEO-friendly, engaging, and accurately reflect the video's content. "
+            "The tags should be relevant keywords or phrases related to the video. "
+            "Provide the results as a JSON object with two keys: 'description' and 'tags'. "
+            "The 'tags' value should be an array of strings. Output only the JSON with no extra text."
+        )
+
+        # Call the OpenAI API to get optimized description and tags
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant specialized in YouTube marketing."},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.7
+            )
+        except Exception as e:
+            print(f"  - OpenAI API call failed for video {video_id}: {e}")
+            continue
+
+        # Extract the response text
+        reply_content = response["choices"][0]["message"]["content"].strip()
+        # Try to parse it as JSON
+        try:
+            result = json.loads(reply_content)
+        except json.JSONDecodeError:
+            # If parsing fails, attempt to fix common issues (e.g., extra text or code block formatting)
+            trimmed = reply_content.strip().strip("```").strip()
+            try:
+                result = json.loads(trimmed)
+            except Exception as e:
+                print(f"  - Failed to parse GPT response for video {video_id}. Response was: {reply_content}")
+                continue
+
+        new_description = result.get("description", "").strip()
+        new_tags = result.get("tags", [])
+        if isinstance(new_tags, list):
+            # Ensure all tags are strings and strip whitespace
+            new_tags = [str(t).strip() for t in new_tags if t]
+        elif isinstance(new_tags, str):
+            # If tags came as a single comma-separated string
+            new_tags = [t.strip() for t in new_tags.split(",") if t.strip()]
+        else:
+            new_tags = []
+
+        if not new_description:
+            print(f"  - GPT did not return a description for {video_id}, skipping this video.")
+            continue
+
+        # Prepare the body for YouTube Data API update (preserve title and category, update description and tags)
+        update_body = {
+            "id": video_id,
+            "snippet": {
+                "title": title,
+                "description": new_description,
+                "categoryId": category_id
+            }
+        }
+        if new_tags:
+            update_body["snippet"]["tags"] = new_tags
+        # Preserve default language settings if they exist (to avoid clearing them)
+        if default_lang:
+            update_body["snippet"]["defaultLanguage"] = default_lang
+        if default_audio_lang:
+            update_body["snippet"]["defaultAudioLanguage"] = default_audio_lang
+
+        # Call YouTube API to update the video’s snippet
+        try:
+            youtube.videos().update(part="snippet", body=update_body).execute()
+            print(f"  ✓ Updated video: {title}")
+        except Exception as e:
+            print(f"  - YouTube update failed for {video_id}: {e}")
+            continue
+
+        # Log the updated video ID to the record (and save after each update for safety)
+        updated_ids.append(video_id)
+        try:
+            with open("updated_videos.json", "w") as uf:
+                json.dump(updated_ids, uf, indent=2)
+        except Exception as e:
+            print(f"  - Warning: Could not write to updated_videos.json ({e})")
+
+    # 6. Completion message
+    print("\nMetadata update process completed.")
+    print(f"{len(videos_to_process)} video(s) were processed in this run. " 
+          f"Total videos updated so far: {len(updated_ids)}.")
+    print("See 'updated_videos.json' for a list of all videos that have been updated.")
+
+if __name__ == "__main__":
+    main()
+
+requirements.txt
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+openai
+
+Setup and Usage Instructions
+
+Add Google API credentials: Upload your YouTube API OAuth client credentials file (usually named client_secret.json) into the Replit workspace. This file can be obtained from the Google Cloud Console after enabling the YouTube Data API.
+
+Install dependencies: Ensure the required packages (listed in requirements.txt) are installed. In Replit, you can add them via the Packages tab or by running pip install -r requirements.txt in the console.
+
+Provide OpenAI API Key: Set your OpenAI API key so the script can call GPT. In Replit, open the Secrets panel and add a secret named OPENAI_API_KEY with your OpenAI API key as the value. (Alternatively, you can hard-code openai.api_key = "YOUR_KEY" in main.py, but using Replit’s secret is safer.)
+
+(Optional) Provide transcripts: If you have video transcript files, create a folder named transcripts in the Replit file system. For each video that you want to use a transcript for, save a text file in transcripts/ named as the YouTube Video ID with a .txt extension (e.g., transcripts/VIDEO_ID.txt). The script will read these files and include their content when generating descriptions. If a transcript is not provided for a video, the script will fall back to using the current description or just the title for context.
+
+Run the script: In the Replit console, run the script with:
+
+python main.py
+
+
+The first time you run it, the script will prompt you to authorize access to your YouTube account:
+
+It will display a Google authorization URL in the console. Copy and paste this URL into a web browser.
+
+Log in with your Google account and grant access to the YouTube Data API.
+
+Google will then show you a verification code. Copy that code and paste it back into the console prompt in Replit.
+
+Authentication caching: After you provide the code, the script will save your credentials to token.json. On subsequent runs, it will reuse this token and usually won’t require you to authorize again unless the token expires or is deleted.
+
+Video selection: The script will automatically retrieve all videos from your channel (using your channel’s “uploads” playlist). It then checks updated_videos.json to skip any videos that have already been processed in previous runs. You will see a message indicating how many videos it found and how many will be processed in the current run.
+
+Confirm and update: The script will ask for confirmation before making any changes (to avoid accidental bulk edits). If you type yes, it will proceed to generate a new description and tags for each video using OpenAI GPT, then call the YouTube API to update the video’s metadata. Each video’s update will be logged in the console. (Note: Each video update via the YouTube API costs 50 quota units, so ensure your API quota is sufficient for the number of videos you are updating.)
+
+Track updated videos: As videos are updated, their IDs are added to updated_videos.json. This prevents re-processing the same video on future runs. You can open this file to see which videos have been updated (it’s a JSON list of video IDs).
+
+Review results: Once the script finishes, it will output a completion message. You can verify the changes by checking your videos on YouTube Studio to see the new descriptions and tags. If needed, you can also open the updated_videos.json file or modify the script to print out the new descriptions/tags for review before updating.
+
+Rerunning the script: You can run the script again in the future. It will use the saved token.json for authentication (so no need to OAuth again) and skip videos that are already listed in updated_videos.json. If you want to re-run on a previously updated video, you’d need to remove its ID from updated_videos.json or delete that file (use with caution).
+
+By following these steps, you can conveniently optimize your YouTube video metadata in bulk from Replit’s console environment. The script provides clear console output and uses local files for credentials and logs, avoiding the need for any web server or webhook setup.
