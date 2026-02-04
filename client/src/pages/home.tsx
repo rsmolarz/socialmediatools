@@ -15,6 +15,7 @@ import { TextLineControls } from "@/components/text-line-controls";
 import { BackgroundControls } from "@/components/background-controls";
 import { SavedThumbnails } from "@/components/saved-thumbnails";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { MobilePreview } from "@/components/mobile-preview";
 import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
@@ -508,6 +509,7 @@ export default function Home() {
               </Button>
             </div>
             <ThemeToggle />
+            <UserMenu />
           </div>
         </div>
       </header>

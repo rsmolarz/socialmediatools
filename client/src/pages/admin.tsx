@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -227,7 +228,10 @@ export default function AdminPage() {
               <h1 className="text-xl font-bold">Admin Dashboard</h1>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <UserMenu />
+          </div>
         </div>
       </header>
 

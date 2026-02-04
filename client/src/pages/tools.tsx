@@ -21,6 +21,7 @@ import { ImageFiltersPanel } from "@/components/image-filters-panel";
 import { SearchOrganization } from "@/components/search-organization";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { CollaborationChat } from "@/components/collaboration-chat";
 import { useCollaboration } from "@/hooks/use-collaboration";
 import { PresenceIndicator } from "@/components/presence-indicator";
@@ -147,7 +148,10 @@ export default function ToolsPage() {
               </p>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <UserMenu />
+          </div>
         </div>
       </div>
 

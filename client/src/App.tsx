@@ -4,12 +4,29 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { useAuth } from "@/hooks/use-auth";
 import Home from "@/pages/home";
 import Tools from "@/pages/tools";
 import Admin from "@/pages/admin";
+import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
+import { Loader2 } from "lucide-react";
 
-function Router() {
+function AuthenticatedRouter() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Landing />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -26,7 +43,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <AuthenticatedRouter />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
