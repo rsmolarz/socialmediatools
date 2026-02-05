@@ -17,6 +17,9 @@ export function getOAuthSession(): RequestHandler {
     tableName: "sessions",
   });
   
+  // Determine if we're on HTTPS (Replit always uses HTTPS)
+  const isHttps = !!process.env.REPLIT_DEV_DOMAIN || process.env.NODE_ENV === "production";
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -24,7 +27,8 @@ export function getOAuthSession(): RequestHandler {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
+      sameSite: isHttps ? "none" : "lax", // Required for cross-origin OAuth callbacks
       maxAge: sessionTtl,
     },
   });
@@ -59,14 +63,45 @@ export function setupOAuthRoutes(app: Express) {
     res.json({ providers: getConfiguredProviders() });
   });
 
+  // Debug endpoint to show callback URLs (only in development)
+  app.get("/api/auth/debug", (req, res) => {
+    const APP_URL = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : process.env.APP_URL || "http://localhost:5000";
+    
+    res.json({
+      appUrl: APP_URL,
+      callbacks: {
+        google: `${APP_URL}/api/auth/google/callback`,
+        github: `${APP_URL}/api/auth/github/callback`,
+        apple: `${APP_URL}/api/auth/apple/callback`,
+      },
+      providers: getConfiguredProviders(),
+      env: {
+        hasReplitDevDomain: !!process.env.REPLIT_DEV_DOMAIN,
+        replitDevDomain: process.env.REPLIT_DEV_DOMAIN,
+        nodeEnv: process.env.NODE_ENV,
+      }
+    });
+  });
+
   // Google OAuth routes
-  app.get("/api/auth/google", 
-    passport.authenticate("google", { scope: ["profile", "email"] })
+  app.get("/api/auth/google", (req, res, next) => {
+    console.log("[oauth] Starting Google OAuth flow");
+    next();
+  }, passport.authenticate("google", { scope: ["profile", "email"] })
   );
 
-  app.get("/api/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/?error=google_auth_failed" }),
+  app.get("/api/auth/google/callback", (req, res, next) => {
+    console.log("[oauth] Google callback received");
+    next();
+  },
+    passport.authenticate("google", { 
+      failureRedirect: "/?error=google_auth_failed",
+      failureMessage: true 
+    }),
     (req, res) => {
+      console.log("[oauth] Google auth successful, user:", req.user);
       res.redirect("/");
     }
   );
@@ -84,25 +119,43 @@ export function setupOAuthRoutes(app: Express) {
   );
 
   // GitHub OAuth routes
-  app.get("/api/auth/github",
-    passport.authenticate("github", { scope: ["user:email"] })
+  app.get("/api/auth/github", (req, res, next) => {
+    console.log("[oauth] Starting GitHub OAuth flow");
+    next();
+  }, passport.authenticate("github", { scope: ["user:email"] })
   );
 
-  app.get("/api/auth/github/callback",
-    passport.authenticate("github", { failureRedirect: "/?error=github_auth_failed" }),
+  app.get("/api/auth/github/callback", (req, res, next) => {
+    console.log("[oauth] GitHub callback received");
+    next();
+  },
+    passport.authenticate("github", { 
+      failureRedirect: "/?error=github_auth_failed",
+      failureMessage: true 
+    }),
     (req, res) => {
+      console.log("[oauth] GitHub auth successful, user:", req.user);
       res.redirect("/");
     }
   );
 
   // Apple OAuth routes
-  app.get("/api/auth/apple",
-    passport.authenticate("apple")
+  app.get("/api/auth/apple", (req, res, next) => {
+    console.log("[oauth] Starting Apple OAuth flow");
+    next();
+  }, passport.authenticate("apple")
   );
 
-  app.post("/api/auth/apple/callback",
-    passport.authenticate("apple", { failureRedirect: "/?error=apple_auth_failed" }),
+  app.post("/api/auth/apple/callback", (req, res, next) => {
+    console.log("[oauth] Apple callback received");
+    next();
+  },
+    passport.authenticate("apple", { 
+      failureRedirect: "/?error=apple_auth_failed",
+      failureMessage: true 
+    }),
     (req, res) => {
+      console.log("[oauth] Apple auth successful, user:", req.user);
       res.redirect("/");
     }
   );
