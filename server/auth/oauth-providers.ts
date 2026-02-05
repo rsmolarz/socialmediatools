@@ -8,12 +8,32 @@ import { db } from "../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 
+// Format the Apple private key with proper PEM headers
+function formatApplePrivateKey(key: string): string {
+  // Remove any existing headers/footers and whitespace
+  let cleanKey = key
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/-----BEGIN EC PRIVATE KEY-----/g, '')
+    .replace(/-----END EC PRIVATE KEY-----/g, '')
+    .replace(/\s/g, '');
+  
+  // Split into 64-character lines
+  const lines: string[] = [];
+  for (let i = 0; i < cleanKey.length; i += 64) {
+    lines.push(cleanKey.substring(i, i + 64));
+  }
+  
+  // Add proper PEM headers
+  return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----`;
+}
+
 // Generate Apple client secret (JWT)
 function generateAppleClientSecret(): string {
   const teamId = process.env.APPLE_TEAM_ID!;
   const clientId = process.env.APPLE_CLIENT_ID!;
   const keyId = process.env.APPLE_KEY_ID!;
-  const privateKey = process.env.APPLE_PRIVATE_KEY!.replace(/\\n/g, '\n');
+  const privateKey = formatApplePrivateKey(process.env.APPLE_PRIVATE_KEY!);
   
   const now = Math.floor(Date.now() / 1000);
   const payload = {
@@ -152,12 +172,13 @@ export function setupOAuthProviders() {
   // Apple OAuth
   if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) {
     try {
+      const formattedPrivateKey = formatApplePrivateKey(process.env.APPLE_PRIVATE_KEY);
       const clientSecret = generateAppleClientSecret();
       passport.use(new AppleStrategy({
         clientID: process.env.APPLE_CLIENT_ID,
         teamID: process.env.APPLE_TEAM_ID,
         keyID: process.env.APPLE_KEY_ID,
-        privateKeyString: process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        privateKeyString: formattedPrivateKey,
         callbackURL: `${APP_URL}/api/auth/apple/callback`,
         scope: ["name", "email"],
         passReqToCallback: false,
