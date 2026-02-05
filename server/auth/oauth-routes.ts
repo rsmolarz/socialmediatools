@@ -95,6 +95,18 @@ export function setupOAuthRoutes(app: Express) {
     }
   );
 
+  // Apple OAuth routes
+  app.get("/api/auth/apple",
+    passport.authenticate("apple")
+  );
+
+  app.post("/api/auth/apple/callback",
+    passport.authenticate("apple", { failureRedirect: "/?error=apple_auth_failed" }),
+    (req, res) => {
+      res.redirect("/");
+    }
+  );
+
   // Get current user
   app.get("/api/auth/user", (req, res) => {
     if (req.isAuthenticated() && req.user) {

@@ -2,9 +2,36 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GitHubStrategy } from "passport-github2";
+import AppleStrategy from "passport-apple";
+import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
+
+// Generate Apple client secret (JWT)
+function generateAppleClientSecret(): string {
+  const teamId = process.env.APPLE_TEAM_ID!;
+  const clientId = process.env.APPLE_CLIENT_ID!;
+  const keyId = process.env.APPLE_KEY_ID!;
+  const privateKey = process.env.APPLE_PRIVATE_KEY!.replace(/\\n/g, '\n');
+  
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: teamId,
+    iat: now,
+    exp: now + 15777000, // 6 months
+    aud: "https://appleid.apple.com",
+    sub: clientId,
+  };
+  
+  return jwt.sign(payload, privateKey, {
+    algorithm: "ES256",
+    header: {
+      alg: "ES256",
+      kid: keyId,
+    },
+  });
+}
 
 const APP_URL = process.env.REPLIT_DEV_DOMAIN 
   ? `https://${process.env.REPLIT_DEV_DOMAIN}`
@@ -121,6 +148,46 @@ export function setupOAuthProviders() {
   } else {
     console.log("[oauth] GitHub OAuth not configured (missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET)");
   }
+
+  // Apple OAuth
+  if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) {
+    try {
+      const clientSecret = generateAppleClientSecret();
+      passport.use(new AppleStrategy({
+        clientID: process.env.APPLE_CLIENT_ID,
+        teamID: process.env.APPLE_TEAM_ID,
+        keyID: process.env.APPLE_KEY_ID,
+        privateKeyString: process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        callbackURL: `${APP_URL}/api/auth/apple/callback`,
+        scope: ["name", "email"],
+        passReqToCallback: false,
+      }, async (accessToken: string, refreshToken: string, idToken: any, profile: any, done: any) => {
+        try {
+          // Apple may not return email after first login
+          const email = profile.email || idToken?.email;
+          const firstName = profile.name?.firstName || "Apple";
+          const lastName = profile.name?.lastName || "User";
+          
+          const user = await findOrCreateUser({
+            id: profile.id || idToken?.sub,
+            provider: "apple",
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            profileImageUrl: undefined,
+          });
+          done(null, user);
+        } catch (error) {
+          done(error as Error);
+        }
+      }));
+      console.log("[oauth] Apple OAuth configured");
+    } catch (error) {
+      console.log("[oauth] Apple OAuth configuration failed:", error);
+    }
+  } else {
+    console.log("[oauth] Apple OAuth not configured (missing APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, or APPLE_PRIVATE_KEY)");
+  }
 }
 
 export function getConfiguredProviders(): string[] {
@@ -128,5 +195,6 @@ export function getConfiguredProviders(): string[] {
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) providers.push("google");
   if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) providers.push("facebook");
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) providers.push("github");
+  if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) providers.push("apple");
   return providers;
 }
