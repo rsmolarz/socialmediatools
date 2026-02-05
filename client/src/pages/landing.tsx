@@ -203,7 +203,10 @@ export default function LandingPage() {
                   )}
                   
                   <p className="text-xs text-center text-muted-foreground pt-2">
-                    By signing in, you agree to our Terms of Service and Privacy Policy
+                    By signing in, you agree to our{" "}
+                    <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
+                    {" "}and{" "}
+                    <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
                   </p>
                 </CardContent>
               </Card>
@@ -277,8 +280,8 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+              <a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a>
+              <a href="/terms" className="hover:text-foreground transition-colors">Terms</a>
             </div>
           </div>
         </div>

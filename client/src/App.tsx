@@ -9,6 +9,8 @@ import Home from "@/pages/home";
 import Tools from "@/pages/tools";
 import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
+import PrivacyPolicy from "@/pages/privacy";
+import TermsOfService from "@/pages/terms";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -43,7 +45,13 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          <AuthenticatedRouter />
+          <Switch>
+            <Route path="/privacy" component={PrivacyPolicy} />
+            <Route path="/terms" component={TermsOfService} />
+            <Route>
+              <AuthenticatedRouter />
+            </Route>
+          </Switch>
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
