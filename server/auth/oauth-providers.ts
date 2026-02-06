@@ -89,8 +89,12 @@ async function findOrCreateUser(profile: OAuthProfile) {
 export function setupOAuthProviders() {
   // Google OAuth
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    const maskedClientId = googleClientId.substring(0, 12) + "..." + googleClientId.substring(googleClientId.length - 20);
+    console.log("[oauth] Google Client ID being used:", maskedClientId);
+    console.log("[oauth] Google callback URL:", `${APP_URL}/api/auth/google/callback`);
     passport.use(new GoogleStrategy({
-      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientID: googleClientId,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: `${APP_URL}/api/auth/google/callback`,
       scope: ["profile", "email"],
