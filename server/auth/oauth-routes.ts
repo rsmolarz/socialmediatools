@@ -107,13 +107,22 @@ export function setupOAuthRoutes(app: Express) {
   );
 
   // Facebook OAuth routes
-  app.get("/api/auth/facebook",
-    passport.authenticate("facebook", { scope: ["email"] })
+  app.get("/api/auth/facebook", (req, res, next) => {
+    console.log("[oauth] Starting Facebook OAuth flow");
+    next();
+  }, passport.authenticate("facebook", { scope: ["email"] })
   );
 
-  app.get("/api/auth/facebook/callback",
-    passport.authenticate("facebook", { failureRedirect: "/?error=facebook_auth_failed" }),
+  app.get("/api/auth/facebook/callback", (req, res, next) => {
+    console.log("[oauth] Facebook callback received");
+    next();
+  },
+    passport.authenticate("facebook", { 
+      failureRedirect: "/?error=facebook_auth_failed",
+      failureMessage: true 
+    }),
     (req, res) => {
+      console.log("[oauth] Facebook auth successful, user:", req.user);
       res.redirect("/");
     }
   );
