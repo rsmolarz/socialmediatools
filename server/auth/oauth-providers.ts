@@ -87,15 +87,16 @@ async function findOrCreateUser(profile: OAuthProfile) {
 }
 
 export function setupOAuthProviders() {
-  // Google OAuth
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  // Google OAuth - uses SOCIAL_MEDIA_GOOGLE_CLIENT_ID for Thumb Meta Tool project
+  const googleClientId = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+  if (googleClientId && googleClientSecret) {
     const maskedClientId = googleClientId.substring(0, 12) + "..." + googleClientId.substring(googleClientId.length - 20);
     console.log("[oauth] Google Client ID being used:", maskedClientId);
     console.log("[oauth] Google callback URL:", `${APP_URL}/api/auth/google/callback`);
     passport.use(new GoogleStrategy({
       clientID: googleClientId,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientSecret: googleClientSecret,
       callbackURL: `${APP_URL}/api/auth/google/callback`,
       scope: ["profile", "email"],
     }, async (accessToken, refreshToken, profile, done) => {
@@ -115,7 +116,7 @@ export function setupOAuthProviders() {
     }));
     console.log("[oauth] Google OAuth configured");
   } else {
-    console.log("[oauth] Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)");
+    console.log("[oauth] Google OAuth not configured (missing SOCIAL_MEDIA_GOOGLE_CLIENT_ID or SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET)");
   }
 
   // Facebook OAuth
@@ -217,7 +218,7 @@ export function setupOAuthProviders() {
 
 export function getConfiguredProviders(): string[] {
   const providers: string[] = [];
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) providers.push("google");
+  if ((process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID) && (process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET)) providers.push("google");
   if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) providers.push("facebook");
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) providers.push("github");
   if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) providers.push("apple");
