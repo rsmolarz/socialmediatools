@@ -119,7 +119,7 @@ interface OptimizationStatus {
 export default function AdminPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("guardian");
-  const [maxVideos, setMaxVideos] = useState(3);
+  const [maxVideos, setMaxVideos] = useState(10);
   const [dryRun, setDryRun] = useState(true);
   const [skipOptimized, setSkipOptimized] = useState(true);
   const [optimizeResults, setOptimizeResults] = useState<BulkOptimizeResult[]>([]);
@@ -671,12 +671,12 @@ export default function AdminPage() {
                         value={[maxVideos]}
                         onValueChange={([v]) => setMaxVideos(v)}
                         min={1}
-                        max={10}
+                        max={50}
                         step={1}
                         className="w-full"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Default: 3 videos. Each video uses ~50-100 API quota units. YouTube's free tier allows 10,000 units/day.
+                        Default: 10 videos (max 50). Each video uses ~50-100 API quota units. YouTube allows 10,000 units/day.
                       </p>
                     </div>
                     
