@@ -116,6 +116,9 @@ export function setupOAuthRoutes(app: Express) {
   const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   const googleClientSecret = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
   const googleCallbackUrl = `${APP_URL}/api/auth/google/callback`;
+  console.log("[oauth-routes] Google Client ID source:", process.env.GOOGLE_OAUTH_CLIENT_ID ? 'GOOGLE_OAUTH_CLIENT_ID' : process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID ? 'SOCIAL_MEDIA_GOOGLE_CLIENT_ID' : 'GOOGLE_CLIENT_ID');
+  console.log("[oauth-routes] Google Client Secret source:", process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET ? 'SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET' : 'GOOGLE_CLIENT_SECRET');
+  console.log("[oauth-routes] Google Client Secret length:", googleClientSecret?.length);
 
   app.get("/api/auth/google", (req, res) => {
     console.log("[oauth] Starting manual Google OAuth flow");
