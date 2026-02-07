@@ -232,7 +232,13 @@ export function setupOAuthRoutes(app: Express) {
   );
 
   app.get("/api/auth/facebook/callback", (req, res, next) => {
-    console.log("[oauth] Facebook callback received");
+    console.log("[oauth] Facebook callback received, query:", JSON.stringify(req.query));
+    
+    if (req.query.error) {
+      console.error("[oauth] Facebook returned error:", req.query.error, req.query.error_description);
+      return res.redirect(`/?error=facebook_auth_failed&detail=${encodeURIComponent(String(req.query.error_description || req.query.error))}`);
+    }
+    
     next();
   },
     passport.authenticate("facebook", { 
@@ -240,7 +246,7 @@ export function setupOAuthRoutes(app: Express) {
       failureMessage: true 
     }),
     (req, res) => {
-      console.log("[oauth] Facebook auth successful, user:", req.user);
+      console.log("[oauth] Facebook auth successful, user:", (req.user as any)?.id);
       res.redirect("/");
     }
   );
