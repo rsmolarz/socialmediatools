@@ -8,9 +8,7 @@ import { db } from "../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 
-// Format the Apple private key with proper PEM headers
 function formatApplePrivateKey(key: string): string {
-  // Remove any existing headers/footers and whitespace
   let cleanKey = key
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
@@ -18,17 +16,14 @@ function formatApplePrivateKey(key: string): string {
     .replace(/-----END EC PRIVATE KEY-----/g, '')
     .replace(/\s/g, '');
   
-  // Split into 64-character lines
   const lines: string[] = [];
   for (let i = 0; i < cleanKey.length; i += 64) {
     lines.push(cleanKey.substring(i, i + 64));
   }
   
-  // Add proper PEM headers
   return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----`;
 }
 
-// Generate Apple client secret (JWT)
 function generateAppleClientSecret(): string {
   const teamId = process.env.APPLE_TEAM_ID!;
   const clientId = process.env.APPLE_CLIENT_ID!;
@@ -39,7 +34,7 @@ function generateAppleClientSecret(): string {
   const payload = {
     iss: teamId,
     iat: now,
-    exp: now + 15777000, // 6 months
+    exp: now + 15777000,
     aud: "https://appleid.apple.com",
     sub: clientId,
   };
@@ -53,10 +48,7 @@ function generateAppleClientSecret(): string {
   });
 }
 
-const APP_URL = process.env.APP_URL 
-  || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
-
-interface OAuthProfile {
+interface OAuthUserData {
   id: string;
   provider: string;
   email?: string;
@@ -65,48 +57,63 @@ interface OAuthProfile {
   profileImageUrl?: string;
 }
 
-export async function findOrCreateUser(profile: OAuthProfile) {
-  const odataId = `${profile.provider}_${profile.id}`;
-  
-  const existingUsers = await db.select().from(users).where(eq(users.id, odataId));
+async function findOrCreateUser(data: OAuthUserData) {
+  const existingUsers = await db.select().from(users).where(eq(users.providerId, data.id));
   
   if (existingUsers.length > 0) {
     return existingUsers[0];
   }
-
-  if (profile.email) {
-    const existingByEmail = await db.select().from(users).where(eq(users.email, profile.email));
-    if (existingByEmail.length > 0) {
-      return existingByEmail[0];
+  
+  if (data.email) {
+    const emailUsers = await db.select().from(users).where(eq(users.email, data.email));
+    if (emailUsers.length > 0) {
+      const existingUser = emailUsers[0];
+      const [updated] = await db.update(users)
+        .set({
+          providerId: data.id,
+          provider: data.provider,
+          profileImageUrl: data.profileImageUrl || existingUser.profileImageUrl,
+        })
+        .where(eq(users.id, existingUser.id))
+        .returning();
+      return updated;
     }
   }
 
   const [newUser] = await db.insert(users).values({
-    id: odataId,
-    email: profile.email || null,
-    firstName: profile.firstName || null,
-    lastName: profile.lastName || null,
-    profileImageUrl: profile.profileImageUrl || null,
+    provider: data.provider,
+    providerId: data.id,
+    email: data.email || null,
+    firstName: data.firstName || null,
+    lastName: data.lastName || null,
+    profileImageUrl: data.profileImageUrl || null,
+    username: data.email || `${data.provider}_${data.id}`,
   }).returning();
-
+  
   return newUser;
 }
 
+const APP_URL = process.env.APP_URL 
+  || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
+
 export function setupOAuthProviders() {
-  // Google OAuth - uses GOOGLE_OAUTH_CLIENT_ID env var, with fallbacks
+  console.log("[oauth] Setting up OAuth providers with APP_URL:", APP_URL);
+
+  // Google OAuth
   const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   const googleClientSecret = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+  
   if (googleClientId && googleClientSecret) {
-    const trimmedClientId = googleClientId.trim();
-    const trimmedClientSecret = googleClientSecret.trim();
-    console.log("[oauth] Google Client ID length:", trimmedClientId.length, "ends with:", trimmedClientId.substring(trimmedClientId.length - 30));
-    console.log("[oauth] Google Client Secret length:", trimmedClientSecret.length);
-    console.log("[oauth] Google callback URL:", `${APP_URL}/api/auth/google/callback`);
+    const callbackURL = `${APP_URL}/api/auth/google/callback`;
+    console.log("[oauth] Google Client ID length:", googleClientId.length, "ends with:", googleClientId.slice(-35));
+    console.log("[oauth] Google Client Secret length:", googleClientSecret.length);
+    console.log("[oauth] Google callback URL:", callbackURL);
+    
     passport.use(new GoogleStrategy({
-      clientID: trimmedClientId,
-      clientSecret: trimmedClientSecret,
-      callbackURL: `${APP_URL}/api/auth/google/callback`,
-      scope: ["openid", "profile", "email"],
+      clientID: googleClientId,
+      clientSecret: googleClientSecret,
+      callbackURL: callbackURL,
+      scope: ["profile", "email"],
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         const user = await findOrCreateUser({
@@ -124,7 +131,7 @@ export function setupOAuthProviders() {
     }));
     console.log("[oauth] Google OAuth configured");
   } else {
-    console.log("[oauth] Google OAuth not configured (missing SOCIAL_MEDIA_GOOGLE_CLIENT_ID or SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET)");
+    console.log("[oauth] Google OAuth not configured (missing credentials)");
   }
 
   // Facebook OAuth
@@ -134,7 +141,7 @@ export function setupOAuthProviders() {
       clientSecret: process.env.FACEBOOK_APP_SECRET,
       callbackURL: `${APP_URL}/api/auth/facebook/callback`,
       profileFields: ["id", "emails", "name", "picture.type(large)"],
-    }, async (accessToken, refreshToken, profile, done) => {
+    }, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
         const user = await findOrCreateUser({
           id: profile.id,
@@ -151,7 +158,7 @@ export function setupOAuthProviders() {
     }));
     console.log("[oauth] Facebook OAuth configured");
   } else {
-    console.log("[oauth] Facebook OAuth not configured (missing FACEBOOK_APP_ID or FACEBOOK_APP_SECRET)");
+    console.log("[oauth] Facebook OAuth not configured");
   }
 
   // GitHub OAuth
@@ -169,7 +176,7 @@ export function setupOAuthProviders() {
           provider: "github",
           email: profile.emails?.[0]?.value,
           firstName: nameParts[0] || profile.username,
-          lastName: nameParts.slice(1).join(" ") || null,
+          lastName: nameParts.slice(1).join(" ") || undefined,
           profileImageUrl: profile.photos?.[0]?.value,
         });
         done(null, user);
@@ -179,7 +186,7 @@ export function setupOAuthProviders() {
     }));
     console.log("[oauth] GitHub OAuth configured");
   } else {
-    console.log("[oauth] GitHub OAuth not configured (missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET)");
+    console.log("[oauth] GitHub OAuth not configured");
   }
 
   // Apple OAuth
@@ -194,24 +201,47 @@ export function setupOAuthProviders() {
         privateKeyString: formattedPrivateKey,
         callbackURL: `${APP_URL}/api/auth/apple/callback`,
         scope: ["name", "email"],
-        passReqToCallback: false,
-      }, async (accessToken: string, refreshToken: string, idToken: any, profile: any, done: any) => {
+        passReqToCallback: true,
+      }, async (req: any, accessToken: string, refreshToken: string, idToken: any, profile: any, done: any) => {
         try {
-          // Apple may not return email after first login
-          const email = profile.email || idToken?.email;
-          const firstName = profile.name?.firstName || "Apple";
-          const lastName = profile.name?.lastName || "User";
+          console.log("[oauth] Apple verify callback called");
+          console.log("[oauth] Apple idToken type:", typeof idToken, "length:", typeof idToken === 'string' ? idToken.length : 'N/A');
+          
+          let decodedToken: any = {};
+          if (typeof idToken === 'string') {
+            decodedToken = jwt.decode(idToken) || {};
+            console.log("[oauth] Apple decoded token sub:", decodedToken.sub, "email:", decodedToken.email);
+          } else if (idToken && typeof idToken === 'object') {
+            decodedToken = idToken;
+            console.log("[oauth] Apple idToken is already object, sub:", decodedToken.sub);
+          }
+          
+          const appleProfile = req.appleProfile || {};
+          console.log("[oauth] Apple req.appleProfile:", JSON.stringify(appleProfile));
+          
+          const email = decodedToken.email || profile?.email;
+          const firstName = appleProfile?.name?.firstName || profile?.name?.firstName || "Apple";
+          const lastName = appleProfile?.name?.lastName || profile?.name?.lastName || "User";
+          const appleUserId = decodedToken.sub || profile?.id;
+          
+          console.log("[oauth] Apple extracted - email:", email, "userId:", appleUserId, "name:", firstName, lastName);
+          
+          if (!appleUserId) {
+            return done(new Error("No Apple user ID found in token"));
+          }
           
           const user = await findOrCreateUser({
-            id: profile.id || idToken?.sub,
+            id: appleUserId,
             provider: "apple",
             email: email,
             firstName: firstName,
             lastName: lastName,
             profileImageUrl: undefined,
           });
+          console.log("[oauth] Apple user created/found:", user.id);
           done(null, user);
         } catch (error) {
+          console.error("[oauth] Apple verify error:", error);
           done(error as Error);
         }
       }));

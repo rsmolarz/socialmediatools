@@ -26,6 +26,10 @@ export default function LandingPage() {
 
   const configuredProviders = providersData?.providers || [];
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const authError = urlParams.get("error");
+  const authMessage = urlParams.get("message");
+
   const features = [
     {
       icon: <Sparkles className="w-6 h-6" />,
@@ -166,6 +170,11 @@ export default function LandingPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {authError && (
+                    <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center" data-testid="text-auth-error">
+                      Login failed: {authMessage || authError.replace(/_/g, ' ')}
+                    </div>
+                  )}
                   {authProviders.map((provider) => {
                     const isConfigured = isProviderConfigured(provider.id);
                     return (
