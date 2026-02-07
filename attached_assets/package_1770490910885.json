@@ -1,0 +1,44 @@
+{
+  "name": "viral",
+  "version": "1.0.0",
+  "description": "A viral content sharing platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@google/genai": "^1.21.0",
+    "@neondatabase/serverless": "^1.0.1",
+    "@remotion/cli": "^4.0.354",
+    "@remotion/player": "^4.0.354",
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.3",
+    "cheerio": "^1.1.2",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "drizzle-kit": "^0.31.5",
+    "drizzle-orm": "^0.44.5",
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "google-trends-api": "^4.9.2",
+    "googleapis": "^160.0.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^5.23.1",
+    "sharp": "^0.34.4",
+    "ws": "^8.18.3"
+  },
+  "keywords": [
+    "viral",
+    "social",
+    "content",
+    "sharing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.5.2"
+  }
+}
