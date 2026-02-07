@@ -17,9 +17,21 @@ import {
 } from "lucide-react";
 import { SiGoogle, SiFacebook, SiGithub, SiApple } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 import showLogo from "@assets/image_1770482566548.png";
 
 export default function LandingPage() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate("/");
+    }
+  }, [isAuthenticated, user, navigate]);
+
   const { data: providersData } = useQuery<{ providers: string[] }>({
     queryKey: ["/api/auth/providers"],
   });
@@ -29,6 +41,7 @@ export default function LandingPage() {
   const urlParams = new URLSearchParams(window.location.search);
   const authError = urlParams.get("error");
   const authMessage = urlParams.get("message");
+  const accessDenied = urlParams.get("access") === "denied";
 
   const features = [
     {
@@ -170,9 +183,20 @@ export default function LandingPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {accessDenied && (
+                    <div className="p-3 rounded-lg bg-amber-100 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 text-sm text-center" data-testid="text-access-denied">
+                      <p className="font-semibold mb-1">Access Denied</p>
+                      <p>You are not on the whitelist. Please contact the administrator to request access.</p>
+                    </div>
+                  )}
                   {authError && (
                     <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center" data-testid="text-auth-error">
                       Login failed: {authMessage || authError.replace(/_/g, ' ')}
+                    </div>
+                  )}
+                  {user && !isAuthenticated && (
+                    <div className="p-3 rounded-lg bg-muted text-sm text-center" data-testid="text-user-info">
+                      Logged in as: <strong>{user.email}</strong>
                     </div>
                   )}
                   {authProviders.map((provider) => {

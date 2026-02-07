@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Speech Archive</title>
+    <link rel="stylesheet" href="style.css?v=3">
+    <style>
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+        }
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 50px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+        }
+        .login-card h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-card p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .login-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 40px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .access-denied {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .access-denied h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        .logo-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="logo-icon">🎙️</div>
+                <h1>Comprehensive Speech Archive</h1>
+                <p>Secure access to your speech documentation platform</p>
+                
+                <div id="accessDenied" class="access-denied" style="display: none;">
+                    <h3>Access Denied</h3>
+                    <p>You are not on the whitelist. Please contact the administrator to request access.</p>
+                </div>
+                
+                <div id="userInfo" style="display: none; margin-bottom: 20px;">
+                    <p>Logged in as: <strong id="userEmail"></strong></p>
+                </div>
+                
+                <button id="loginBtn" class="login-btn">Login with Replit</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const accessDenied = urlParams.get('access') === 'denied';
+            
+            if (accessDenied) {
+                document.getElementById('accessDenied').style.display = 'block';
+            }
+            
+            try {
+                const response = await fetch('/api/auth/user');
+                const data = await response.json();
+                
+                if (data.authenticated && data.user) {
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('userEmail').textContent = data.user.email;
+                    
+                    if (data.user.isWhitelisted || data.user.isAdmin) {
+                        window.location.href = '/';
+                    } else {
+                        document.getElementById('accessDenied').style.display = 'block';
+                        document.getElementById('loginBtn').textContent = 'Logout';
+                        document.getElementById('loginBtn').onclick = () => {
+                            window.location.href = '/api/logout';
+                        };
+                    }
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+            }
+            
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                window.location.href = '/api/login';
+            });
+        });
+    </script>
+</body>
+</html>
