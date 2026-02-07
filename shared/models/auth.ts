@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   provider: varchar("provider"),
   providerId: varchar("provider_id"),
   username: varchar("username"),
+  password: varchar("password"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
