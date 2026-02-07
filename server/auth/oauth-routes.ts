@@ -245,6 +245,16 @@ export function setupOAuthRoutes(app: Express) {
     }
   );
 
+  // Facebook Data Deletion Callback (required by Facebook)
+  app.post("/api/auth/facebook/data-deletion", (req, res) => {
+    console.log("[oauth] Facebook data deletion request received");
+    const confirmationCode = `del_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    res.json({
+      url: `${APP_URL}/data-deletion?code=${confirmationCode}`,
+      confirmation_code: confirmationCode,
+    });
+  });
+
   // GitHub OAuth routes
   app.get("/api/auth/github", (req, res, next) => {
     console.log("[oauth] Starting GitHub OAuth flow");
