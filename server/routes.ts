@@ -37,6 +37,7 @@ import { randomBytes } from "crypto";
 import archiver from "archiver";
 import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo } from "./youtube";
 import { setupOAuthRoutes } from "./auth/oauth-routes";
+import { publishToGHL, getGHLConnectionStatus } from "./ghl-service";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -178,7 +179,7 @@ export async function registerRoutes(
       console.log("API response received");
 
       // gpt-image-1 returns base64 by default
-      const b64_json = response.data[0]?.b64_json;
+      const b64_json = response.data?.[0]?.b64_json;
       
       if (!b64_json) {
         console.error("No b64_json in response:", JSON.stringify(response.data));
@@ -667,16 +668,35 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
         return res.status(400).json({ success: false, error: "Post must be approved before publishing" });
       }
 
-      // Mark as posted in our system
+      // Try publishing to Go High Level
+      const hashtagsArray = Array.isArray(post.hashtags) ? post.hashtags as string[] : [];
+      const postContent = post.selectedHook || post.title;
+      const description = post.description || "";
+      const cta = post.callToAction || "";
+      const fullContent = [postContent, description, cta].filter(Boolean).join("\n\n");
+
+      const ghlResult = await publishToGHL({
+        summary: fullContent,
+        mediaUrl: post.thumbnailUrl || undefined,
+        platform: post.platform,
+        hashtags: hashtagsArray,
+      });
+
+      // Mark as posted in our system regardless of GHL result
       const updated = await storage.updateSocialPost(postId, { 
         status: "posted",
-        postedAt: new Date().toISOString()
+        postedAt: new Date(),
+        platformPostId: ghlResult.postId || null,
       });
 
       res.json({ 
         success: true, 
         post: updated,
-        message: "Post marked as published. Connect Go High Level to auto-publish to social platforms."
+        ghlPublished: ghlResult.success,
+        ghlPostId: ghlResult.postId,
+        message: ghlResult.success 
+          ? "Post published to social media via Go High Level!" 
+          : `Post marked as published. GHL: ${ghlResult.error}`,
       });
     } catch (error) {
       console.error("Error publishing post:", error);
@@ -687,17 +707,8 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
   // Get Go High Level connection status
   app.get("/api/ghl/status", async (req, res) => {
     try {
-      // Check if Go High Level is configured
-      const ghlLocationId = process.env.GHL_LOCATION_ID;
-      const ghlApiKey = process.env.GHL_API_KEY;
-      
-      res.json({
-        connected: !!(ghlLocationId && ghlApiKey),
-        locationId: ghlLocationId ? "configured" : null,
-        message: ghlLocationId && ghlApiKey 
-          ? "Go High Level is connected" 
-          : "Go High Level requires configuration. Add GHL_LOCATION_ID and GHL_API_KEY to your secrets."
-      });
+      const status = await getGHLConnectionStatus();
+      res.json(status);
     } catch (error) {
       console.error("Error checking GHL status:", error);
       res.status(500).json({ connected: false, error: "Failed to check connection status" });
@@ -2600,16 +2611,17 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
       const agentType = req.query.type as string;
       const { agentLogsTable } = await import("@shared/schema");
       
-      let query = db.select().from(agentLogsTable).orderBy(desc(agentLogsTable.createdAt)).limit(100);
-      
+      let logs;
       if (agentType) {
-        query = db.select().from(agentLogsTable)
+        logs = await db.select().from(agentLogsTable)
           .where(eq(agentLogsTable.agentType, agentType))
           .orderBy(desc(agentLogsTable.createdAt))
           .limit(100);
+      } else {
+        logs = await db.select().from(agentLogsTable)
+          .orderBy(desc(agentLogsTable.createdAt))
+          .limit(100);
       }
-      
-      const logs = await query;
       res.json(logs);
     } catch (error) {
       console.error("Error fetching agent logs:", error);
