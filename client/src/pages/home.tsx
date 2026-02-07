@@ -716,11 +716,16 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer hint for future features */}
       <footer className="fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur py-3">
-        <div className="container mx-auto px-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Sparkles className="h-4 w-4" />
-          <span>Description & Tags Optimizer coming soon!</span>
+        <div className="container mx-auto px-4 flex items-center justify-between gap-4 text-sm text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span>Description & Tags Optimizer coming soon!</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors" data-testid="link-privacy">Privacy Policy</a>
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors" data-testid="link-terms">Terms of Service</a>
+          </div>
         </div>
       </footer>
     </div>
