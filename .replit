@@ -41,3 +41,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0", "youtube:1.0.0", "javascript_log_in_with_replit:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_OAUTH_CLIENT_ID = "969555602977-j5f8ilh44gknm5e60hgio5m23bn3sord.apps.googleusercontent.com"

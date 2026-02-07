@@ -87,8 +87,8 @@ async function findOrCreateUser(profile: OAuthProfile) {
 }
 
 export function setupOAuthProviders() {
-  // Google OAuth - uses SOCIAL_MEDIA_GOOGLE_CLIENT_ID for Thumb Meta Tool project
-  const googleClientId = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  // Google OAuth - uses GOOGLE_OAUTH_CLIENT_ID env var, with fallbacks
+  const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   const googleClientSecret = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
   if (googleClientId && googleClientSecret) {
     const trimmedClientId = googleClientId.trim();
@@ -220,7 +220,7 @@ export function setupOAuthProviders() {
 
 export function getConfiguredProviders(): string[] {
   const providers: string[] = [];
-  if ((process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID) && (process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET)) providers.push("google");
+  if ((process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID) && (process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET)) providers.push("google");
   if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) providers.push("facebook");
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) providers.push("github");
   if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) providers.push("apple");
