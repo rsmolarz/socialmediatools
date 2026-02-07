@@ -46,3 +46,5 @@ integrations = ["javascript_openai_ai_integrations:2.0.0", "youtube:1.0.0", "jav
 
 [userenv.shared]
 GOOGLE_OAUTH_CLIENT_ID = "683328279741-e45e0p5oddt6b61olh0rqrhsdvk7eu84.apps.googleusercontent.com"
+GITHUB_CLIENT_ID = "Ov23liwKuTvB73cYh5oD"
+GITHUB_CLIENT_SECRET = "7b54c3f042c28dc65f6b849081d2b0c4b35690ac"
