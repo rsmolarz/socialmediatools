@@ -302,14 +302,18 @@ export function setupOAuthRoutes(app: Express) {
       return res.redirect(`/?error=apple_auth_failed&message=${encodeURIComponent('client_secret_generation_failed: ' + e.message)}`);
     }
     
-    const authUrl = `https://appleid.apple.com/auth/authorize?` + new URLSearchParams({
+    const params: Record<string, string> = {
       client_id: clientId,
       redirect_uri: callbackUrl,
       response_type: 'code',
-      scope: 'name email',
       state: state,
       response_mode: 'form_post',
-    }).toString();
+      scope: 'name email',
+    };
+    
+    const authUrl = `https://appleid.apple.com/auth/authorize?` + new URLSearchParams(params).toString();
+    
+    console.log("[oauth] Apple auth params:", JSON.stringify(params));
     
     console.log("[oauth] Apple auth URL:", authUrl);
     res.redirect(authUrl);
