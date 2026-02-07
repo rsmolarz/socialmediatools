@@ -75,6 +75,13 @@ export async function findOrCreateUser(profile: OAuthProfile) {
     return existingUsers[0];
   }
 
+  if (profile.email) {
+    const existingByEmail = await db.select().from(users).where(eq(users.email, profile.email));
+    if (existingByEmail.length > 0) {
+      return existingByEmail[0];
+    }
+  }
+
   const [newUser] = await db.insert(users).values({
     id: odataId,
     email: profile.email || null,
