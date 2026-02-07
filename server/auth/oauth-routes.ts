@@ -305,10 +305,10 @@ export function setupOAuthRoutes(app: Express) {
     const authUrl = `https://appleid.apple.com/auth/authorize?` + new URLSearchParams({
       client_id: clientId,
       redirect_uri: callbackUrl,
-      response_type: 'code id_token',
-      response_mode: 'form_post',
+      response_type: 'code',
       scope: 'name email',
       state: state,
+      response_mode: 'form_post',
     }).toString();
     
     console.log("[oauth] Apple auth URL:", authUrl);
