@@ -67,10 +67,23 @@ export function setupOAuthRoutes(app: Express) {
     res.json({ providers: getConfiguredProviders() });
   });
 
-  // Debug endpoint to show callback URLs (only in development)
+  // Debug endpoint to show callback URLs and Apple config diagnostics
   app.get("/api/auth/debug", (req, res) => {
     const DEBUG_APP_URL = process.env.APP_URL 
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
+    
+    const appleClientId = process.env.APPLE_CLIENT_ID || "";
+    const appleTeamId = process.env.APPLE_TEAM_ID || "";
+    const appleKeyId = process.env.APPLE_KEY_ID || "";
+    const applePrivateKey = process.env.APPLE_PRIVATE_KEY || "";
+    
+    let clientSecretTest = "not_attempted";
+    try {
+      const secret = generateAppleClientSecret();
+      clientSecretTest = `success (length: ${secret.length})`;
+    } catch (e: any) {
+      clientSecretTest = `FAILED: ${e.message}`;
+    }
     
     res.json({
       appUrl: DEBUG_APP_URL,
@@ -80,6 +93,17 @@ export function setupOAuthRoutes(app: Express) {
         apple: `${DEBUG_APP_URL}/api/auth/apple/callback`,
       },
       providers: getConfiguredProviders(),
+      apple: {
+        clientId: appleClientId,
+        teamId: appleTeamId,
+        keyId: appleKeyId,
+        privateKeyLength: applePrivateKey.length,
+        privateKeyStart: applePrivateKey.substring(0, 30) + "...",
+        privateKeyContainsBeginMarker: applePrivateKey.includes("BEGIN"),
+        privateKeyContainsNewlines: applePrivateKey.includes("\n"),
+        clientSecretTest,
+        authUrl: `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(appleClientId)}&redirect_uri=${encodeURIComponent(DEBUG_APP_URL + '/api/auth/apple/callback')}&response_type=code%20id_token&response_mode=form_post&scope=name%20email`,
+      },
       env: {
         hasReplitDevDomain: !!process.env.REPLIT_DEV_DOMAIN,
         replitDevDomain: process.env.REPLIT_DEV_DOMAIN,
