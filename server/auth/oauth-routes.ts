@@ -249,18 +249,29 @@ export function setupOAuthRoutes(app: Express) {
   );
 
   app.post("/api/auth/apple/callback", (req, res, next) => {
-    console.log("[oauth] Apple callback received");
-    next();
-  },
-    passport.authenticate("apple", { 
-      failureRedirect: "/?error=apple_auth_failed",
-      failureMessage: true 
-    }),
-    (req, res) => {
-      console.log("[oauth] Apple auth successful, user:", req.user);
-      res.redirect("/");
-    }
-  );
+    console.log("[oauth] Apple callback received, body keys:", Object.keys(req.body || {}));
+    console.log("[oauth] Apple callback body:", JSON.stringify(req.body || {}).substring(0, 500));
+    
+    passport.authenticate("apple", (err: any, user: any, info: any) => {
+      if (err) {
+        console.error("[oauth] Apple auth error:", err.message || err);
+        console.error("[oauth] Apple auth error stack:", err.stack);
+        return res.redirect(`/?error=apple_auth_error&message=${encodeURIComponent(err.message || 'Unknown error')}`);
+      }
+      if (!user) {
+        console.error("[oauth] Apple auth no user returned, info:", info);
+        return res.redirect("/?error=apple_auth_failed");
+      }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          console.error("[oauth] Apple login error:", loginErr);
+          return res.redirect("/?error=apple_login_failed");
+        }
+        console.log("[oauth] Apple auth successful, user:", user);
+        res.redirect("/");
+      });
+    })(req, res, next);
+  });
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
