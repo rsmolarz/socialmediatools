@@ -35,9 +35,8 @@ export function getOAuthSession(): RequestHandler {
 }
 
 export function setupOAuthRoutes(app: Express) {
-  const APP_URL = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.APP_URL || "http://localhost:5000";
+  const APP_URL = process.env.APP_URL 
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
 
   // Initialize session and passport
   app.set("trust proxy", 1);
@@ -69,16 +68,15 @@ export function setupOAuthRoutes(app: Express) {
 
   // Debug endpoint to show callback URLs (only in development)
   app.get("/api/auth/debug", (req, res) => {
-    const APP_URL = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : process.env.APP_URL || "http://localhost:5000";
+    const DEBUG_APP_URL = process.env.APP_URL 
+      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
     
     res.json({
-      appUrl: APP_URL,
+      appUrl: DEBUG_APP_URL,
       callbacks: {
-        google: `${APP_URL}/api/auth/google/callback`,
-        github: `${APP_URL}/api/auth/github/callback`,
-        apple: `${APP_URL}/api/auth/apple/callback`,
+        google: `${DEBUG_APP_URL}/api/auth/google/callback`,
+        github: `${DEBUG_APP_URL}/api/auth/github/callback`,
+        apple: `${DEBUG_APP_URL}/api/auth/apple/callback`,
       },
       providers: getConfiguredProviders(),
       env: {
@@ -91,11 +89,10 @@ export function setupOAuthRoutes(app: Express) {
 
   // Google OAuth diagnostic - shows the exact URL that would be used
   app.get("/api/auth/google/debug-url", (req, res) => {
-    const APP_URL = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : process.env.APP_URL || "http://localhost:5000";
+    const GOOGLE_DEBUG_URL = process.env.APP_URL 
+      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
     const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
-    const callbackUrl = `${APP_URL}/api/auth/google/callback`;
+    const callbackUrl = `${GOOGLE_DEBUG_URL}/api/auth/google/callback`;
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${encodeURIComponent(clientId || '')}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent('profile email')}`;
     res.json({
       clientId: clientId ? `${clientId.substring(0, 20)}...${clientId.substring(clientId.length - 20)}` : 'NOT SET',

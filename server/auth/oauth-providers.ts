@@ -53,9 +53,8 @@ function generateAppleClientSecret(): string {
   });
 }
 
-const APP_URL = process.env.REPLIT_DEV_DOMAIN 
-  ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-  : process.env.APP_URL || "http://localhost:5000";
+const APP_URL = process.env.APP_URL 
+  || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:5000");
 
 interface OAuthProfile {
   id: string;

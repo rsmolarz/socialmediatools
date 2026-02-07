@@ -48,3 +48,14 @@ integrations = ["javascript_openai_ai_integrations:2.0.0", "youtube:1.0.0", "jav
 GOOGLE_OAUTH_CLIENT_ID = "683328279741-e45e0p5oddt6b61olh0rqrhsdvk7eu84.apps.googleusercontent.com"
 GITHUB_CLIENT_ID = "Ov23liwKuTvB73cYh5oD"
 GITHUB_CLIENT_SECRET = "7b54c3f042c28dc65f6b849081d2b0c4b35690ac"
+APPLE_CLIENT_ID = "com.medicineandmoneyshow.webapp"
+APPLE_TEAM_ID = "AG4PQ9Y5GY"
+APPLE_KEY_ID = "LLYUTW9V3K"
+APPLE_PRIVATE_KEY = """
+-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQguVTHJAye1yn7DSd7
+I/fHZd1j306EbK1fH9zOLa3G/l6gCgYIKoZIzj0DAQehRANCAASfkMMOpg53jabV
+qwPUu4OKmas+bJaSho6qcSqWW7dAZWlJr0xKeMkThQsFnGrXlqeFwrYVr/9oSccr
+mz2kC0Nm
+-----END PRIVATE KEY-----"""
+APP_URL = "https://medmoneyviralcontent.com"
