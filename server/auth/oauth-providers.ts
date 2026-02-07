@@ -100,7 +100,7 @@ export function setupOAuthProviders() {
       clientID: trimmedClientId,
       clientSecret: trimmedClientSecret,
       callbackURL: `${APP_URL}/api/auth/google/callback`,
-      scope: ["profile", "email"],
+      scope: ["openid", "profile", "email"],
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         const user = await findOrCreateUser({

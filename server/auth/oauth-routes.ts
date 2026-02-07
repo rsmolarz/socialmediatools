@@ -112,7 +112,11 @@ export function setupOAuthRoutes(app: Express) {
   app.get("/api/auth/google", (req, res, next) => {
     console.log("[oauth] Starting Google OAuth flow");
     next();
-  }, passport.authenticate("google", { scope: ["profile", "email"] })
+  }, passport.authenticate("google", { 
+    scope: ["openid", "profile", "email"],
+    accessType: "online",
+    prompt: "consent"
+  })
   );
 
   app.get("/api/auth/google/callback", (req, res, next) => {
