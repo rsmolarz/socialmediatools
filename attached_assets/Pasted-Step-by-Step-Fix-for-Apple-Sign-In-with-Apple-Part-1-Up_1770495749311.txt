@@ -1,0 +1,109 @@
+Step-by-Step Fix for Apple Sign In with Apple
+Part 1: Update .env file
+Once you have downloaded the private key file (LLYUTW9V3K.p8), add these lines to the END of your .env file:
+# Apple Sign In with Apple Configuration
+APPLE_TEAM_ID=AG4PQ9Y5GY
+APPLE_KEY_ID=LLYUTW9V3K
+APPLE_BUNDLE_ID=com.medicineandmoneyshow.webapp
+APPLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----
+[PASTE THE ENTIRE CONTENT OF YOUR .p8 FILE HERE - INCLUDING ALL THE LINES IN BETWEEN]
+-----END PRIVATE KEY-----
+To add it:
+
+Open .env in Replit
+Go to the end of the file (Ctrl+End)
+Add a new line and paste the above
+Replace [PASTE THE ENTIRE CONTENT...] with the actual private key content from the downloaded .p8 file
+
+Part 2: Update server/auth/oauth-providers.ts
+Replace the Apple OAuth setup code with proper JWT generation. Create this new function and update the Apple strategy:
+typescript// At the top of oauth-providers.ts, add this import:
+import jwt from 'jsonwebtoken';
+
+// Replace the Apple strategy setup with this corrected version:
+function setupAppleOAuth() {
+  const appleTeamId = process.env.APPLE_TEAM_ID;
+  const appleKeyId = process.env.APPLE_KEY_ID;
+  const appleBundleId = process.env.APPLE_BUNDLE_ID;
+  const applePrivateKey = process.env.APPLE_PRIVATE_KEY?.replace(/\\\\n/g, '\\n');
+
+  if (!appleTeamId || !appleKeyId || !appleBundleId || !applePrivateKey) {
+    console.warn('⚠️ Apple OAuth is not fully configured');
+    return null;
+  }
+
+  // Generate client secret using JWT
+  const generateAppleClientSecret = () => {
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = now + 15777000; // 6 months
+
+    return jwt.sign(
+      {},
+      applePrivateKey,
+      {
+        algorithm: 'ES256',
+        keyid: appleKeyId,
+        issuer: appleTeamId,
+        subject: appleBundleId,
+        audience: 'https://appleid.apple.com',
+        expiresIn: expiresIn - now,
+        header: {
+          kid: appleKeyId,
+          alg: 'ES256',
+        },
+      }
+    );
+  };
+
+  const appleClientSecret = generateAppleClientSecret();
+
+  passport.use(
+    'apple',
+    new AppleStrategy(
+      {
+        clientID: appleBundleId, // Use Bundle ID instead
+        teamID: appleTeamId,
+        keyID: appleKeyId,
+        key: applePrivateKey,
+        callbackURL: `${APP_URL}/api/auth/apple/callback`,
+      },
+      async (profile, done) => {
+        try {
+          const user = await findOrCreateUser({
+            provider: 'apple',
+            providerId: profile.id,
+            email: profile.email || profile.displayName,
+            name: profile.displayName || 'Apple User',
+          });
+          done(null, user);
+        } catch (error) {
+          done(error, null);
+        }
+      }
+    )
+  );
+}
+
+// Add to setupOAuthProviders():
+setupAppleOAuth();
+Part 3: Fix the Apple Route
+In server/auth/oauth-routes.ts, make sure the Apple route is set up correctly:
+typescript// Apple OAuth routes
+app.get('/api/auth/apple', (req, res, next) => {
+  const state = crypto.randomBytes(16).toString('hex');
+  req.session.oauthState = state;
+  
+  passport.authenticate('apple', {
+    state: state,
+    scope: ['name', 'email'],
+  })(req, res, next);
+});
+
+app.get('/api/auth/apple/callback', passport.authenticate('apple', { failureRedirect: '/?error=apple_auth' }), (req, res) => {
+  res.redirect('/');
+});
+Summary of Changes:
+✅ Environment Variables - Add 4 new vars to .env
+✅ JWT Generation - Replace client_secret generation with proper JWT using your private key
+✅ Bundle ID - Use your Services ID as client ID
+✅ Remove APPLE_CLIENT_ID - This was the wrong approach
