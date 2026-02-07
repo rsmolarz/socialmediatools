@@ -85,6 +85,29 @@ export function setupOAuthRoutes(app: Express) {
     });
   });
 
+  // Google OAuth diagnostic - shows the exact URL that would be used
+  app.get("/api/auth/google/debug-url", (req, res) => {
+    const APP_URL = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : process.env.APP_URL || "http://localhost:5000";
+    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    const callbackUrl = `${APP_URL}/api/auth/google/callback`;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${encodeURIComponent(clientId || '')}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent('profile email')}`;
+    res.json({
+      clientId: clientId ? `${clientId.substring(0, 20)}...${clientId.substring(clientId.length - 20)}` : 'NOT SET',
+      clientIdLength: clientId?.length,
+      callbackUrl,
+      authUrl,
+      instructions: [
+        "1. In Google Cloud Console > APIs & Services > Credentials, find this OAuth client",
+        `2. Add this EXACT redirect URI: ${callbackUrl}`,
+        "3. Go to OAuth consent screen > Set to 'External'",
+        "4. If app is in 'Testing' mode, add your email as a test user",
+        "5. Enable 'Google People API' in APIs & Services > Library",
+      ]
+    });
+  });
+
   // Google OAuth routes
   app.get("/api/auth/google", (req, res, next) => {
     console.log("[oauth] Starting Google OAuth flow");
