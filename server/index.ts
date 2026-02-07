@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupSwagger } from "./swagger";
 import { setupWebSocket } from "./websocket";
+import path from "path";
 
 import { alertMiddleware } from "./middleware/alert-middleware";
 import { loggingService } from "./lib/logging-service";
@@ -86,6 +87,12 @@ app.use((req, res, next) => {
 
   // Alert and logging middleware
   app.use(alertMiddleware.middleware());
+
+  app.use('/.well-known', express.static(path.join(process.cwd(), 'client', 'public', '.well-known'), {
+    setHeaders: (res) => {
+      res.setHeader('Content-Type', 'text/plain');
+    }
+  }));
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
