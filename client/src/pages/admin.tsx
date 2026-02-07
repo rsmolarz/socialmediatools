@@ -119,7 +119,7 @@ interface OptimizationStatus {
 export default function AdminPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("guardian");
-  const [maxVideos, setMaxVideos] = useState(5);
+  const [maxVideos, setMaxVideos] = useState(3);
   const [dryRun, setDryRun] = useState(true);
   const [skipOptimized, setSkipOptimized] = useState(true);
   const [optimizeResults, setOptimizeResults] = useState<BulkOptimizeResult[]>([]);
@@ -671,12 +671,12 @@ export default function AdminPage() {
                         value={[maxVideos]}
                         onValueChange={([v]) => setMaxVideos(v)}
                         min={1}
-                        max={20}
+                        max={10}
                         step={1}
                         className="w-full"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Higher numbers use more API quota. Start small to test.
+                        Default: 3 videos. Each video uses ~50-100 API quota units. YouTube's free tier allows 10,000 units/day.
                       </p>
                     </div>
                     
@@ -704,6 +704,35 @@ export default function AdminPage() {
                         checked={skipOptimized}
                         onCheckedChange={setSkipOptimized}
                       />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="mb-6 border-dashed">
+                  <CardContent className="pt-6">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                        YouTube API Quota Information
+                      </p>
+                      <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>YouTube gives each project <strong>10,000 quota units per day</strong> (resets at midnight Pacific Time)</li>
+                        <li>Each video update uses ~50-100 units. Processing 3 videos uses ~150-300 units</li>
+                        <li>If you hit the limit, wait until the next day or request a quota increase</li>
+                      </ul>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        <strong>To increase your quota:</strong> Go to{" "}
+                        <a
+                          href="https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline"
+                          data-testid="link-quota-increase"
+                        >
+                          Google Cloud Console &rarr; YouTube Data API &rarr; Quotas
+                        </a>
+                        , click "Edit Quotas", and submit a request with your use case.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
