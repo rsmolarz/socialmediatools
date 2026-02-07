@@ -1,0 +1,188 @@
+Edit your App ID Configuration
+Remove
+Save
+
+Platform
+iOS, iPadOS, macOS, tvOS, watchOS, visionOS
+App ID Prefix
+AG4PQ9Y5GY (Team ID)
+Description
+Social Media
+You cannot use special characters such as @, &, *, "
+Bundle ID
+com.medicineandmoney.web (explicit)
+Capabilities
+App Services
+Capability Requests
+
+Request	NAME		STATUS
+Add Devices to Automated Device Enrollment
+No Requests
+Alternative App Marketplace
+No Requests
+Automatic Assessment Configuration
+No Requests
+Browser App Installation
+No Requests
+Camera Region
+No Requests
+CarKey Session
+No Status
+CarPlay Audio App
+No Status
+CarPlay Automaker
+No Requests
+CarPlay Communication App
+No Status
+CarPlay Driving Task App
+No Status
+CarPlay EV Charging App
+No Status
+CarPlay Fueling App
+No Status
+CarPlay Parking App
+No Status
+CarPlay Quick Food Ordering App
+No Status
+Contact Notes Field Access
+No Requests
+Contactless Pass Provisioning
+No Requests
+Critical Alerts
+No Requests
+Default Host Card Emulation (HCE) App
+No Requests
+Default Web Browser
+No Requests
+DriverKit Allow Any UserClient Access
+No Requests
+DriverKit BlockStorageDevice
+No Requests
+DriverKit Family Audio
+No Requests
+DriverKit Family HID Device
+No Requests
+DriverKit Family MIDI
+No Status
+DriverKit Family Networking
+No Requests
+DriverKit Family SCSI Controller
+No Requests
+DriverKit Family Serial
+No Requests
+DriverKit HID EventService
+No Requests
+DriverKit PCI (development)
+Assigned
+DriverKit PCI (PrimaryMatch)
+No Requests
+DriverKit Transport HID
+No Requests
+DriverKit USB Transport - VendorID
+No Requests
+DriverKit USB Transport - VendorID and ProductID
+No Requests
+DriverKit UserClient Access
+No Requests
+Embedded Browser Engine
+No Requests
+Endpoint Security
+No Requests
+Enrollment Single Sign On
+No Requests
+eSim
+No Status
+External Link Account
+No Requests
+Fall Detection Notifications
+No Requests
+Family Controls (Distribution)
+No Requests
+FinanceKit
+No Requests
+Font Enumeration
+No Status
+Foundation Model Adapter
+No Requests
+Health Movement Disorder
+No Status
+Health Research Background Processing
+No Requests
+HealthKit Access (Verifiable Health Records)
+No Status
+Hearing Aid App
+No Requests
+HID Virtual Device
+No Requests
+Host Card Emulation (HCE)
+No Requests
+Hotspot Helper
+No Requests
+ID Verifier - Data Transfer
+No Status
+In-App Provisioning
+No Requests
+Increased Performance Headroom
+No Requests
+Main Camera Access
+No Requests
+Manage Thread Network Credentials
+No Requests
+Memory Transfer Accept
+No Requests
+Memory Transfer Send
+No Requests
+Multicast Networking
+No Requests
+Notification (NSE) Filtering
+No Requests
+Object Tracking Parameter Adjustment
+No Requests
+Pass Presentation Suppression
+No Requests
+Passthrough Camera Access
+No Requests
+Passthrough in Screen Capture
+No Requests
+Persistent Content Capture
+No Requests
+Privileged File Operations
+No Requests
+Protected Content
+No Requests
+SensorKit Reader Access
+No Requests
+Severe Vehicular Crash Event
+No Requests
+SiriKit Media Intents on HomePod
+No Status
+Spatial Barcode and QR code Scanning
+No Requests
+StoreKit External Purchase
+No Status
+StoreKit External Purchase Link
+No Requests
+Submerged Depth and Pressure
+No Requests
+System Extension Redistributable
+No Requests
+UPI Device Validation
+No Requests
+User Assigned Device Name
+No Status
+Web Browser Engine Host
+No Requests
+Web Browser Engine Networking
+No Requests
+Web Browser Engine Rendering
+No Requests
+Web Browser Engine Web Content
+No Requests
+Web Browser JIT Access
+No Requests
+Web Browser JIT Write AllowList
+No Requests
+Web Browser Public Key Credential Requests
+No Requests
+Window Body Follow
+No Status
