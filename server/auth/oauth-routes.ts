@@ -2,7 +2,8 @@ import { Express, RequestHandler } from "express";
 import passport from "passport";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { setupOAuthProviders, getConfiguredProviders } from "./oauth-providers";
+import jwt from "jsonwebtoken";
+import { setupOAuthProviders, getConfiguredProviders, findOrCreateUser, generateAppleClientSecret } from "./oauth-providers";
 import { db } from "../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
@@ -174,7 +175,6 @@ export function setupOAuthRoutes(app: Express) {
       console.log("[oauth] Google user info:", JSON.stringify(userInfo));
       
       // Find or create user
-      const { findOrCreateUser } = await import("./oauth-providers");
       const user = await findOrCreateUser({
         id: userInfo.id,
         provider: "google",
@@ -241,36 +241,133 @@ export function setupOAuthRoutes(app: Express) {
     }
   );
 
-  // Apple OAuth routes
-  app.get("/api/auth/apple", (req, res, next) => {
-    console.log("[oauth] Starting Apple OAuth flow");
-    next();
-  }, passport.authenticate("apple")
-  );
-
-  app.post("/api/auth/apple/callback", (req, res, next) => {
-    console.log("[oauth] Apple callback received, body keys:", Object.keys(req.body || {}));
-    console.log("[oauth] Apple callback body:", JSON.stringify(req.body || {}).substring(0, 500));
+  // Apple OAuth routes - manual implementation (no passport-apple)
+  app.get("/api/auth/apple", (req, res) => {
+    console.log("[oauth] Starting manual Apple OAuth flow");
+    const clientId = process.env.APPLE_CLIENT_ID!;
+    const callbackUrl = `${APP_URL}/api/auth/apple/callback`;
+    const state = Math.random().toString(36).substring(2);
+    (req.session as any).appleOAuthState = state;
     
-    passport.authenticate("apple", (err: any, user: any, info: any) => {
-      if (err) {
-        console.error("[oauth] Apple auth error:", err.message || err);
-        console.error("[oauth] Apple auth error stack:", err.stack);
-        return res.redirect(`/?error=apple_auth_error&message=${encodeURIComponent(err.message || 'Unknown error')}`);
+    const authUrl = `https://appleid.apple.com/auth/authorize?` + new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: callbackUrl,
+      response_type: 'code id_token',
+      response_mode: 'form_post',
+      scope: 'name email',
+      state: state,
+    }).toString();
+    
+    console.log("[oauth] Apple auth URL:", authUrl);
+    res.redirect(authUrl);
+  });
+
+  app.post("/api/auth/apple/callback", async (req, res) => {
+    try {
+      console.log("[oauth] Apple callback received");
+      console.log("[oauth] Apple callback body keys:", Object.keys(req.body || {}));
+      
+      const { code, id_token, user: userJson, state, error: appleError } = req.body || {};
+      
+      if (appleError) {
+        console.error("[oauth] Apple returned error:", appleError);
+        return res.redirect(`/?error=apple_auth_failed&message=${encodeURIComponent(appleError)}`);
       }
-      if (!user) {
-        console.error("[oauth] Apple auth no user returned, info:", info);
-        return res.redirect("/?error=apple_auth_failed");
+      
+      if (!code) {
+        console.error("[oauth] No authorization code from Apple");
+        return res.redirect("/?error=apple_auth_failed&message=no_authorization_code");
       }
-      req.logIn(user, (loginErr) => {
-        if (loginErr) {
-          console.error("[oauth] Apple login error:", loginErr);
-          return res.redirect("/?error=apple_login_failed");
+      
+      console.log("[oauth] Apple code length:", code.length);
+      console.log("[oauth] Apple id_token present:", !!id_token);
+      console.log("[oauth] Apple user JSON present:", !!userJson);
+      
+      // Parse user info (Apple only sends this on first authorization)
+      let appleUserInfo: any = {};
+      if (userJson) {
+        try {
+          appleUserInfo = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+          console.log("[oauth] Apple user info:", JSON.stringify(appleUserInfo));
+        } catch (e) {
+          console.log("[oauth] Could not parse Apple user JSON");
         }
-        console.log("[oauth] Apple auth successful, user:", user);
+      }
+      
+      // Generate client secret for token exchange
+      const clientSecret = generateAppleClientSecret();
+      const clientId = process.env.APPLE_CLIENT_ID!;
+      const callbackUrl = `${APP_URL}/api/auth/apple/callback`;
+      
+      // Exchange code for tokens
+      console.log("[oauth] Exchanging Apple code for tokens...");
+      const tokenResponse = await fetch("https://appleid.apple.com/auth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          grant_type: 'authorization_code',
+          redirect_uri: callbackUrl,
+        }),
+      });
+      
+      const tokenData = await tokenResponse.json();
+      console.log("[oauth] Apple token response status:", tokenResponse.status);
+      
+      if (!tokenResponse.ok) {
+        console.error("[oauth] Apple token exchange failed:", JSON.stringify(tokenData));
+        return res.redirect(`/?error=apple_auth_failed&message=${encodeURIComponent(tokenData.error || 'token_exchange_failed')}`);
+      }
+      
+      // Decode the id_token (use the one from token response, or the one from the callback)
+      const idTokenToUse = tokenData.id_token || id_token;
+      if (!idTokenToUse) {
+        console.error("[oauth] No id_token available");
+        return res.redirect("/?error=apple_auth_failed&message=no_id_token");
+      }
+      
+      const decoded: any = jwt.decode(idTokenToUse);
+      console.log("[oauth] Apple decoded token - sub:", decoded?.sub, "email:", decoded?.email);
+      
+      if (!decoded?.sub) {
+        console.error("[oauth] No sub in Apple id_token");
+        return res.redirect("/?error=apple_auth_failed&message=invalid_token");
+      }
+      
+      // Extract user info
+      const email = decoded.email;
+      const firstName = appleUserInfo?.name?.firstName || "Apple";
+      const lastName = appleUserInfo?.name?.lastName || "User";
+      
+      console.log("[oauth] Apple user - email:", email, "sub:", decoded.sub, "name:", firstName, lastName);
+      
+      // Find or create user
+      const user = await findOrCreateUser({
+        id: decoded.sub,
+        provider: "apple",
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        profileImageUrl: undefined,
+      });
+      
+      console.log("[oauth] Apple user created/found:", user.id);
+      
+      // Log the user in
+      req.login(user, (err) => {
+        if (err) {
+          console.error("[oauth] Apple login session error:", err);
+          return res.redirect("/?error=apple_auth_failed&message=session_error");
+        }
+        console.log("[oauth] Apple auth successful!");
         res.redirect("/");
       });
-    })(req, res, next);
+    } catch (err: any) {
+      console.error("[oauth] Apple OAuth error:", err);
+      res.redirect(`/?error=apple_auth_failed&message=${encodeURIComponent(err.message || 'server_error')}`);
+    }
   });
 
   // Get current user

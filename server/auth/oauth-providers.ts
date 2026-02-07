@@ -2,13 +2,12 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GitHubStrategy } from "passport-github2";
-import AppleStrategy from "passport-apple";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 
-function formatApplePrivateKey(key: string): string {
+export function formatApplePrivateKey(key: string): string {
   let cleanKey = key
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
@@ -24,7 +23,7 @@ function formatApplePrivateKey(key: string): string {
   return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----`;
 }
 
-function generateAppleClientSecret(): string {
+export function generateAppleClientSecret(): string {
   const teamId = process.env.APPLE_TEAM_ID!;
   const clientId = process.env.APPLE_CLIENT_ID!;
   const keyId = process.env.APPLE_KEY_ID!;
@@ -57,7 +56,7 @@ interface OAuthUserData {
   profileImageUrl?: string;
 }
 
-async function findOrCreateUser(data: OAuthUserData) {
+export async function findOrCreateUser(data: OAuthUserData) {
   const existingUsers = await db.select().from(users).where(eq(users.providerId, data.id));
   
   if (existingUsers.length > 0) {
@@ -189,66 +188,9 @@ export function setupOAuthProviders() {
     console.log("[oauth] GitHub OAuth not configured");
   }
 
-  // Apple OAuth
+  // Apple OAuth - handled manually in oauth-routes.ts (not via passport-apple)
   if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) {
-    try {
-      const formattedPrivateKey = formatApplePrivateKey(process.env.APPLE_PRIVATE_KEY);
-      const clientSecret = generateAppleClientSecret();
-      passport.use(new AppleStrategy({
-        clientID: process.env.APPLE_CLIENT_ID,
-        teamID: process.env.APPLE_TEAM_ID,
-        keyID: process.env.APPLE_KEY_ID,
-        privateKeyString: formattedPrivateKey,
-        callbackURL: `${APP_URL}/api/auth/apple/callback`,
-        scope: ["name", "email"],
-        passReqToCallback: true,
-      }, async (req: any, accessToken: string, refreshToken: string, idToken: any, profile: any, done: any) => {
-        try {
-          console.log("[oauth] Apple verify callback called");
-          console.log("[oauth] Apple idToken type:", typeof idToken, "length:", typeof idToken === 'string' ? idToken.length : 'N/A');
-          
-          let decodedToken: any = {};
-          if (typeof idToken === 'string') {
-            decodedToken = jwt.decode(idToken) || {};
-            console.log("[oauth] Apple decoded token sub:", decodedToken.sub, "email:", decodedToken.email);
-          } else if (idToken && typeof idToken === 'object') {
-            decodedToken = idToken;
-            console.log("[oauth] Apple idToken is already object, sub:", decodedToken.sub);
-          }
-          
-          const appleProfile = req.appleProfile || {};
-          console.log("[oauth] Apple req.appleProfile:", JSON.stringify(appleProfile));
-          
-          const email = decodedToken.email || profile?.email;
-          const firstName = appleProfile?.name?.firstName || profile?.name?.firstName || "Apple";
-          const lastName = appleProfile?.name?.lastName || profile?.name?.lastName || "User";
-          const appleUserId = decodedToken.sub || profile?.id;
-          
-          console.log("[oauth] Apple extracted - email:", email, "userId:", appleUserId, "name:", firstName, lastName);
-          
-          if (!appleUserId) {
-            return done(new Error("No Apple user ID found in token"));
-          }
-          
-          const user = await findOrCreateUser({
-            id: appleUserId,
-            provider: "apple",
-            email: email,
-            firstName: firstName,
-            lastName: lastName,
-            profileImageUrl: undefined,
-          });
-          console.log("[oauth] Apple user created/found:", user.id);
-          done(null, user);
-        } catch (error) {
-          console.error("[oauth] Apple verify error:", error);
-          done(error as Error);
-        }
-      }));
-      console.log("[oauth] Apple OAuth configured");
-    } catch (error) {
-      console.log("[oauth] Apple OAuth configuration failed:", error);
-    }
+    console.log("[oauth] Apple OAuth configured (manual implementation)");
   } else {
     console.log("[oauth] Apple OAuth not configured (missing APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, or APPLE_PRIVATE_KEY)");
   }
