@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { SiGoogle, SiFacebook, SiGithub, SiApple } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
+import showLogo from "@assets/image_1770482566548.png";
 
 export default function LandingPage() {
   const { data: providersData } = useQuery<{ providers: string[] }>({
@@ -99,10 +100,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Stethoscope className="h-6 w-6 text-primary" />
-              <DollarSign className="h-6 w-6 text-primary" />
-            </div>
+            <img src={showLogo} alt="The Medicine and Money Show" className="h-10 w-10 object-contain" data-testid="img-header-logo" />
             <span className="font-bold text-lg hidden sm:block">Medicine & Money Hub</span>
           </div>
           <div className="flex items-center gap-3">
@@ -159,9 +157,8 @@ export default function LandingPage() {
             <div id="login-section" className="lg:pl-8">
               <Card className="w-full max-w-md mx-auto border-2">
                 <CardHeader className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Stethoscope className="h-10 w-10 text-primary" />
-                    <DollarSign className="h-10 w-10 text-primary" />
+                  <div className="flex items-center justify-center mb-4">
+                    <img src={showLogo} alt="The Medicine and Money Show" className="h-24 w-24 object-contain" data-testid="img-login-logo" />
                   </div>
                   <CardTitle className="text-2xl">Welcome Back</CardTitle>
                   <CardDescription>
