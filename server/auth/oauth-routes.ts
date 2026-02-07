@@ -249,6 +249,18 @@ export function setupOAuthRoutes(app: Express) {
     const state = Math.random().toString(36).substring(2);
     (req.session as any).appleOAuthState = state;
     
+    console.log("[oauth] Apple client_id:", clientId);
+    console.log("[oauth] Apple redirect_uri:", callbackUrl);
+    
+    // Test that we can generate a client secret (validates the private key)
+    try {
+      const testSecret = generateAppleClientSecret();
+      console.log("[oauth] Apple client secret generated successfully, length:", testSecret.length);
+    } catch (e: any) {
+      console.error("[oauth] Apple client secret generation FAILED:", e.message);
+      return res.redirect(`/?error=apple_auth_failed&message=${encodeURIComponent('client_secret_generation_failed: ' + e.message)}`);
+    }
+    
     const authUrl = `https://appleid.apple.com/auth/authorize?` + new URLSearchParams({
       client_id: clientId,
       redirect_uri: callbackUrl,
@@ -260,6 +272,14 @@ export function setupOAuthRoutes(app: Express) {
     
     console.log("[oauth] Apple auth URL:", authUrl);
     res.redirect(authUrl);
+  });
+
+  // Apple may redirect with GET for errors
+  app.get("/api/auth/apple/callback", (req, res) => {
+    console.log("[oauth] Apple GET callback received (error redirect)");
+    console.log("[oauth] Apple GET query:", JSON.stringify(req.query));
+    const error = req.query.error || "unknown_error";
+    res.redirect(`/?error=apple_auth_failed&message=${encodeURIComponent(String(error))}`);
   });
 
   app.post("/api/auth/apple/callback", async (req, res) => {
