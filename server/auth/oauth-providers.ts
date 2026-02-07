@@ -66,7 +66,7 @@ interface OAuthProfile {
   profileImageUrl?: string;
 }
 
-async function findOrCreateUser(profile: OAuthProfile) {
+export async function findOrCreateUser(profile: OAuthProfile) {
   const odataId = `${profile.provider}_${profile.id}`;
   
   const existingUsers = await db.select().from(users).where(eq(users.id, odataId));

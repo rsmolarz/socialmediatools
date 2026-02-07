@@ -35,6 +35,10 @@ export function getOAuthSession(): RequestHandler {
 }
 
 export function setupOAuthRoutes(app: Express) {
+  const APP_URL = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : process.env.APP_URL || "http://localhost:5000";
+
   // Initialize session and passport
   app.set("trust proxy", 1);
   app.use(getOAuthSession());
@@ -108,30 +112,101 @@ export function setupOAuthRoutes(app: Express) {
     });
   });
 
-  // Google OAuth routes
-  app.get("/api/auth/google", (req, res, next) => {
-    console.log("[oauth] Starting Google OAuth flow");
-    next();
-  }, passport.authenticate("google", { 
-    scope: ["openid", "profile", "email"],
-    accessType: "online",
-    prompt: "consent"
-  })
-  );
+  // Google OAuth routes - manual implementation for better error handling
+  const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+  const googleCallbackUrl = `${APP_URL}/api/auth/google/callback`;
 
-  app.get("/api/auth/google/callback", (req, res, next) => {
-    console.log("[oauth] Google callback received");
-    next();
-  },
-    passport.authenticate("google", { 
-      failureRedirect: "/?error=google_auth_failed",
-      failureMessage: true 
-    }),
-    (req, res) => {
-      console.log("[oauth] Google auth successful, user:", req.user);
-      res.redirect("/");
+  app.get("/api/auth/google", (req, res) => {
+    console.log("[oauth] Starting manual Google OAuth flow");
+    const state = Math.random().toString(36).substring(2);
+    (req.session as any).googleOAuthState = state;
+    
+    const params = new URLSearchParams({
+      client_id: googleClientId || '',
+      redirect_uri: googleCallbackUrl,
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'online',
+      state: state,
+      prompt: 'select_account',
+    });
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    console.log("[oauth] Redirecting to Google:", authUrl);
+    res.redirect(authUrl);
+  });
+
+  app.get("/api/auth/google/callback", async (req, res) => {
+    console.log("[oauth] Google callback received, query:", JSON.stringify(req.query));
+    
+    const { code, error, error_description } = req.query;
+    
+    if (error) {
+      console.error("[oauth] Google returned error:", error, error_description);
+      return res.redirect(`/?error=google_auth_failed&detail=${encodeURIComponent(String(error_description || error))}`);
     }
-  );
+    
+    if (!code) {
+      console.error("[oauth] No authorization code received");
+      return res.redirect("/?error=google_auth_failed&detail=no_code");
+    }
+    
+    try {
+      // Exchange code for tokens
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code: String(code),
+          client_id: googleClientId || '',
+          client_secret: googleClientSecret || '',
+          redirect_uri: googleCallbackUrl,
+          grant_type: 'authorization_code',
+        }),
+      });
+      
+      const tokenData = await tokenResponse.json();
+      console.log("[oauth] Token response status:", tokenResponse.status);
+      
+      if (!tokenResponse.ok) {
+        console.error("[oauth] Token exchange failed:", tokenData);
+        return res.redirect(`/?error=google_auth_failed&detail=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+      }
+      
+      // Get user info
+      const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      
+      const userInfo = await userInfoResponse.json();
+      console.log("[oauth] Google user info:", JSON.stringify(userInfo));
+      
+      // Find or create user
+      const { findOrCreateUser } = await import("./oauth-providers");
+      const user = await findOrCreateUser({
+        id: userInfo.id,
+        provider: "google",
+        email: userInfo.email,
+        firstName: userInfo.given_name,
+        lastName: userInfo.family_name,
+        profileImageUrl: userInfo.picture,
+      });
+      
+      // Log the user in
+      req.login(user, (err) => {
+        if (err) {
+          console.error("[oauth] Login error:", err);
+          return res.redirect("/?error=google_auth_failed&detail=login_error");
+        }
+        console.log("[oauth] Google auth successful, user:", user.id);
+        res.redirect("/");
+      });
+    } catch (err) {
+      console.error("[oauth] Google OAuth error:", err);
+      res.redirect("/?error=google_auth_failed&detail=server_error");
+    }
+  });
 
   // Facebook OAuth routes
   app.get("/api/auth/facebook", (req, res, next) => {
