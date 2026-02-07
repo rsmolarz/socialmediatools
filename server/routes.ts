@@ -36,7 +36,7 @@ import { viralAnalyzer } from "./lib/viral-analyzer";
 import { randomBytes } from "crypto";
 import archiver from "archiver";
 import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo } from "./youtube";
-import { setupOAuthRoutes } from "./auth/oauth-routes";
+import { setupOAuthRoutes, seedDemoAccount } from "./auth/oauth-routes";
 import { publishToGHL, getGHLConnectionStatus } from "./ghl-service";
 
 const openai = new OpenAI({
@@ -51,6 +51,9 @@ export async function registerRoutes(
   
   // Setup custom OAuth authentication (Google, Facebook, GitHub, Apple)
   setupOAuthRoutes(app);
+  
+  // Seed demo account on startup
+  seedDemoAccount();
   
   // Get all thumbnails
   app.get("/api/thumbnails", async (_req, res) => {

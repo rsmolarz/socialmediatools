@@ -1,8 +1,9 @@
-APPLE_CLIENT_IDimport { Express, RequestHandler } from "express";
+import { Express, RequestHandler } from "express";
 import passport from "passport";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { setupOAuthProviders, getConfiguredProviders, findOrCreateUser, generateAppleClientSecret } from "./oauth-providers";
 import { db } from "../db";
 import { users } from "@shared/models/auth";
@@ -438,8 +439,64 @@ export function setupOAuthRoutes(app: Express) {
     res.redirect("/?showLogin=true");
   });
 
+  // Demo login endpoint
+  app.post("/api/auth/demo-login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+
+      const [demoUser] = await db.select().from(users).where(eq(users.username, username));
+      if (!demoUser || !demoUser.password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const isValid = await bcrypt.compare(password, demoUser.password);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const { password: _pw, ...safeUser } = demoUser;
+      req.login(safeUser, (err) => {
+        if (err) {
+          console.error("[auth] Demo login session error:", err);
+          return res.status(500).json({ message: "Session error" });
+        }
+        res.json({ success: true, user: safeUser });
+      });
+    } catch (err: any) {
+      console.error("[auth] Demo login error:", err);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
   console.log("[oauth] OAuth routes configured");
   console.log("[oauth] Available providers:", getConfiguredProviders());
+}
+
+export async function seedDemoAccount() {
+  try {
+    const [existing] = await db.select().from(users).where(eq(users.username, "demo"));
+    if (existing) {
+      console.log("[auth] Demo account already exists");
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash("demo1234", 10);
+    await db.insert(users).values({
+      username: "demo",
+      email: "demo@medicineandmoney.show",
+      firstName: "Demo",
+      lastName: "User",
+      provider: "local",
+      providerId: "demo",
+      password: hashedPassword,
+    });
+    console.log("[auth] Demo account created (username: demo, password: demo1234)");
+  } catch (err) {
+    console.error("[auth] Failed to seed demo account:", err);
+  }
 }
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {

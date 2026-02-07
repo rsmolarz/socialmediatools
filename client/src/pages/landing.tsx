@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   Youtube, 
@@ -13,18 +15,24 @@ import {
   ArrowRight,
   CheckCircle,
   Stethoscope,
-  DollarSign
+  DollarSign,
+  LogIn,
+  Loader2
 } from "lucide-react";
 import { SiGoogle, SiFacebook, SiGithub, SiApple } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import showLogo from "@assets/image_1770482566548.png";
 
 export default function LandingPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
+  const [demoUsername, setDemoUsername] = useState("demo");
+  const [demoPassword, setDemoPassword] = useState("demo1234");
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoError, setDemoError] = useState("");
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -42,6 +50,29 @@ export default function LandingPage() {
   const authError = urlParams.get("error");
   const authMessage = urlParams.get("message");
   const accessDenied = urlParams.get("access") === "denied";
+
+  const handleDemoLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDemoLoading(true);
+    setDemoError("");
+    try {
+      const res = await fetch("/api/auth/demo-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: demoUsername, password: demoPassword }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        window.location.href = "/";
+      } else {
+        setDemoError(data.message || "Login failed");
+      }
+    } catch {
+      setDemoError("Connection error. Please try again.");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
 
   const features = [
     {
@@ -231,6 +262,54 @@ export default function LandingPage() {
                       No OAuth providers configured yet. Please add your OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, etc.) to enable login.
                     </p>
                   )}
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">Or use demo account</span>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleDemoLogin} className="space-y-3" data-testid="form-demo-login">
+                    {demoError && (
+                      <div className="p-2 rounded-md bg-destructive/10 text-destructive text-sm text-center" data-testid="text-demo-error">
+                        {demoError}
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <Label htmlFor="demo-username" className="text-xs">Username</Label>
+                      <Input
+                        id="demo-username"
+                        value={demoUsername}
+                        onChange={(e) => setDemoUsername(e.target.value)}
+                        placeholder="demo"
+                        data-testid="input-demo-username"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="demo-password" className="text-xs">Password</Label>
+                      <Input
+                        id="demo-password"
+                        type="password"
+                        value={demoPassword}
+                        onChange={(e) => setDemoPassword(e.target.value)}
+                        placeholder="demo1234"
+                        data-testid="input-demo-password"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={demoLoading} data-testid="button-demo-login">
+                      {demoLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Sign In
+                        </>
+                      )}
+                    </Button>
+                  </form>
                   
                   <p className="text-xs text-center text-muted-foreground pt-2">
                     By signing in, you agree to our{" "}
