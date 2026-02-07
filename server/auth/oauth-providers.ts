@@ -91,12 +91,14 @@ export function setupOAuthProviders() {
   const googleClientId = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   const googleClientSecret = process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
   if (googleClientId && googleClientSecret) {
-    const maskedClientId = googleClientId.substring(0, 12) + "..." + googleClientId.substring(googleClientId.length - 20);
-    console.log("[oauth] Google Client ID being used:", maskedClientId);
+    const trimmedClientId = googleClientId.trim();
+    const trimmedClientSecret = googleClientSecret.trim();
+    console.log("[oauth] Google Client ID length:", trimmedClientId.length, "ends with:", trimmedClientId.substring(trimmedClientId.length - 30));
+    console.log("[oauth] Google Client Secret length:", trimmedClientSecret.length);
     console.log("[oauth] Google callback URL:", `${APP_URL}/api/auth/google/callback`);
     passport.use(new GoogleStrategy({
-      clientID: googleClientId,
-      clientSecret: googleClientSecret,
+      clientID: trimmedClientId,
+      clientSecret: trimmedClientSecret,
       callbackURL: `${APP_URL}/api/auth/google/callback`,
       scope: ["profile", "email"],
     }, async (accessToken, refreshToken, profile, done) => {
