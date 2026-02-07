@@ -125,17 +125,8 @@ export function setupOAuthRoutes(app: Express) {
     const state = Math.random().toString(36).substring(2);
     (req.session as any).googleOAuthState = state;
     
-    const params = new URLSearchParams({
-      client_id: googleClientId || '',
-      redirect_uri: googleCallbackUrl,
-      response_type: 'code',
-      scope: 'openid email profile',
-      access_type: 'online',
-      state: state,
-      prompt: 'select_account',
-    });
-    
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    // Use minimal parameters to avoid 403
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(googleClientId || '')}&redirect_uri=${encodeURIComponent(googleCallbackUrl)}&response_type=code&scope=openid%20email%20profile&state=${state}`;
     console.log("[oauth] Redirecting to Google:", authUrl);
     res.redirect(authUrl);
   });
