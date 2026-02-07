@@ -238,15 +238,25 @@ export default function LandingPage() {
                         className={`w-full h-12 text-base justify-start gap-3 ${provider.color}`}
                         variant="outline"
                         size="lg" 
-                        asChild={isConfigured}
                         disabled={!isConfigured}
+                        onClick={() => {
+                          if (isConfigured) {
+                            let inIframe = false;
+                            try { inIframe = window.self !== window.top; } catch { inIframe = true; }
+                            if (inIframe) {
+                              window.open(provider.href, "_blank");
+                            } else {
+                              window.location.href = provider.href;
+                            }
+                          }
+                        }}
                         data-testid={`button-signin-${provider.id}`}
                       >
                         {isConfigured ? (
-                          <a href={provider.href}>
+                          <span className="flex items-center gap-3">
                             {provider.icon}
                             Continue with {provider.name}
-                          </a>
+                          </span>
                         ) : (
                           <span className="flex items-center gap-3 opacity-50">
                             {provider.icon}
