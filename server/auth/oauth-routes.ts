@@ -4,7 +4,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { setupOAuthProviders, getConfiguredProviders, findOrCreateUser, generateAppleClientSecret } from "./oauth-providers";
+import { setupOAuthProviders, getConfiguredProviders, findOrCreateUser, generateAppleClientSecret, getAppleClientId } from "./oauth-providers";
 import { db } from "../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
@@ -279,7 +279,7 @@ export function setupOAuthRoutes(app: Express) {
   // Apple OAuth routes - manual implementation (no passport-apple)
   app.get("/api/auth/apple", (req, res) => {
     console.log("[oauth] Starting manual Apple OAuth flow");
-    const clientId = process.env.APPLE_CLIENT_ID!;
+    const clientId = getAppleClientId();
     const callbackUrl = `${APP_URL}/api/auth/apple/callback`;
     const state = Math.random().toString(36).substring(2);
     (req.session as any).appleOAuthState = state;
@@ -351,7 +351,7 @@ export function setupOAuthRoutes(app: Express) {
       
       // Generate client secret for token exchange
       const clientSecret = generateAppleClientSecret();
-      const clientId = process.env.APPLE_CLIENT_ID!;
+      const clientId = getAppleClientId();
       const callbackUrl = `${APP_URL}/api/auth/apple/callback`;
       
       // Exchange code for tokens

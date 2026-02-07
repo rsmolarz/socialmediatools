@@ -23,11 +23,26 @@ export function formatApplePrivateKey(key: string): string {
   return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----`;
 }
 
+export function getAppleClientId(): string {
+  return process.env.APPLE_BUNDLE_ID || process.env.APPLE_CLIENT_ID || '';
+}
+
 export function generateAppleClientSecret(): string {
   const teamId = process.env.APPLE_TEAM_ID!;
-  const clientId = process.env.APPLE_CLIENT_ID!;
+  const clientId = getAppleClientId();
   const keyId = process.env.APPLE_KEY_ID!;
   const privateKey = formatApplePrivateKey(process.env.APPLE_PRIVATE_KEY!);
+  
+  if (!clientId) {
+    throw new Error("Missing APPLE_BUNDLE_ID or APPLE_CLIENT_ID");
+  }
+  
+  console.log("[apple] Generating client secret with:", {
+    teamId,
+    clientId,
+    keyId,
+    privateKeyLength: privateKey.length,
+  });
   
   const now = Math.floor(Date.now() / 1000);
   const payload = {
@@ -189,10 +204,14 @@ export function setupOAuthProviders() {
   }
 
   // Apple OAuth - handled manually in oauth-routes.ts (not via passport-apple)
-  if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) {
+  const appleClientId = getAppleClientId();
+  if (appleClientId && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) {
     console.log("[oauth] Apple OAuth configured (manual implementation)");
+    console.log("[oauth] Apple client_id:", appleClientId);
+    console.log("[oauth] Apple team_id:", process.env.APPLE_TEAM_ID);
+    console.log("[oauth] Apple key_id:", process.env.APPLE_KEY_ID);
   } else {
-    console.log("[oauth] Apple OAuth not configured (missing APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, or APPLE_PRIVATE_KEY)");
+    console.log("[oauth] Apple OAuth not configured (missing APPLE_BUNDLE_ID/APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, or APPLE_PRIVATE_KEY)");
   }
 }
 
@@ -201,6 +220,6 @@ export function getConfiguredProviders(): string[] {
   if ((process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID) && (process.env.SOCIAL_MEDIA_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET)) providers.push("google");
   if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) providers.push("facebook");
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) providers.push("github");
-  if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) providers.push("apple");
+  if (getAppleClientId() && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) providers.push("apple");
   return providers;
 }

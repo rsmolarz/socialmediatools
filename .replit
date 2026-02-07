@@ -59,3 +59,4 @@ qwPUu4OKmas+bJaSho6qcSqWW7dAZWlJr0xKeMkThQsFnGrXlqeFwrYVr/9oSccr
 mz2kC0Nm
 -----END PRIVATE KEY-----"""
 APP_URL = "https://medmoneyviralcontent.com"
+APPLE_BUNDLE_ID = "com.medicineandmoneyshow.webapp"
