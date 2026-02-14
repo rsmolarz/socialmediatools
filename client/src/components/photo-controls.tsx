@@ -231,8 +231,8 @@ export function PhotoControls({
                 <Slider
                   value={[hostPhoto.offsetX]}
                   onValueChange={([v]) => onHostPhotoChange({ ...hostPhoto, offsetX: v })}
-                  min={-200}
-                  max={200}
+                  min={-640}
+                  max={640}
                   step={5}
                   data-testid="slider-host-offsetx"
                 />
@@ -245,8 +245,8 @@ export function PhotoControls({
                 <Slider
                   value={[hostPhoto.offsetY]}
                   onValueChange={([v]) => onHostPhotoChange({ ...hostPhoto, offsetY: v })}
-                  min={-200}
-                  max={200}
+                  min={-400}
+                  max={400}
                   step={5}
                   data-testid="slider-host-offsety"
                 />
@@ -337,8 +337,8 @@ export function PhotoControls({
                 <Slider
                   value={[guestPhoto.offsetX]}
                   onValueChange={([v]) => onGuestPhotoChange({ ...guestPhoto, offsetX: v })}
-                  min={-200}
-                  max={200}
+                  min={-640}
+                  max={640}
                   step={5}
                   data-testid="slider-guest-offsetx"
                 />
@@ -351,8 +351,8 @@ export function PhotoControls({
                 <Slider
                   value={[guestPhoto.offsetY]}
                   onValueChange={([v]) => onGuestPhotoChange({ ...guestPhoto, offsetY: v })}
-                  min={-200}
-                  max={200}
+                  min={-400}
+                  max={400}
                   step={5}
                   data-testid="slider-guest-offsety"
                 />
