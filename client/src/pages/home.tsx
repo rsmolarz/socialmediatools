@@ -9,7 +9,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ThumbnailCanvas, ThumbnailCanvasRef } from "@/components/thumbnail-canvas";
+import {
+  ThumbnailCanvas,
+  ThumbnailCanvasRef,
+} from "@/components/thumbnail-canvas";
 import { TextControls } from "@/components/text-controls";
 import { TextLineControls } from "@/components/text-line-controls";
 import { BackgroundControls } from "@/components/background-controls";
@@ -45,7 +48,15 @@ import {
   Keyboard,
   Shield,
 } from "lucide-react";
-import type { ThumbnailConfig, TextOverlay, TextLine, BackgroundEffects, Thumbnail, InsertThumbnail, PhotoConfig as PhotoConfigType } from "@shared/schema";
+import type {
+  ThumbnailConfig,
+  TextOverlay,
+  TextLine,
+  BackgroundEffects,
+  Thumbnail,
+  InsertThumbnail,
+  PhotoConfig as PhotoConfigType,
+} from "@shared/schema";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -89,7 +100,7 @@ export default function Home() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const canvasRef = useRef<ThumbnailCanvasRef>(null);
-  
+
   const {
     state: config,
     setState: setConfig,
@@ -102,12 +113,13 @@ export default function Home() {
     initialState: DEFAULT_CONFIG,
     maxHistorySize: 50,
   });
-  
+
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [thumbnailTitle, setThumbnailTitle] = useState("My Thumbnail");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [canvasDataUrl, setCanvasDataUrl] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [activeTab, setActiveTab] = useState("text");
 
   useEffect(() => {
     const updatePreview = () => {
@@ -120,27 +132,31 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [config]);
 
-  const { data: thumbnails = [], isLoading: thumbnailsLoading } = useQuery<Thumbnail[]>({
+  const { data: thumbnails = [], isLoading: thumbnailsLoading } = useQuery<
+    Thumbnail[]
+  >({
     queryKey: ["/api/thumbnails"],
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: InsertThumbnail): Promise<Thumbnail> => {
-      const url = editingId ? `/api/thumbnails/${editingId}` : "/api/thumbnails";
+      const url = editingId
+        ? `/api/thumbnails/${editingId}`
+        : "/api/thumbnails";
       const method = editingId ? "PATCH" : "POST";
-      
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
         credentials: "include",
       });
-      
+
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || res.statusText);
       }
-      
+
       return res.json();
     },
     onSuccess: (savedThumbnail: Thumbnail) => {
@@ -216,28 +232,37 @@ export default function Home() {
     setSelectedTextId(newOverlay.id);
   }, [config.width, config.height]);
 
-  const updateTextOverlay = useCallback((id: string, updates: Partial<TextOverlay>) => {
-    setConfig((prev) => ({
-      ...prev,
-      overlays: prev.overlays.map((overlay) =>
-        overlay.id === id ? { ...overlay, ...updates } : overlay
-      ),
-    }));
-  }, []);
+  const updateTextOverlay = useCallback(
+    (id: string, updates: Partial<TextOverlay>) => {
+      setConfig((prev) => ({
+        ...prev,
+        overlays: prev.overlays.map((overlay) =>
+          overlay.id === id ? { ...overlay, ...updates } : overlay,
+        ),
+      }));
+    },
+    [],
+  );
 
-  const deleteTextOverlay = useCallback((id: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      overlays: prev.overlays.filter((overlay) => overlay.id !== id),
-    }));
-    if (selectedTextId === id) {
-      setSelectedTextId(null);
-    }
-  }, [selectedTextId]);
+  const deleteTextOverlay = useCallback(
+    (id: string) => {
+      setConfig((prev) => ({
+        ...prev,
+        overlays: prev.overlays.filter((overlay) => overlay.id !== id),
+      }));
+      if (selectedTextId === id) {
+        setSelectedTextId(null);
+      }
+    },
+    [selectedTextId],
+  );
 
-  const handleTextMove = useCallback((id: string, x: number, y: number) => {
-    updateTextOverlay(id, { x, y });
-  }, [updateTextOverlay]);
+  const handleTextMove = useCallback(
+    (id: string, x: number, y: number) => {
+      updateTextOverlay(id, { x, y });
+    },
+    [updateTextOverlay],
+  );
 
   const handleDownload = () => {
     canvasRef.current?.downloadImage();
@@ -320,14 +345,14 @@ export default function Home() {
 
   const handlePresetBackground = (background: string) => {
     if (background.startsWith("linear-gradient")) {
-      setConfig((prev) => ({ 
-        ...prev, 
+      setConfig((prev) => ({
+        ...prev,
         backgroundImage: undefined,
         backgroundColor: background,
       }));
     } else {
-      setConfig((prev) => ({ 
-        ...prev, 
+      setConfig((prev) => ({
+        ...prev,
         backgroundImage: undefined,
         backgroundColor: background,
       }));
@@ -362,7 +387,7 @@ export default function Home() {
         return { ...prev, textLines: newLines };
       });
     }
-    
+
     toast({
       title: "Transcript Analyzed",
       description: `Detected ${analysis.themes.length} themes. ${title ? "Title applied!" : "Background generating..."}`,
@@ -370,23 +395,27 @@ export default function Home() {
   };
 
   // Generate AI background from transcript analysis
-  const handleGenerateFromTranscript = async (prompt: string, style: string, mood: string) => {
+  const handleGenerateFromTranscript = async (
+    prompt: string,
+    style: string,
+    mood: string,
+  ) => {
     try {
       const fullPrompt = `${prompt}, ${style} style, ${mood} mood, abstract background for podcast thumbnail, no text, no people, vibrant colors`;
-      
+
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: fullPrompt, size: "1024x1024" }),
       });
-      
+
       if (!response.ok) throw new Error("Failed to generate image");
-      
+
       const data = await response.json();
       const imageUrl = `data:image/png;base64,${data.b64_json}`;
-      
+
       setConfig((prev) => ({ ...prev, backgroundImage: imageUrl }));
-      
+
       toast({
         title: "Background Generated",
         description: "AI background created from transcript themes!",
@@ -427,8 +456,12 @@ export default function Home() {
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-semibold text-lg leading-tight">Thumbnail Generator</h1>
-              <p className="text-xs text-muted-foreground">Create stunning thumbnails</p>
+              <h1 className="font-semibold text-lg leading-tight">
+                Thumbnail Generator
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Create stunning thumbnails
+              </p>
             </div>
           </div>
 
@@ -463,7 +496,11 @@ export default function Home() {
               data-testid="button-save"
             >
               <Save className="h-4 w-4 mr-2" />
-              {saveMutation.isPending ? "Saving..." : editingId ? "Update" : "Save"}
+              {saveMutation.isPending
+                ? "Saving..."
+                : editingId
+                  ? "Update"
+                  : "Save"}
             </Button>
             <Link href="/tools">
               <Button variant="outline" data-testid="button-tools">
@@ -478,9 +515,9 @@ export default function Home() {
               </Button>
             </Link>
             <div className="flex items-center gap-1 border-l pl-3 ml-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 title="Undo (Ctrl+Z)"
@@ -488,9 +525,9 @@ export default function Home() {
               >
                 <Undo2 className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleRedo}
                 disabled={!canRedo}
                 title="Redo (Ctrl+Y)"
@@ -498,9 +535,9 @@ export default function Home() {
               >
                 <Redo2 className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowShortcutsHelp(true)}
                 title="Keyboard Shortcuts (Shift+?)"
                 data-testid="button-shortcuts"
@@ -514,9 +551,9 @@ export default function Home() {
         </div>
       </header>
 
-      <KeyboardShortcutsHelp 
-        open={showShortcutsHelp} 
-        onOpenChange={setShowShortcutsHelp} 
+      <KeyboardShortcutsHelp
+        open={showShortcutsHelp}
+        onOpenChange={setShowShortcutsHelp}
       />
 
       {/* Main Content */}
@@ -551,14 +588,18 @@ export default function Home() {
                 />
 
                 <div className="mt-4 flex items-center gap-2 flex-wrap">
-                  <Button onClick={addTextOverlay} data-testid="button-add-text">
+                  <Button
+                    onClick={addTextOverlay}
+                    data-testid="button-add-text"
+                  >
                     <Type className="h-4 w-4 mr-2" />
                     Add Text
                   </Button>
                   <div className="flex-1" />
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Layers className="h-4 w-4" />
-                    {config.overlays.length} layer{config.overlays.length !== 1 ? "s" : ""}
+                    {config.overlays.length} layer
+                    {config.overlays.length !== 1 ? "s" : ""}
                   </div>
                 </div>
               </CardContent>
@@ -575,7 +616,11 @@ export default function Home() {
 
           {/* Controls Sidebar */}
           <div className="space-y-4">
-            <Tabs defaultValue="text" className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
               <TabsList className="w-full grid grid-cols-5">
                 <TabsTrigger value="text" data-testid="tab-text">
                   <Type className="h-4 w-4 mr-1" />
@@ -606,7 +651,8 @@ export default function Home() {
                       currentTitle={config.textLines?.[0]?.text || ""}
                       onTitleSelect={(title) => {
                         setConfig((prev) => {
-                          const currentLines = prev.textLines || DEFAULT_TEXT_LINES;
+                          const currentLines =
+                            prev.textLines || DEFAULT_TEXT_LINES;
                           const newLines = [...currentLines];
                           if (newLines[0]) {
                             newLines[0] = { ...newLines[0], text: title };
@@ -619,17 +665,25 @@ export default function Home() {
                       lines={config.textLines || []}
                       layout={config.layout || "centered"}
                       accentColor={config.accentColor || "orange"}
-                      onLinesChange={(lines) => setConfig((prev) => ({ ...prev, textLines: lines }))}
-                      onLayoutChange={(layout) => setConfig((prev) => ({ ...prev, layout }))}
-                      onAccentColorChange={(accentColor) => setConfig((prev) => ({ ...prev, accentColor }))}
+                      onLinesChange={(lines) =>
+                        setConfig((prev) => ({ ...prev, textLines: lines }))
+                      }
+                      onLayoutChange={(layout) =>
+                        setConfig((prev) => ({ ...prev, layout }))
+                      }
+                      onAccentColorChange={(accentColor) =>
+                        setConfig((prev) => ({ ...prev, accentColor }))
+                      }
                     />
                   </div>
-                  
+
                   {selectedOverlay && (
                     <div className="mt-4">
                       <TextControls
                         overlay={selectedOverlay}
-                        onUpdate={(updates) => updateTextOverlay(selectedOverlay.id, updates)}
+                        onUpdate={(updates) =>
+                          updateTextOverlay(selectedOverlay.id, updates)
+                        }
                         onDelete={() => deleteTextOverlay(selectedOverlay.id)}
                       />
                     </div>
@@ -643,8 +697,12 @@ export default function Home() {
                     <PhotoControls
                       hostPhoto={config.hostPhoto || DEFAULT_PHOTO}
                       guestPhoto={config.guestPhoto || DEFAULT_PHOTO}
-                      onHostPhotoChange={(photo) => setConfig((prev) => ({ ...prev, hostPhoto: photo }))}
-                      onGuestPhotoChange={(photo) => setConfig((prev) => ({ ...prev, guestPhoto: photo }))}
+                      onHostPhotoChange={(photo) =>
+                        setConfig((prev) => ({ ...prev, hostPhoto: photo }))
+                      }
+                      onGuestPhotoChange={(photo) =>
+                        setConfig((prev) => ({ ...prev, guestPhoto: photo }))
+                      }
                     />
                   </div>
                 </ScrollArea>
@@ -658,7 +716,8 @@ export default function Home() {
                       onGenerateBackground={handleGenerateFromTranscript}
                       onApplyViralTitle={(title) => {
                         setConfig((prev) => {
-                          const currentLines = prev.textLines || DEFAULT_TEXT_LINES;
+                          const currentLines =
+                            prev.textLines || DEFAULT_TEXT_LINES;
                           const newLines = [...currentLines];
                           if (newLines[0]) {
                             newLines[0] = { ...newLines[0], text: title };
@@ -674,19 +733,34 @@ export default function Home() {
                       backgroundEffects={config.backgroundEffects}
                       elementOpacity={config.elementOpacity}
                       onColorChange={(color) =>
-                        setConfig((prev) => ({ ...prev, backgroundColor: color }))
+                        setConfig((prev) => ({
+                          ...prev,
+                          backgroundColor: color,
+                        }))
                       }
                       onImageChange={(image) =>
-                        setConfig((prev) => ({ ...prev, backgroundImage: image }))
+                        setConfig((prev) => ({
+                          ...prev,
+                          backgroundImage: image,
+                        }))
                       }
                       onBackgroundOpacityChange={(opacity) =>
-                        setConfig((prev) => ({ ...prev, backgroundOpacity: opacity }))
+                        setConfig((prev) => ({
+                          ...prev,
+                          backgroundOpacity: opacity,
+                        }))
                       }
                       onEffectsChange={(effects) =>
-                        setConfig((prev) => ({ ...prev, backgroundEffects: effects }))
+                        setConfig((prev) => ({
+                          ...prev,
+                          backgroundEffects: effects,
+                        }))
                       }
                       onElementOpacityChange={(opacity) =>
-                        setConfig((prev) => ({ ...prev, elementOpacity: opacity }))
+                        setConfig((prev) => ({
+                          ...prev,
+                          elementOpacity: opacity,
+                        }))
                       }
                     />
                     <PresetBackgrounds onSelect={handlePresetBackground} />
@@ -723,8 +797,24 @@ export default function Home() {
             <span>Description & Tags Optimizer coming soon!</span>
           </div>
           <div className="flex items-center gap-4">
-            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors" data-testid="link-privacy">Privacy Policy</a>
-            <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors" data-testid="link-terms">Terms of Service</a>
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+              data-testid="link-privacy"
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+              data-testid="link-terms"
+            >
+              Terms of Service
+            </a>
           </div>
         </div>
       </footer>
