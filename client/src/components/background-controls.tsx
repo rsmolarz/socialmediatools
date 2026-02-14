@@ -3,8 +3,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ImageIcon, Palette, X, Upload, Rocket } from "lucide-react";
-import { useRef } from "react";
+import { ImageIcon, Palette, X, Upload, Rocket, Save, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { BackgroundEffects } from "@shared/schema";
 import { AIBackgroundGenerator } from "./ai-background-generator";
 
@@ -69,7 +72,34 @@ export function BackgroundControls({
   onElementOpacityChange,
 }: BackgroundControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const [savingBg, setSavingBg] = useState(false);
+  const { toast } = useToast();
+
+  const saveBackgroundMutation = useMutation({
+    mutationFn: async ({ name, imageData }: { name: string; imageData: string }) => {
+      const res = await apiRequest("POST", "/api/saved-photos", { name, imageData });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-photos"] });
+      toast({ title: "Background saved", description: "Your background has been saved to the photo library." });
+    },
+    onError: () => {
+      toast({ title: "Save failed", description: "Could not save the background image.", variant: "destructive" });
+    },
+  });
+
+  const saveBackground = async () => {
+    if (!backgroundImage) return;
+    setSavingBg(true);
+    try {
+      const name = `Background ${new Date().toLocaleDateString()}`;
+      await saveBackgroundMutation.mutateAsync({ name, imageData: backgroundImage });
+    } finally {
+      setSavingBg(false);
+    }
+  };
+
   const updateEffect = <K extends keyof BackgroundEffects>(
     key: K,
     value: BackgroundEffects[K]
@@ -188,12 +218,27 @@ export function BackgroundControls({
         </div>
 
         {backgroundImage && (
-          <div className="relative w-full aspect-video rounded-md overflow-hidden border">
-            <img
-              src={backgroundImage}
-              alt="Background preview"
-              className="w-full h-full object-cover"
-            />
+          <div className="space-y-2">
+            <div className="relative w-full aspect-video rounded-md overflow-hidden border">
+              <img
+                src={backgroundImage}
+                alt="Background preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {backgroundImage.startsWith("data:") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={saveBackground}
+                disabled={savingBg}
+                data-testid="button-save-background"
+              >
+                {savingBg ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Save className="h-3 w-3 mr-2" />}
+                Save Background to Library
+              </Button>
+            )}
           </div>
         )}
 

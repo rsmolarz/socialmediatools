@@ -75,6 +75,10 @@ export function PhotoControls({
       queryClient.invalidateQueries({ queryKey: ["/api/saved-photos"] });
       toast({ title: "Photo saved", description: "Your photo has been saved to the library." });
     },
+    onError: (error: Error) => {
+      console.error("Save photo error:", error);
+      toast({ title: "Save failed", description: "Could not save photo. The image may be too large.", variant: "destructive" });
+    },
   });
 
   const deletePhotoMutation = useMutation({
