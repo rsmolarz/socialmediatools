@@ -42,9 +42,36 @@ export type BackgroundEffects = z.infer<typeof backgroundEffectsSchema>;
 export const photoConfigSchema = z.object({
   url: z.string().nullable().default(null),
   scale: z.number().min(50).max(200).default(100),
-  offsetX: z.number().min(-200).max(200).default(0),
-  offsetY: z.number().min(-200).max(200).default(0),
+  offsetX: z.number().min(-640).max(640).default(0),
+  offsetY: z.number().min(-400).max(400).default(0),
 });
+
+// Saved photo (after background removal)
+export const savedPhotoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string(),
+  createdAt: z.string(),
+});
+
+export type SavedPhoto = z.infer<typeof savedPhotoSchema>;
+
+// Saved photos table
+export const savedPhotos = pgTable("saved_photos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  imageData: text("image_data").notNull(),
+  userId: text("user_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSavedPhotoSchema = createInsertSchema(savedPhotos).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSavedPhoto = z.infer<typeof insertSavedPhotoSchema>;
+export type SavedPhotoRecord = typeof savedPhotos.$inferSelect;
 
 export type PhotoConfig = z.infer<typeof photoConfigSchema>;
 
@@ -64,6 +91,8 @@ export const thumbnailConfigSchema = z.object({
   elementOpacity: z.number().min(0).max(100).default(70),
   hostPhoto: photoConfigSchema.optional(),
   guestPhoto: photoConfigSchema.optional(),
+  textOffsetX: z.number().default(0).optional(),
+  textOffsetY: z.number().default(0).optional(),
 });
 
 export type ThumbnailConfig = z.infer<typeof thumbnailConfigSchema>;

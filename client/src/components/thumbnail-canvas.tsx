@@ -217,29 +217,33 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
       ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textBaseline = "middle";
 
+      // Apply text position offsets
+      const textOffsetX = config.textOffsetX || 0;
+      const textOffsetY = config.textOffsetY || 0;
+
       // Calculate total height for centering
       const totalHeight = lines.length * lineHeight;
-      let startY = (config.height - totalHeight) / 2 + lineHeight / 2;
+      let startY = (config.height - totalHeight) / 2 + lineHeight / 2 + textOffsetY;
 
       // Normalize legacy layout values and adjust based on layout
       let textAlign: CanvasTextAlign = "center";
-      let startX = config.width / 2;
+      let startX = config.width / 2 + textOffsetX;
       const normalizedLayout = config.layout === "left-aligned" ? "soloLeft" 
         : config.layout === "stacked" ? "centered" 
         : config.layout;
 
       if (normalizedLayout === "centered") {
         textAlign = "center";
-        startX = config.width / 2;
+        startX = config.width / 2 + textOffsetX;
       } else if (normalizedLayout === "twoFace") {
         textAlign = "center";
-        startX = config.width / 2;
+        startX = config.width / 2 + textOffsetX;
       } else if (normalizedLayout === "soloLeft") {
         textAlign = "left";
-        startX = config.width * 0.55;
+        startX = config.width * 0.55 + textOffsetX;
       } else if (normalizedLayout === "soloRight") {
         textAlign = "right";
-        startX = config.width * 0.45;
+        startX = config.width * 0.45 + textOffsetX;
       }
 
       ctx.textAlign = textAlign;

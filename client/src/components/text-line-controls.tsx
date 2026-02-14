@@ -2,8 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Target } from "lucide-react";
+import { FileText, Target, Move } from "lucide-react";
 import type { TextLine } from "@shared/schema";
 
 const QUICK_HEADLINES = [
@@ -23,9 +24,13 @@ interface TextLineControlsProps {
   lines: TextLine[];
   layout: LayoutType;
   accentColor: "orange" | "blue" | "purple";
+  textOffsetX?: number;
+  textOffsetY?: number;
   onLinesChange: (lines: TextLine[]) => void;
   onLayoutChange: (layout: LayoutType) => void;
   onAccentColorChange: (color: "orange" | "blue" | "purple") => void;
+  onTextOffsetXChange?: (offset: number) => void;
+  onTextOffsetYChange?: (offset: number) => void;
 }
 
 const normalizeLayout = (layout: LayoutType): "centered" | "twoFace" | "soloLeft" | "soloRight" => {
@@ -44,9 +49,13 @@ export function TextLineControls({
   lines,
   layout,
   accentColor,
+  textOffsetX = 0,
+  textOffsetY = 0,
   onLinesChange,
   onLayoutChange,
   onAccentColorChange,
+  onTextOffsetXChange,
+  onTextOffsetYChange,
 }: TextLineControlsProps) {
   const updateLine = (id: string, updates: Partial<TextLine>) => {
     onLinesChange(
@@ -150,6 +159,57 @@ export function TextLineControls({
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Move className="h-4 w-4" />
+            Text Position
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Position X</Label>
+              <span className="text-xs text-muted-foreground">{textOffsetX}</span>
+            </div>
+            <Slider
+              value={[textOffsetX]}
+              onValueChange={([v]) => onTextOffsetXChange?.(v)}
+              min={-500}
+              max={500}
+              step={5}
+              data-testid="slider-text-offset-x"
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Position Y</Label>
+              <span className="text-xs text-muted-foreground">{textOffsetY}</span>
+            </div>
+            <Slider
+              value={[textOffsetY]}
+              onValueChange={([v]) => onTextOffsetYChange?.(v)}
+              min={-300}
+              max={300}
+              step={5}
+              data-testid="slider-text-offset-y"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              onTextOffsetXChange?.(0);
+              onTextOffsetYChange?.(0);
+            }}
+            data-testid="button-reset-text-position"
+          >
+            Reset Position
+          </Button>
         </CardContent>
       </Card>
 

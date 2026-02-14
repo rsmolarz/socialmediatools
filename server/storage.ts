@@ -25,6 +25,8 @@ import {
   type InsertKeyboardShortcut,
   type Analytics,
   type InsertAnalytics,
+  type SavedPhotoRecord,
+  type InsertSavedPhoto,
   thumbnails,
   users,
   viralContent,
@@ -37,7 +39,8 @@ import {
   collaborationTable,
   commentsTable,
   keyboardShortcutsTable,
-  analyticsTable
+  analyticsTable,
+  savedPhotos,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, or, and, gte, lte } from "drizzle-orm";
@@ -122,6 +125,12 @@ export interface IStorage {
   createAnalyticsEvent(event: InsertAnalytics): Promise<Analytics>;
   getAnalyticsByUser(userId: string, limit?: number): Promise<Analytics[]>;
   getAnalyticsByAction(action: string, limit?: number): Promise<Analytics[]>;
+
+  // Saved Photos methods
+  getAllSavedPhotos(): Promise<Omit<SavedPhotoRecord, "imageData">[]>;
+  getSavedPhoto(id: string): Promise<SavedPhotoRecord | undefined>;
+  createSavedPhoto(photo: InsertSavedPhoto): Promise<SavedPhotoRecord>;
+  deleteSavedPhoto(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -456,6 +465,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(analyticsTable.action, action))
       .orderBy(desc(analyticsTable.createdAt))
       .limit(limit);
+  }
+
+  // Saved Photos methods
+  async getAllSavedPhotos(): Promise<Omit<SavedPhotoRecord, "imageData">[]> {
+    return db.select({
+      id: savedPhotos.id,
+      name: savedPhotos.name,
+      userId: savedPhotos.userId,
+      createdAt: savedPhotos.createdAt,
+    }).from(savedPhotos).orderBy(desc(savedPhotos.createdAt));
+  }
+
+  async getSavedPhoto(id: string): Promise<SavedPhotoRecord | undefined> {
+    const [photo] = await db.select().from(savedPhotos).where(eq(savedPhotos.id, id));
+    return photo;
+  }
+
+  async createSavedPhoto(photo: InsertSavedPhoto): Promise<SavedPhotoRecord> {
+    const [created] = await db.insert(savedPhotos).values(photo).returning();
+    return created;
+  }
+
+  async deleteSavedPhoto(id: string): Promise<boolean> {
+    const result = await db.delete(savedPhotos).where(eq(savedPhotos.id, id));
+    return true;
   }
 }
 

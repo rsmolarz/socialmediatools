@@ -665,6 +665,8 @@ export default function Home() {
                       lines={config.textLines || []}
                       layout={config.layout || "centered"}
                       accentColor={config.accentColor || "orange"}
+                      textOffsetX={config.textOffsetX || 0}
+                      textOffsetY={config.textOffsetY || 0}
                       onLinesChange={(lines) =>
                         setConfig((prev) => ({ ...prev, textLines: lines }))
                       }
@@ -673,6 +675,12 @@ export default function Home() {
                       }
                       onAccentColorChange={(accentColor) =>
                         setConfig((prev) => ({ ...prev, accentColor }))
+                      }
+                      onTextOffsetXChange={(textOffsetX) =>
+                        setConfig((prev) => ({ ...prev, textOffsetX }))
+                      }
+                      onTextOffsetYChange={(textOffsetY) =>
+                        setConfig((prev) => ({ ...prev, textOffsetY }))
                       }
                     />
                   </div>
@@ -697,11 +705,15 @@ export default function Home() {
                     <PhotoControls
                       hostPhoto={config.hostPhoto || DEFAULT_PHOTO}
                       guestPhoto={config.guestPhoto || DEFAULT_PHOTO}
+                      backgroundOpacity={config.backgroundOpacity}
                       onHostPhotoChange={(photo) =>
                         setConfig((prev) => ({ ...prev, hostPhoto: photo }))
                       }
                       onGuestPhotoChange={(photo) =>
                         setConfig((prev) => ({ ...prev, guestPhoto: photo }))
+                      }
+                      onBackgroundOpacityChange={(opacity) =>
+                        setConfig((prev) => ({ ...prev, backgroundOpacity: opacity }))
                       }
                     />
                   </div>

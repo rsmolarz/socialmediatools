@@ -18,13 +18,14 @@ import {
   insertThumbnailFolderSchema,
   insertThumbnailAnalyticsSchema,
   insertAnalyticsEventSchema,
+  insertSavedPhotoSchema,
   brandKitsTable,
   abTestsTable,
   thumbnailTagsTable,
   thumbnailFoldersTable,
   thumbnailAnalyticsTable,
   analyticsEventsTable,
-  thumbnails
+  thumbnails,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, gte, and, count, sum } from "drizzle-orm";
@@ -2826,6 +2827,60 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     } catch (error) {
       console.error("Error running upgrade agent:", error);
       res.status(500).json({ error: "Failed to run upgrade analysis" });
+    }
+  });
+
+  // ===== Saved Photos API =====
+  app.get("/api/saved-photos", async (req, res) => {
+    try {
+      const photos = await storage.getAllSavedPhotos();
+      res.json(photos);
+    } catch (error) {
+      console.error("Error fetching saved photos:", error);
+      res.status(500).json({ error: "Failed to fetch saved photos" });
+    }
+  });
+
+  app.get("/api/saved-photos/:id/image", async (req, res) => {
+    try {
+      const photo = await storage.getSavedPhoto(req.params.id);
+      if (!photo) return res.status(404).json({ error: "Photo not found" });
+      
+      const base64Data = photo.imageData.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      const mimeMatch = photo.imageData.match(/^data:(image\/\w+);base64,/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/png";
+      
+      res.setHeader("Content-Type", mime);
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error fetching saved photo image:", error);
+      res.status(500).json({ error: "Failed to fetch photo" });
+    }
+  });
+
+  app.post("/api/saved-photos", async (req, res) => {
+    try {
+      const parsed = insertSavedPhotoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten() });
+      }
+      const photo = await storage.createSavedPhoto(parsed.data);
+      res.json({ id: photo.id, name: photo.name, createdAt: photo.createdAt });
+    } catch (error) {
+      console.error("Error saving photo:", error);
+      res.status(500).json({ error: "Failed to save photo" });
+    }
+  });
+
+  app.delete("/api/saved-photos/:id", async (req, res) => {
+    try {
+      await storage.deleteSavedPhoto(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting saved photo:", error);
+      res.status(500).json({ error: "Failed to delete photo" });
     }
   });
 
