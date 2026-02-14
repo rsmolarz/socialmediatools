@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push"
+    ,"test": "jest --passWithNoTests"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",
