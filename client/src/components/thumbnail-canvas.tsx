@@ -347,6 +347,31 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
         drawPhoto(hostPhoto, hostImageRef.current, "right");
       } else if (normalizedLayout === "soloRight") {
         drawPhoto(hostPhoto, hostImageRef.current, "left");
+      } else if (normalizedLayout === "centered") {
+        // In centered layout, draw host photo centered at bottom
+        if (hostPhoto?.url && hostImageRef.current) {
+          const scale = (hostPhoto.scale || 100) / 100;
+          const targetWidth = config.width * 0.35 * scale;
+          const targetHeight = config.height * 0.85 * scale;
+          const x = (config.width - targetWidth) / 2 + (hostPhoto.offsetX || 0);
+          const y = config.height - targetHeight + (hostPhoto.offsetY || 0);
+
+          ctx.save();
+          ctx.drawImage(hostImageRef.current, x, y, targetWidth, targetHeight);
+          ctx.restore();
+        }
+        // Draw guest photo on the right side if present
+        if (guestPhoto?.url && guestImageRef.current) {
+          const scale = (guestPhoto.scale || 100) / 100;
+          const targetWidth = config.width * 0.3 * scale;
+          const targetHeight = config.height * 0.8 * scale;
+          const x = config.width * 0.65 + (guestPhoto.offsetX || 0);
+          const y = config.height - targetHeight + (guestPhoto.offsetY || 0);
+
+          ctx.save();
+          ctx.drawImage(guestImageRef.current, x, y, targetWidth, targetHeight);
+          ctx.restore();
+        }
       }
     };
 
