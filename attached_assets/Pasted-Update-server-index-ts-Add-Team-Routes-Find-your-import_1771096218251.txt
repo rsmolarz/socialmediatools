@@ -1,0 +1,61 @@
+Update server/index.ts - Add Team Routes
+Find your imports section and add:
+typescriptimport organizationsRouter from './routes/organizations';
+import teamsRouter from './routes/teams';
+Find your route registrations (usually around other /api routes) and add:
+typescriptapp.use('/api/organizations', organizationsRouter);
+app.use('/api/teams', teamsRouter);
+B. Update client/src/App.tsx - Initialize PWA
+Add to your component:
+typescriptimport { useEffect } from 'react';
+import { pwaManager } from './utils/pwa-manager';
+import { PWAInstallButton } from './components/pwa-install-button';
+import './styles/mobile.css';
+import { MobileOptimizationProvider } from './components/mobile-optimization';
+
+export function App() {
+  useEffect(() => {
+    // Initialize PWA
+    pwaManager.registerServiceWorker();
+  }, []);
+
+  return (
+    <MobileOptimizationProvider>
+      <div className="app">
+        {/* Add this button to your header */}
+        <PWAInstallButton />
+        
+        {/* Rest of your app */}
+      </div>
+    </MobileOptimizationProvider>
+  );
+}
+C. Update client/index.html - Add PWA Meta Tags
+In your <head> section, add after viewport meta tag:
+html<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#6366f1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Thumbnail Gen">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+
+<!-- Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').catch(e => console.log('SW registration failed'));
+  }
+</script>
+
+STEP 3: Run Database Migrations
+bash# Generate migrations for new tables
+npm run db:generate
+
+# Run migrations
+npm run db:migrate
+
+# If migrations fail, check your database connection and run:
+npm run db:drop  # WARNING: This deletes data
+npm run db:generate
+npm run db:migrate

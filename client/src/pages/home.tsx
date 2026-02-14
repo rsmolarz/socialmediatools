@@ -18,6 +18,7 @@ import { TextLineControls } from "@/components/text-line-controls";
 import { BackgroundControls } from "@/components/background-controls";
 import { SavedThumbnails } from "@/components/saved-thumbnails";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PWAInstallButton } from "@/components/pwa-install-button";
 import { UserMenu } from "@/components/user-menu";
 import { MobilePreview } from "@/components/mobile-preview";
 import { PresetBackgrounds } from "@/components/preset-backgrounds";
@@ -685,6 +686,7 @@ export default function Home() {
                 <Keyboard className="h-4 w-4" />
               </Button>
             </div>
+            <PWAInstallButton />
             <ThemeToggle />
             <UserMenu />
           </div>
