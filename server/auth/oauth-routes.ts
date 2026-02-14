@@ -282,7 +282,15 @@ export function setupOAuthRoutes(app: Express) {
     }
   );
 
+  // Apple config endpoint - provides client ID for JS SDK flow
+  app.get("/api/auth/apple/config", (req, res) => {
+    const clientId = getAppleClientId();
+    const callbackUrl = `${APP_URL}/api/auth/apple/callback`;
+    res.json({ clientId, redirectUri: callbackUrl });
+  });
+
   // Apple OAuth routes - manual implementation (no passport-apple)
+  // Primary: redirect-based flow
   app.get("/api/auth/apple", (req, res) => {
     console.log("[oauth] Starting manual Apple OAuth flow");
     const clientId = getAppleClientId();
@@ -293,7 +301,6 @@ export function setupOAuthRoutes(app: Express) {
     console.log("[oauth] Apple client_id:", clientId);
     console.log("[oauth] Apple redirect_uri:", callbackUrl);
     
-    // Test that we can generate a client secret (validates the private key)
     try {
       const testSecret = generateAppleClientSecret();
       console.log("[oauth] Apple client secret generated successfully, length:", testSecret.length);
@@ -305,7 +312,7 @@ export function setupOAuthRoutes(app: Express) {
     const params: Record<string, string> = {
       client_id: clientId,
       redirect_uri: callbackUrl,
-      response_type: 'code',
+      response_type: 'code id_token',
       state: state,
       response_mode: 'form_post',
       scope: 'name email',
@@ -314,9 +321,91 @@ export function setupOAuthRoutes(app: Express) {
     const authUrl = `https://appleid.apple.com/auth/authorize?` + new URLSearchParams(params).toString();
     
     console.log("[oauth] Apple auth params:", JSON.stringify(params));
-    
     console.log("[oauth] Apple auth URL:", authUrl);
     res.redirect(authUrl);
+  });
+
+  // Apple JS SDK token exchange endpoint - receives authorization from frontend JS SDK
+  app.post("/api/auth/apple/token", async (req, res) => {
+    try {
+      console.log("[oauth] Apple JS SDK token exchange");
+      const { code, id_token, user: userJson } = req.body || {};
+      
+      if (!code && !id_token) {
+        return res.status(400).json({ error: "Missing code or id_token" });
+      }
+      
+      let decoded: any = null;
+      
+      if (id_token) {
+        decoded = jwt.decode(id_token);
+        console.log("[oauth] Apple JS SDK - decoded id_token sub:", decoded?.sub, "email:", decoded?.email);
+      }
+      
+      if (code && !decoded?.sub) {
+        const clientSecret = generateAppleClientSecret();
+        const clientId = getAppleClientId();
+        const callbackUrl = `${APP_URL}/api/auth/apple/callback`;
+        
+        const tokenResponse = await fetch("https://appleid.apple.com/auth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: code,
+            grant_type: 'authorization_code',
+            redirect_uri: callbackUrl,
+          }),
+        });
+        
+        const tokenData = await tokenResponse.json();
+        if (!tokenResponse.ok) {
+          console.error("[oauth] Apple token exchange failed:", JSON.stringify(tokenData));
+          return res.status(400).json({ error: tokenData.error || "token_exchange_failed" });
+        }
+        
+        if (tokenData.id_token) {
+          decoded = jwt.decode(tokenData.id_token);
+        }
+      }
+      
+      if (!decoded?.sub) {
+        return res.status(400).json({ error: "Could not extract user identity" });
+      }
+      
+      let appleUserInfo: any = {};
+      if (userJson) {
+        try {
+          appleUserInfo = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+        } catch (e) {}
+      }
+      
+      const email = decoded.email;
+      const firstName = appleUserInfo?.name?.firstName || "Apple";
+      const lastName = appleUserInfo?.name?.lastName || "User";
+      
+      const user = await findOrCreateUser({
+        id: decoded.sub,
+        provider: "apple",
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        profileImageUrl: undefined,
+      });
+      
+      req.login(user, (err) => {
+        if (err) {
+          console.error("[oauth] Apple JS SDK login error:", err);
+          return res.status(500).json({ error: "session_error" });
+        }
+        console.log("[oauth] Apple JS SDK auth successful!");
+        res.json({ success: true, redirectUrl: "/" });
+      });
+    } catch (error: any) {
+      console.error("[oauth] Apple JS SDK error:", error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Apple may redirect with GET for errors

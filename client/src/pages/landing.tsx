@@ -23,8 +23,19 @@ import { SiGoogle, SiFacebook, SiGithub, SiApple } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import showLogo from "@assets/image_1770482566548.png";
+
+declare global {
+  interface Window {
+    AppleID?: {
+      auth: {
+        init: (config: any) => void;
+        signIn: () => Promise<any>;
+      };
+    };
+  }
+}
 
 export default function LandingPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -33,6 +44,8 @@ export default function LandingPage() {
   const [demoPassword, setDemoPassword] = useState("demo1234");
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoError, setDemoError] = useState("");
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleScriptLoaded, setAppleScriptLoaded] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -44,7 +57,68 @@ export default function LandingPage() {
     queryKey: ["/api/auth/providers"],
   });
 
+  const { data: appleConfig } = useQuery<{ clientId: string; redirectUri: string }>({
+    queryKey: ["/api/auth/apple/config"],
+  });
+
   const configuredProviders = providersData?.providers || [];
+
+  useEffect(() => {
+    if (!appleConfig?.clientId || appleScriptLoaded) return;
+    const existing = document.querySelector('script[src*="appleid.auth"]');
+    if (existing) {
+      setAppleScriptLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
+    script.async = true;
+    script.onload = () => setAppleScriptLoaded(true);
+    document.head.appendChild(script);
+  }, [appleConfig?.clientId, appleScriptLoaded]);
+
+  const handleAppleLogin = useCallback(async () => {
+    if (!appleConfig?.clientId) return;
+    setAppleLoading(true);
+    try {
+      if (window.AppleID) {
+        window.AppleID.auth.init({
+          clientId: appleConfig.clientId,
+          scope: "name email",
+          redirectURI: appleConfig.redirectUri,
+          usePopup: true,
+        });
+        const response = await window.AppleID.auth.signIn();
+        console.log("[apple] JS SDK response:", response);
+        const tokenRes = await fetch("/api/auth/apple/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: response?.authorization?.code,
+            id_token: response?.authorization?.id_token,
+            user: response?.user ? JSON.stringify(response.user) : undefined,
+          }),
+        });
+        const tokenData = await tokenRes.json();
+        if (tokenRes.ok && tokenData.success) {
+          window.location.href = tokenData.redirectUrl || "/";
+        } else {
+          window.location.href = `/?error=apple_auth_failed&message=${encodeURIComponent(tokenData.error || "login_failed")}`;
+        }
+      } else {
+        window.location.href = "/api/auth/apple";
+      }
+    } catch (err: any) {
+      console.error("[apple] JS SDK error:", err);
+      if (err?.error === "popup_closed_by_user") {
+        setAppleLoading(false);
+        return;
+      }
+      window.location.href = "/api/auth/apple";
+    } finally {
+      setAppleLoading(false);
+    }
+  }, [appleConfig]);
 
   const urlParams = new URLSearchParams(window.location.search);
   const authError = urlParams.get("error");
@@ -232,29 +306,34 @@ export default function LandingPage() {
                   )}
                   {authProviders.map((provider) => {
                     const isConfigured = isProviderConfigured(provider.id);
+                    const isApple = provider.id === "apple";
+                    const isAppleReady = isApple && isConfigured && appleScriptLoaded;
                     return (
                       <Button 
                         key={provider.id}
                         className={`w-full h-12 text-base justify-start gap-3 ${provider.color}`}
                         variant="outline"
                         size="lg" 
-                        disabled={!isConfigured}
+                        disabled={!isConfigured || (isApple && appleLoading)}
                         onClick={() => {
-                          if (isConfigured) {
-                            let inIframe = false;
-                            try { inIframe = window.self !== window.top; } catch { inIframe = true; }
-                            if (inIframe) {
-                              window.open(provider.href, "_blank");
-                            } else {
-                              window.location.href = provider.href;
-                            }
+                          if (!isConfigured) return;
+                          if (isApple) {
+                            handleAppleLogin();
+                            return;
+                          }
+                          let inIframe = false;
+                          try { inIframe = window.self !== window.top; } catch { inIframe = true; }
+                          if (inIframe) {
+                            window.open(provider.href, "_blank");
+                          } else {
+                            window.location.href = provider.href;
                           }
                         }}
                         data-testid={`button-signin-${provider.id}`}
                       >
                         {isConfigured ? (
                           <span className="flex items-center gap-3">
-                            {provider.icon}
+                            {isApple && appleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : provider.icon}
                             Continue with {provider.name}
                           </span>
                         ) : (
