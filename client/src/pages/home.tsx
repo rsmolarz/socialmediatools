@@ -100,10 +100,38 @@ const DEFAULT_CONFIG: ThumbnailConfig = {
   guestPhoto: DEFAULT_PHOTO,
 };
 
+function loadSessionState(): { config: ThumbnailConfig; title: string; editingId: string | null; activeTab: string } | null {
+  try {
+    const stored = sessionStorage.getItem("thumbnailEditorState");
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {}
+  return null;
+}
+
+function saveSessionState(config: ThumbnailConfig, title: string, editingId: string | null, activeTab: string) {
+  try {
+    const safeConfig = { ...config };
+    if (safeConfig.backgroundImage && safeConfig.backgroundImage.startsWith("data:") && safeConfig.backgroundImage.length > 50000) {
+      safeConfig.backgroundImage = undefined;
+    }
+    if (safeConfig.hostPhoto?.url && safeConfig.hostPhoto.url.startsWith("data:") && safeConfig.hostPhoto.url.length > 50000) {
+      safeConfig.hostPhoto = { ...safeConfig.hostPhoto, url: null };
+    }
+    if (safeConfig.guestPhoto?.url && safeConfig.guestPhoto.url.startsWith("data:") && safeConfig.guestPhoto.url.length > 50000) {
+      safeConfig.guestPhoto = { ...safeConfig.guestPhoto, url: null };
+    }
+    sessionStorage.setItem("thumbnailEditorState", JSON.stringify({ config: safeConfig, title, editingId, activeTab }));
+  } catch {}
+}
+
 export default function Home() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const canvasRef = useRef<ThumbnailCanvasRef>(null);
+
+  const sessionState = useMemo(() => loadSessionState(), []);
 
   const {
     state: config,
@@ -114,22 +142,28 @@ export default function Home() {
     canRedo,
     reset: resetHistory,
   } = useHistory<ThumbnailConfig>({
-    initialState: DEFAULT_CONFIG,
+    initialState: sessionState?.config || DEFAULT_CONFIG,
     maxHistorySize: 50,
   });
 
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-  const [thumbnailTitle, setThumbnailTitle] = useState("My Thumbnail");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [thumbnailTitle, setThumbnailTitle] = useState(sessionState?.title || "My Thumbnail");
+  const [editingId, setEditingId] = useState<string | null>(sessionState?.editingId || null);
   const [canvasDataUrl, setCanvasDataUrl] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  const [activeTab, setActiveTab] = useState("text");
-  const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
+  const [activeTab, setActiveTab] = useState(sessionState?.activeTab || "text");
+  const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">(
+    sessionState?.editingId ? "saved" : "saved"
+  );
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSavedConfigRef = useRef<string>(JSON.stringify(DEFAULT_CONFIG));
-  const lastSavedTitleRef = useRef<string>("My Thumbnail");
+  const lastSavedConfigRef = useRef<string>(JSON.stringify(sessionState?.config || DEFAULT_CONFIG));
+  const lastSavedTitleRef = useRef<string>(sessionState?.title || "My Thumbnail");
   const isDirtyRef = useRef(false);
   const savingPayloadRef = useRef<{ config: string; title: string } | null>(null);
+
+  useEffect(() => {
+    saveSessionState(config, thumbnailTitle, editingId, activeTab);
+  }, [config, thumbnailTitle, editingId, activeTab]);
 
   useEffect(() => {
     const updatePreview = () => {
@@ -348,12 +382,11 @@ export default function Home() {
   };
 
   const handleSave = () => {
-    const data: InsertThumbnail = {
-      title: thumbnailTitle,
-      config,
-      previewUrl: canvasRef.current?.getDataUrl() || null,
-    };
-    saveMutation.mutate(data);
+    if (saveMutation.isPending) return;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    triggerSave();
   };
 
   const handleLoadThumbnail = (thumbnail: Thumbnail) => {
@@ -378,6 +411,7 @@ export default function Home() {
     lastSavedConfigRef.current = JSON.stringify(DEFAULT_CONFIG);
     lastSavedTitleRef.current = "My Thumbnail";
     setSaveStatus("saved");
+    try { sessionStorage.removeItem("thumbnailEditorState"); } catch {}
   };
 
   const handleResetToDefault = () => {
@@ -821,6 +855,10 @@ export default function Home() {
                       onBackgroundOpacityChange={(opacity) =>
                         setConfig((prev) => ({ ...prev, backgroundOpacity: opacity }))
                       }
+                      onUseAsBackground={(imageUrl) => {
+                        setConfig((prev) => ({ ...prev, backgroundImage: imageUrl }));
+                        toast({ title: "Background Set", description: "Saved photo applied as background image." });
+                      }}
                     />
                   </div>
                 </ScrollArea>

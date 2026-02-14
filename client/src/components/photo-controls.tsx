@@ -23,6 +23,7 @@ interface PhotoControlsProps {
   onHostPhotoChange: (photo: PhotoConfig) => void;
   onGuestPhotoChange: (photo: PhotoConfig) => void;
   onBackgroundOpacityChange?: (opacity: number) => void;
+  onUseAsBackground?: (imageUrl: string) => void;
 }
 
 async function removeBackground(imageData: string): Promise<string> {
@@ -53,6 +54,7 @@ export function PhotoControls({
   onHostPhotoChange,
   onGuestPhotoChange,
   onBackgroundOpacityChange,
+  onUseAsBackground,
 }: PhotoControlsProps) {
   const hostInputRef = useRef<HTMLInputElement>(null);
   const guestInputRef = useRef<HTMLInputElement>(null);
@@ -490,10 +492,20 @@ export function PhotoControls({
                     >
                       Use as Guest
                     </Button>
+                    {onUseAsBackground && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onUseAsBackground(`/api/saved-photos/${photo.id}/image`)}
+                        data-testid={`load-saved-bg-${photo.id}`}
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                        BG
+                      </Button>
+                    )}
                     <Button
                       variant="destructive"
                       size="icon"
-                      className="h-6 w-6 mt-1"
                       onClick={() => deletePhotoMutation.mutate(photo.id)}
                       data-testid={`delete-saved-${photo.id}`}
                     >
