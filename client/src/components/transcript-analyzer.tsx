@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,19 +22,56 @@ interface TranscriptAnalyzerProps {
   onAnalysisComplete: (analysis: TranscriptAnalysis) => void;
   onGenerateBackground?: (prompt: string, style: string, mood: string) => void;
   onApplyViralTitle?: (title: string) => void;
+  onMetadataUpdate?: (metadata: { youtubeTitle?: string; youtubeDescription?: string; tags?: string[] }) => void;
+  savedYoutubeTitle?: string;
+  savedYoutubeDescription?: string;
+  savedTags?: string[];
 }
 
 export function TranscriptAnalyzer({ 
   onAnalysisComplete, 
   onGenerateBackground,
-  onApplyViralTitle
+  onApplyViralTitle,
+  onMetadataUpdate,
+  savedYoutubeTitle,
+  savedYoutubeDescription,
+  savedTags,
 }: TranscriptAnalyzerProps) {
   const [transcript, setTranscript] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<TranscriptAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<TranscriptAnalysis | null>(() => {
+    if (savedYoutubeTitle || savedYoutubeDescription || (savedTags && savedTags.length > 0)) {
+      return {
+        themes: [],
+        backgroundPrompt: "",
+        style: "",
+        mood: "",
+        youtubeTitle: savedYoutubeTitle,
+        youtubeDescription: savedYoutubeDescription,
+        tags: savedTags,
+      };
+    }
+    return null;
+  });
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (savedYoutubeTitle || savedYoutubeDescription || (savedTags && savedTags.length > 0)) {
+      setAnalysis((prev) => ({
+        themes: prev?.themes || [],
+        backgroundPrompt: prev?.backgroundPrompt || "",
+        style: prev?.style || "",
+        mood: prev?.mood || "",
+        youtubeTitle: savedYoutubeTitle,
+        youtubeDescription: savedYoutubeDescription,
+        tags: savedTags,
+        viralTitle: prev?.viralTitle,
+        suggestedHeadline: prev?.suggestedHeadline,
+      }));
+    }
+  }, [savedYoutubeTitle, savedYoutubeDescription, savedTags]);
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -84,6 +121,14 @@ export function TranscriptAnalyzer({
       setStatus("Generating background from themes...");
 
       onAnalysisComplete(result);
+
+      if (onMetadataUpdate) {
+        onMetadataUpdate({
+          youtubeTitle: result.youtubeTitle,
+          youtubeDescription: result.youtubeDescription,
+          tags: result.tags,
+        });
+      }
 
       if (onGenerateBackground && result.backgroundPrompt) {
         onGenerateBackground(

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
 import { TranscriptAnalyzer } from "@/components/transcript-analyzer";
 import { ViralTitleHelper } from "@/components/viral-title-helper";
 import { LayerPanel } from "@/components/layer-panel";
+import { MetadataEditor } from "@/components/metadata-editor";
 import { SocialMediaDashboard } from "@/components/social-media-dashboard";
 import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -47,6 +48,9 @@ import {
   Redo2,
   Keyboard,
   Shield,
+  Check,
+  CloudOff,
+  Loader2,
 } from "lucide-react";
 import type {
   ThumbnailConfig,
@@ -120,6 +124,12 @@ export default function Home() {
   const [canvasDataUrl, setCanvasDataUrl] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [activeTab, setActiveTab] = useState("text");
+  const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedConfigRef = useRef<string>(JSON.stringify(DEFAULT_CONFIG));
+  const lastSavedTitleRef = useRef<string>("My Thumbnail");
+  const isDirtyRef = useRef(false);
+  const savingPayloadRef = useRef<{ config: string; title: string } | null>(null);
 
   useEffect(() => {
     const updatePreview = () => {
@@ -131,6 +141,51 @@ export default function Home() {
     const timer = setTimeout(updatePreview, 100);
     return () => clearTimeout(timer);
   }, [config]);
+
+  const triggerSave = useCallback(() => {
+    const currentConfig = JSON.stringify(config);
+    const data: InsertThumbnail = {
+      title: thumbnailTitle,
+      config,
+      previewUrl: canvasRef.current?.getDataUrl() || null,
+    };
+    savingPayloadRef.current = { config: currentConfig, title: thumbnailTitle };
+    isDirtyRef.current = false;
+    setSaveStatus("saving");
+    saveMutation.mutate(data);
+  }, [config, thumbnailTitle]);
+
+  useEffect(() => {
+    const currentConfig = JSON.stringify(config);
+    const hasChanged = currentConfig !== lastSavedConfigRef.current || thumbnailTitle !== lastSavedTitleRef.current;
+    
+    if (!hasChanged) {
+      if (!saveMutation.isPending) {
+        setSaveStatus("saved");
+      }
+      return;
+    }
+    
+    isDirtyRef.current = true;
+    setSaveStatus("unsaved");
+    
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    
+    autoSaveTimerRef.current = setTimeout(() => {
+      if (saveMutation.isPending) {
+        return;
+      }
+      triggerSave();
+    }, 3000);
+    
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [config, thumbnailTitle, triggerSave]);
 
   const { data: thumbnails = [], isLoading: thumbnailsLoading } = useQuery<
     Thumbnail[]
@@ -162,6 +217,14 @@ export default function Home() {
     onSuccess: (savedThumbnail: Thumbnail) => {
       queryClient.invalidateQueries({ queryKey: ["/api/thumbnails"] });
       setEditingId(savedThumbnail.id);
+      if (savingPayloadRef.current) {
+        lastSavedConfigRef.current = savingPayloadRef.current.config;
+        lastSavedTitleRef.current = savingPayloadRef.current.title;
+        savingPayloadRef.current = null;
+      }
+      const currentConfig = JSON.stringify(config);
+      const stillDirty = currentConfig !== lastSavedConfigRef.current || thumbnailTitle !== lastSavedTitleRef.current;
+      setSaveStatus(stillDirty ? "unsaved" : "saved");
       toast({
         title: "Saved!",
         description: "Your thumbnail has been saved successfully.",
@@ -169,11 +232,23 @@ export default function Home() {
     },
     onError: (error) => {
       console.error("Save error:", error);
+      savingPayloadRef.current = null;
+      setSaveStatus("unsaved");
       toast({
         title: "Error",
         description: "Failed to save thumbnail. Please try again.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      if (isDirtyRef.current) {
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+        }
+        autoSaveTimerRef.current = setTimeout(() => {
+          triggerSave();
+        }, 1000);
+      }
     },
   });
 
@@ -286,6 +361,9 @@ export default function Home() {
     setThumbnailTitle(thumbnail.title);
     setEditingId(thumbnail.id);
     setSelectedTextId(null);
+    lastSavedConfigRef.current = JSON.stringify(thumbnail.config);
+    lastSavedTitleRef.current = thumbnail.title;
+    setSaveStatus("saved");
     toast({
       title: "Loaded",
       description: `"${thumbnail.title}" has been loaded into the editor.`,
@@ -297,6 +375,9 @@ export default function Home() {
     setThumbnailTitle("My Thumbnail");
     setEditingId(null);
     setSelectedTextId(null);
+    lastSavedConfigRef.current = JSON.stringify(DEFAULT_CONFIG);
+    lastSavedTitleRef.current = "My Thumbnail";
+    setSaveStatus("saved");
   };
 
   const handleResetToDefault = () => {
@@ -490,18 +571,43 @@ export default function Home() {
               <Download className="h-4 w-4 mr-2" />
               Export 1280×720
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saveMutation.isPending}
-              data-testid="button-save"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {saveMutation.isPending
-                ? "Saving..."
-                : editingId
-                  ? "Update"
-                  : "Save"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending}
+                data-testid="button-save"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saveMutation.isPending
+                  ? "Saving..."
+                  : editingId
+                    ? "Update"
+                    : "Save"}
+              </Button>
+              <span
+                className="flex items-center gap-1 text-xs"
+                data-testid="save-status-indicator"
+              >
+                {saveStatus === "saved" && (
+                  <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <Check className="h-3 w-3" />
+                    Saved
+                  </span>
+                )}
+                {saveStatus === "unsaved" && (
+                  <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                    <CloudOff className="h-3 w-3" />
+                    Unsaved
+                  </span>
+                )}
+                {saveStatus === "saving" && (
+                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Saving...
+                  </span>
+                )}
+              </span>
+            </div>
             <Link href="/tools">
               <Button variant="outline" data-testid="button-tools">
                 <Wrench className="h-4 w-4 mr-2" />
@@ -723,9 +829,34 @@ export default function Home() {
               <TabsContent value="background" className="mt-4">
                 <ScrollArea className="h-[calc(100vh-340px)]">
                   <div className="space-y-4">
+                    <MetadataEditor
+                      youtubeTitle={config.youtubeTitle || ""}
+                      youtubeDescription={config.youtubeDescription || ""}
+                      tags={config.tags || []}
+                      onYoutubeTitleChange={(youtubeTitle) =>
+                        setConfig((prev) => ({ ...prev, youtubeTitle }))
+                      }
+                      onYoutubeDescriptionChange={(youtubeDescription) =>
+                        setConfig((prev) => ({ ...prev, youtubeDescription }))
+                      }
+                      onTagsChange={(tags) =>
+                        setConfig((prev) => ({ ...prev, tags }))
+                      }
+                    />
                     <TranscriptAnalyzer
                       onAnalysisComplete={handleTranscriptAnalysis}
                       onGenerateBackground={handleGenerateFromTranscript}
+                      savedYoutubeTitle={config.youtubeTitle}
+                      savedYoutubeDescription={config.youtubeDescription}
+                      savedTags={config.tags}
+                      onMetadataUpdate={(metadata) => {
+                        setConfig((prev) => ({
+                          ...prev,
+                          youtubeTitle: metadata.youtubeTitle || prev.youtubeTitle,
+                          youtubeDescription: metadata.youtubeDescription || prev.youtubeDescription,
+                          tags: metadata.tags || prev.tags,
+                        }));
+                      }}
                       onApplyViralTitle={(title) => {
                         setConfig((prev) => {
                           const currentLines =
@@ -806,7 +937,7 @@ export default function Home() {
         <div className="container mx-auto px-4 flex items-center justify-between gap-4 text-sm text-muted-foreground flex-wrap">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
-            <span>Description & Tags Optimizer coming soon!</span>
+            <span>Auto-save enabled - changes save automatically</span>
           </div>
           <div className="flex items-center gap-4">
             <a

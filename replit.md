@@ -52,7 +52,15 @@ Key entities:
 
 ## Recent Changes
 
-### Latest Updates (January 31, 2026)
+### Latest Updates (February 14, 2026)
+- **Auto-Save System**: Thumbnails now auto-save 3 seconds after any change with visual status indicator (Saved/Unsaved/Saving)
+- **YouTube Metadata Persistence**: Added youtubeTitle, youtubeDescription, and tags fields to thumbnailConfigSchema - these persist with the thumbnail and survive tab switches
+- **MetadataEditor Component**: New editable YouTube Metadata section in BG tab with title input, description textarea, tag management (add/remove), and copy-to-clipboard buttons
+- **TranscriptAnalyzer Integration**: Analysis results now automatically populate the MetadataEditor fields and persist in the thumbnail config
+- **Save Status Indicator**: Header shows real-time save status with green "Saved", amber "Unsaved", or blue spinning "Saving..." indicator
+- **Incremental Saving**: Changes are saved incrementally - each change triggers a debounced auto-save that creates or updates the current thumbnail
+
+### Previous Updates (January 31, 2026)
 - **YouTube Video Upgrade**: New tab in Tools page for managing YouTube channel videos:
   - **Video Library**: View all videos from connected YouTube channel
   - **AI SEO Optimizer**: AI-powered optimization for video descriptions and tags

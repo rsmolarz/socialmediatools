@@ -93,6 +93,9 @@ export const thumbnailConfigSchema = z.object({
   guestPhoto: photoConfigSchema.optional(),
   textOffsetX: z.number().default(0).optional(),
   textOffsetY: z.number().default(0).optional(),
+  youtubeTitle: z.string().optional(),
+  youtubeDescription: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export type ThumbnailConfig = z.infer<typeof thumbnailConfigSchema>;
