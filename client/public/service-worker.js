@@ -1,11 +1,10 @@
-const CACHE_NAME = 'thumb-meta-v1';
-const API_CACHE = 'thumb-meta-api-v1';
-const IMAGE_CACHE = 'thumb-meta-images-v1';
+const CACHE_NAME = 'thumb-meta-v3';
+const API_CACHE = 'thumb-meta-api-v3';
+const IMAGE_CACHE = 'thumb-meta-images-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/favicon.ico',
 ];
 
 self.addEventListener('install', (event) => {
@@ -66,6 +65,26 @@ self.addEventListener('fetch', (event) => {
           });
         });
       })
+    );
+    return;
+  }
+
+  const isNavigationOrDoc = request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html' ||
+    url.pathname.endsWith('.html');
+
+  const isAppAsset = url.pathname.startsWith('/assets/');
+
+  if (isNavigationOrDoc || isAppAsset) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const cache = caches.open(CACHE_NAME);
+          cache.then((c) => c.put(request, response.clone()));
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
