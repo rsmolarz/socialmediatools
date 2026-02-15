@@ -19,7 +19,6 @@ import {
     type ExportThumbnailInput,
 } from '../shared/schemas/validation';
 import { PLATFORM_PRESETS } from '../shared/types/thumbnail';
-}
 
 const app = express();
 const httpServer = createServer(app);
