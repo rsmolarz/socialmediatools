@@ -137,16 +137,28 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-          // Apply background opacity
           const bgOpacity = (config.backgroundOpacity ?? 50) / 100;
           ctx.globalAlpha = bgOpacity;
-          ctx.drawImage(img, 0, 0, config.width, config.height);
-          ctx.globalAlpha = 1.0; // Reset alpha
+          const imgW = img.naturalWidth;
+          const imgH = img.naturalHeight;
+          const canvasW = config.width;
+          const canvasH = config.height;
+          const imgAspect = imgW / imgH;
+          const canvasAspect = canvasW / canvasH;
+          let sx = 0, sy = 0, sw = imgW, sh = imgH;
+          if (imgAspect > canvasAspect) {
+            sw = imgH * canvasAspect;
+            sx = (imgW - sw) / 2;
+          } else {
+            sh = imgW / canvasAspect;
+            sy = (imgH - sh) / 2;
+          }
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasW, canvasH);
+          ctx.globalAlpha = 1.0;
           drawBackgroundEffects(ctx);
           drawOverlays(ctx);
         };
         img.onerror = () => {
-          // Fallback to background color if image fails
           drawBackgroundColor(ctx);
           drawBackgroundEffects(ctx);
           drawOverlays(ctx);
@@ -352,28 +364,46 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
       } else if (normalizedLayout === "soloRight") {
         drawPhoto(hostPhoto, hostImageRef.current, "left");
       } else if (normalizedLayout === "centered") {
-        // In centered layout, draw host photo centered at bottom
         if (hostPhoto?.url && hostImageRef.current) {
           const scale = (hostPhoto.scale || 100) / 100;
-          const targetWidth = config.width * 0.35 * scale;
-          const targetHeight = config.height * 0.85 * scale;
-          const x = (config.width - targetWidth) / 2 + (hostPhoto.offsetX || 0);
-          const y = config.height - targetHeight + (hostPhoto.offsetY || 0);
+          const cachedImg = hostImageRef.current;
+          const imgAspect = cachedImg.naturalWidth / cachedImg.naturalHeight;
+          const maxH = config.height * 0.85 * scale;
+          const maxW = config.width * 0.35 * scale;
+          let drawW, drawH;
+          if (imgAspect > maxW / maxH) {
+            drawW = maxW;
+            drawH = maxW / imgAspect;
+          } else {
+            drawH = maxH;
+            drawW = maxH * imgAspect;
+          }
+          const x = (config.width - drawW) / 2 + (hostPhoto.offsetX || 0);
+          const y = config.height - drawH + (hostPhoto.offsetY || 0);
 
           ctx.save();
-          ctx.drawImage(hostImageRef.current, x, y, targetWidth, targetHeight);
+          ctx.drawImage(cachedImg, x, y, drawW, drawH);
           ctx.restore();
         }
-        // Draw guest photo on the right side if present
         if (guestPhoto?.url && guestImageRef.current) {
           const scale = (guestPhoto.scale || 100) / 100;
-          const targetWidth = config.width * 0.3 * scale;
-          const targetHeight = config.height * 0.8 * scale;
+          const cachedImg = guestImageRef.current;
+          const imgAspect = cachedImg.naturalWidth / cachedImg.naturalHeight;
+          const maxH = config.height * 0.8 * scale;
+          const maxW = config.width * 0.3 * scale;
+          let drawW, drawH;
+          if (imgAspect > maxW / maxH) {
+            drawW = maxW;
+            drawH = maxW / imgAspect;
+          } else {
+            drawH = maxH;
+            drawW = maxH * imgAspect;
+          }
           const x = config.width * 0.65 + (guestPhoto.offsetX || 0);
-          const y = config.height - targetHeight + (guestPhoto.offsetY || 0);
+          const y = config.height - drawH + (guestPhoto.offsetY || 0);
 
           ctx.save();
-          ctx.drawImage(guestImageRef.current, x, y, targetWidth, targetHeight);
+          ctx.drawImage(cachedImg, x, y, drawW, drawH);
           ctx.restore();
         }
       }
@@ -569,11 +599,24 @@ export const ThumbnailCanvas = forwardRef<ThumbnailCanvasRef, ThumbnailCanvasPro
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            // Apply background opacity
             const bgOpacity = (config.backgroundOpacity ?? 50) / 100;
             tempCtx.globalAlpha = bgOpacity;
-            tempCtx.drawImage(img, 0, 0, config.width, config.height);
-            tempCtx.globalAlpha = 1.0; // Reset alpha
+            const imgW = img.naturalWidth;
+            const imgH = img.naturalHeight;
+            const canvasW = config.width;
+            const canvasH = config.height;
+            const imgAspect = imgW / imgH;
+            const canvasAspect = canvasW / canvasH;
+            let sx = 0, sy = 0, sw = imgW, sh = imgH;
+            if (imgAspect > canvasAspect) {
+              sw = imgH * canvasAspect;
+              sx = (imgW - sw) / 2;
+            } else {
+              sh = imgW / canvasAspect;
+              sy = (imgH - sh) / 2;
+            }
+            tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasW, canvasH);
+            tempCtx.globalAlpha = 1.0;
             config.overlays.forEach((overlay) => {
               drawTextOverlay(tempCtx, overlay, false);
             });
