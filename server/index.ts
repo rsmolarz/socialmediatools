@@ -8,6 +8,18 @@ import path from "path";
 
 import { alertMiddleware } from "./middleware/alert-middleware";
 import { loggingService } from "./lib/logging-service";
+import {
+    CreateThumbnailSchema,
+    UpdateThumbnailSchema,
+    ExportThumbnailSchema,
+    BatchThumbnailSchema,
+    ThumbnailQuerySchema,
+    type CreateThumbnailInput,
+    type UpdateThumbnailInput,
+    type ExportThumbnailInput,
+} from '../shared/schemas/validation';
+import { PLATFORM_PRESETS } from '../shared/types/thumbnail';
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -118,5 +130,7 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
     },
+
+    
   );
 })();
