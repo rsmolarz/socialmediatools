@@ -31,7 +31,12 @@ import {
   Eye,
   Tag,
   Check,
-  X
+  X,
+  ChevronDown,
+  ChevronUp,
+  Rocket,
+  Code,
+  XCircle
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -52,6 +57,22 @@ interface AgentLog {
   metadata: Record<string, any> | null;
   createdAt: string;
   resolvedAt: string | null;
+}
+
+interface ImplementationStep {
+  step: number;
+  description: string;
+  file: string;
+  action: string;
+  codeSnippet: string;
+  impact: string;
+}
+
+interface ImplementationPlan {
+  summary: string;
+  steps: ImplementationStep[];
+  estimatedImpact: string;
+  risks: string;
 }
 
 interface FeatureRecommendation {
@@ -119,6 +140,7 @@ interface OptimizationStatus {
 export default function AdminPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("guardian");
+  const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [maxVideos, setMaxVideos] = useState(10);
   const [dryRun, setDryRun] = useState(true);
   const [skipOptimized, setSkipOptimized] = useState(true);
@@ -167,6 +189,32 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
       toast({ title: "Status updated" });
+    }
+  });
+
+  const implementUpgradeMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("POST", `/api/admin/agent-logs/${id}/implement`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      setExpandedLogId(data.log?.id || null);
+      toast({ title: "Implementation plan generated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to generate plan", variant: "destructive" });
+    }
+  });
+
+  const applyUpgradeMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("POST", `/api/admin/agent-logs/${id}/apply`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      setExpandedLogId(null);
+      toast({ title: "Upgrade applied successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to apply upgrade", variant: "destructive" });
     }
   });
 
@@ -451,55 +499,199 @@ export default function AdminPage() {
                     <p>No upgrade suggestions. Run an analysis to get recommendations.</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[500px]">
+                  <ScrollArea className="h-[600px]">
                     <div className="space-y-3">
-                      {upgradeLogs.map((log) => (
-                        <Card key={log.id}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  {getStatusIcon(log.status)}
-                                  <h4 className="font-medium">{log.title}</h4>
-                                  <Badge variant="outline" className="text-xs">
-                                    {log.action}
-                                  </Badge>
+                      {upgradeLogs.map((log) => {
+                        const plan = (log.metadata as any)?.implementationPlan as ImplementationPlan | undefined;
+                        const isExpanded = expandedLogId === log.id;
+
+                        return (
+                          <Card key={log.id} data-testid={`upgrade-card-${log.id}`}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    {getStatusIcon(log.status)}
+                                    <h4 className="font-medium">{log.title}</h4>
+                                    <Badge variant="outline" className="text-xs">
+                                      {log.action}
+                                    </Badge>
+                                    {log.status === "in_progress" && (
+                                      <Badge variant="secondary" className="text-xs">In Progress</Badge>
+                                    )}
+                                    {log.status === "resolved" && (
+                                      <Badge className="text-xs">Implemented</Badge>
+                                    )}
+                                    {log.status === "ignored" && (
+                                      <Badge variant="secondary" className="text-xs">Rejected</Badge>
+                                    )}
+                                  </div>
+                                  {log.description && (
+                                    <p className="text-sm text-muted-foreground mb-2">{log.description}</p>
+                                  )}
+                                  {log.filePath && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                      <FileCode className="w-3 h-3" />
+                                      {log.filePath}
+                                    </div>
+                                  )}
+                                  {log.recommendation && (
+                                    <div className="mt-2 p-2 bg-muted rounded-md text-sm">
+                                      <Wrench className="w-3 h-3 inline mr-1" />
+                                      {log.recommendation}
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                                  </p>
                                 </div>
-                                {log.description && (
-                                  <p className="text-sm text-muted-foreground mb-2">{log.description}</p>
-                                )}
-                                {log.filePath && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <FileCode className="w-3 h-3" />
-                                    {log.filePath}
-                                  </div>
-                                )}
-                                {log.recommendation && (
-                                  <div className="mt-2 p-2 bg-muted rounded text-sm">
-                                    <Wrench className="w-3 h-3 inline mr-1" />
-                                    {log.recommendation}
-                                  </div>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
-                                </p>
+                                <div className="flex flex-col gap-1">
+                                  {log.status === "pending" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => implementUpgradeMutation.mutate(log.id)}
+                                        disabled={implementUpgradeMutation.isPending}
+                                        data-testid={`button-implement-${log.id}`}
+                                      >
+                                        {implementUpgradeMutation.isPending ? (
+                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                        ) : (
+                                          <Rocket className="w-3 h-3 mr-1" />
+                                        )}
+                                        Implement
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => updateLogStatus.mutate({ id: log.id, status: "ignored" })}
+                                        data-testid={`button-reject-${log.id}`}
+                                      >
+                                        <XCircle className="w-3 h-3 mr-1" />
+                                        Reject
+                                      </Button>
+                                    </>
+                                  )}
+                                  {log.status === "in_progress" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => applyUpgradeMutation.mutate(log.id)}
+                                        disabled={applyUpgradeMutation.isPending}
+                                        data-testid={`button-apply-${log.id}`}
+                                      >
+                                        {applyUpgradeMutation.isPending ? (
+                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                        ) : (
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                        )}
+                                        Apply Changes
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => updateLogStatus.mutate({ id: log.id, status: "pending" })}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  )}
+                                  {(log.status === "in_progress" || log.status === "resolved") && plan && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                      data-testid={`button-toggle-plan-${log.id}`}
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronUp className="w-3 h-3 mr-1" />
+                                      ) : (
+                                        <ChevronDown className="w-3 h-3 mr-1" />
+                                      )}
+                                      {isExpanded ? "Hide Plan" : "View Plan"}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex gap-1">
-                                {log.status === "pending" && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => updateLogStatus.mutate({ id: log.id, status: "resolved" })}
-                                  >
-                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                    Done
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+
+                              {isExpanded && plan && (
+                                <div className="mt-4 border-t pt-4 space-y-4">
+                                  <div>
+                                    <h5 className="font-medium text-sm mb-1">Implementation Summary</h5>
+                                    <p className="text-sm text-muted-foreground">{plan.summary}</p>
+                                  </div>
+
+                                  <div>
+                                    <h5 className="font-medium text-sm mb-2">Steps</h5>
+                                    <div className="space-y-3">
+                                      {(plan.steps || []).map((step, idx) => (
+                                        <div key={idx} className="bg-muted p-3 rounded-md">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <Badge variant="outline" className="text-xs">Step {step.step || idx + 1}</Badge>
+                                            <span className="text-sm font-medium">{step.description}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                                            <FileCode className="w-3 h-3" />
+                                            <span>{step.file}</span>
+                                            <Badge variant="secondary" className="text-xs">{step.action}</Badge>
+                                          </div>
+                                          {step.codeSnippet && (
+                                            <pre className="bg-background p-2 rounded-md text-xs overflow-x-auto border mt-1">
+                                              <code>{step.codeSnippet}</code>
+                                            </pre>
+                                          )}
+                                          {step.impact && (
+                                            <p className="text-xs text-muted-foreground mt-2">
+                                              <strong>Impact:</strong> {step.impact}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {plan.estimatedImpact && (
+                                    <div>
+                                      <h5 className="font-medium text-sm mb-1">Expected Impact</h5>
+                                      <p className="text-sm text-muted-foreground">{plan.estimatedImpact}</p>
+                                    </div>
+                                  )}
+
+                                  {plan.risks && (
+                                    <div>
+                                      <h5 className="font-medium text-sm mb-1">Risks & Considerations</h5>
+                                      <p className="text-sm text-muted-foreground">{plan.risks}</p>
+                                    </div>
+                                  )}
+
+                                  {log.status === "in_progress" && (
+                                    <div className="flex gap-2 pt-2 border-t">
+                                      <Button
+                                        onClick={() => applyUpgradeMutation.mutate(log.id)}
+                                        disabled={applyUpgradeMutation.isPending}
+                                        data-testid={`button-apply-plan-${log.id}`}
+                                      >
+                                        {applyUpgradeMutation.isPending ? (
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        ) : (
+                                          <CheckCircle className="w-4 h-4 mr-2" />
+                                        )}
+                                        Approve & Apply Changes
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => updateLogStatus.mutate({ id: log.id, status: "pending" })}
+                                      >
+                                        Cancel Implementation
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 )}

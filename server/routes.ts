@@ -2830,6 +2830,96 @@ Make hooks specific to "${topic}" and relevant to medical/finance professionals.
     }
   });
 
+  // Implement upgrade suggestion - generates implementation plan
+  app.post("/api/admin/agent-logs/:id/implement", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { agentLogsTable } = await import("@shared/schema");
+      
+      const [log] = await db.select().from(agentLogsTable).where(eq(agentLogsTable.id, id));
+      if (!log) {
+        return res.status(404).json({ error: "Suggestion not found" });
+      }
+
+      const implementPrompt = `You are a senior developer implementing a code upgrade for a YouTube thumbnail generator app built with React, TypeScript, Express, and PostgreSQL.
+
+Upgrade suggestion:
+Title: ${log.title}
+Description: ${log.description || ""}
+File: ${log.filePath || "Unknown"}
+Recommendation: ${log.recommendation || ""}
+
+Generate a detailed implementation plan with specific code changes. Return JSON:
+{
+  "summary": "Brief summary of what will be changed",
+  "steps": [
+    {
+      "step": 1,
+      "description": "What this step does",
+      "file": "path/to/file.tsx",
+      "action": "modify|create|delete",
+      "codeSnippet": "Key code to add/change (show the important parts)",
+      "impact": "What this change improves"
+    }
+  ],
+  "estimatedImpact": "Description of performance/quality improvement",
+  "risks": "Any potential risks or considerations"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: implementPrompt }],
+        max_tokens: 2000,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let implementationPlan: any = {};
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          implementationPlan = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        implementationPlan = { summary: "Could not parse implementation plan", steps: [], estimatedImpact: "Unknown", risks: "Plan could not be generated" };
+      }
+
+      // Update the log with implementation plan and set status to in_progress
+      const [updated] = await db.update(agentLogsTable)
+        .set({ 
+          status: "in_progress",
+          metadata: { ...((log.metadata as any) || {}), implementationPlan }
+        })
+        .where(eq(agentLogsTable.id, id))
+        .returning();
+
+      res.json({ success: true, log: updated, implementationPlan });
+    } catch (error) {
+      console.error("Error implementing upgrade:", error);
+      res.status(500).json({ error: "Failed to generate implementation plan" });
+    }
+  });
+
+  // Apply/complete an implementation
+  app.post("/api/admin/agent-logs/:id/apply", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { agentLogsTable } = await import("@shared/schema");
+      
+      const [updated] = await db.update(agentLogsTable)
+        .set({ 
+          status: "resolved",
+          resolvedAt: new Date()
+        })
+        .where(eq(agentLogsTable.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error applying upgrade:", error);
+      res.status(500).json({ error: "Failed to apply upgrade" });
+    }
+  });
+
   // ===== Saved Photos API =====
   app.get("/api/saved-photos", async (req, res) => {
     try {
