@@ -63,10 +63,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/api/collections", {
-        method: "POST",
-        body: JSON.stringify({ ...data, userId }),
-      });
+      return apiRequest("POST", "/api/collections", { ...data, userId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/collections?userId=${userId}`] });
@@ -81,10 +78,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return apiRequest(`/api/collections/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("PATCH", `/api/collections/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/collections?userId=${userId}`] });
@@ -95,7 +89,7 @@ export function CollectionsPanel({ userId = "default", onSelectCollection }: Col
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/collections/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/collections/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/collections?userId=${userId}`] });
       toast({ title: "Collection deleted" });

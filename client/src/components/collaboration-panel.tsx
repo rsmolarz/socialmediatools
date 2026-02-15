@@ -28,14 +28,20 @@ import {
   MessageSquare
 } from "lucide-react";
 import { format } from "date-fns";
-import type { Collaboration, Comment } from "@shared/schema";
+import type { Collaboration, Comment, Thumbnail } from "@shared/schema";
 
 interface CollaborationPanelProps {
-  thumbnailId?: number;
+  thumbnailId?: number | string;
   userId?: string;
 }
 
-export function CollaborationPanel({ thumbnailId, userId = "default" }: CollaborationPanelProps) {
+export function CollaborationPanel({ thumbnailId: initialThumbnailId, userId = "default" }: CollaborationPanelProps) {
+  const [selectedId, setSelectedId] = useState<number | string | undefined>(initialThumbnailId);
+  const thumbnailId = selectedId ?? initialThumbnailId;
+
+  const { data: allThumbnails = [] } = useQuery<Thumbnail[]>({
+    queryKey: ["/api/thumbnails"],
+  });
   const { toast } = useToast();
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
@@ -57,10 +63,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
 
   const createCollabMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/api/collaborations", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/collaborations", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/collaborations/thumbnail/${thumbnailId}`] });
@@ -74,7 +77,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
   });
 
   const deleteCollabMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/collaborations/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/collaborations/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/collaborations/thumbnail/${thumbnailId}`] });
       toast({ title: "Access revoked" });
@@ -83,10 +86,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
 
   const createCommentMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/api/comments", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/comments", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/comments/thumbnail/${thumbnailId}`] });
@@ -96,10 +96,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
 
   const resolveCommentMutation = useMutation({
     mutationFn: async ({ id, resolved }: { id: number; resolved: boolean }) => {
-      return apiRequest(`/api/comments/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ resolved }),
-      });
+      return apiRequest("PATCH", `/api/comments/${id}`, { resolved });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/comments/thumbnail/${thumbnailId}`] });
@@ -107,7 +104,7 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
   });
 
   const deleteCommentMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/comments/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/comments/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/comments/thumbnail/${thumbnailId}`] });
     },
@@ -209,9 +206,33 @@ export function CollaborationPanel({ thumbnailId, userId = "default" }: Collabor
   if (!thumbnailId) {
     return (
       <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Select a thumbnail to collaborate</p>
+        <CardContent className="py-8">
+          <div className="text-center text-muted-foreground mb-6">
+            <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p className="font-medium">Select a thumbnail to collaborate</p>
+            <p className="text-sm mt-1">Pick one of your saved thumbnails below</p>
+          </div>
+          {allThumbnails.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground">No saved thumbnails yet. Save a thumbnail first to collaborate on it.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allThumbnails.map((t) => (
+                <Card
+                  key={t.id}
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => setSelectedId(t.id)}
+                  data-testid={`collab-thumb-${t.id}`}
+                >
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium truncate">{t.title || `Thumbnail #${t.id}`}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {t.createdAt ? format(new Date(t.createdAt), "MMM d, yyyy") : "No date"}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     );

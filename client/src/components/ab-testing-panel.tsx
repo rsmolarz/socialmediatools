@@ -61,10 +61,7 @@ export function ABTestingPanel() {
 
   const createTestMutation = useMutation({
     mutationFn: async (data: { name: string; description: string; originalThumbnailId: string; variants: ABTestVariant[] }) => {
-      return apiRequest("/api/ab-tests", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/ab-tests", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ab-tests"] });
@@ -75,10 +72,7 @@ export function ABTestingPanel() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return apiRequest(`/api/ab-tests/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
+      return apiRequest("PATCH", `/api/ab-tests/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ab-tests"] });
@@ -87,10 +81,7 @@ export function ABTestingPanel() {
 
   const setWinnerMutation = useMutation({
     mutationFn: async ({ id, winner }: { id: number; winner: string }) => {
-      return apiRequest(`/api/ab-tests/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ winner, status: "completed" }),
-      });
+      return apiRequest("PATCH", `/api/ab-tests/${id}`, { winner, status: "completed" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ab-tests"] });
@@ -99,7 +90,7 @@ export function ABTestingPanel() {
 
   const deleteTestMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/ab-tests/${id}`, { method: "DELETE" });
+      return apiRequest("DELETE", `/api/ab-tests/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ab-tests"] });
