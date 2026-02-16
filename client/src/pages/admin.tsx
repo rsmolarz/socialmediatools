@@ -218,6 +218,30 @@ export default function AdminPage() {
     }
   });
 
+  const bulkImplementMutation = useMutation({
+    mutationFn: (type: string) =>
+      apiRequest("POST", "/api/admin/agent-logs/bulk-implement", { type }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      toast({ title: `${data.processed} items processed with implementation plans` });
+    },
+    onError: () => {
+      toast({ title: "Bulk implementation failed", variant: "destructive" });
+    }
+  });
+
+  const bulkApplyMutation = useMutation({
+    mutationFn: (type: string) =>
+      apiRequest("POST", "/api/admin/agent-logs/bulk-apply", { type }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-logs"] });
+      toast({ title: `${data.processed} items applied successfully` });
+    },
+    onError: () => {
+      toast({ title: "Bulk apply failed", variant: "destructive" });
+    }
+  });
+
   const updateRecommendationStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       apiRequest("PATCH", `/api/admin/recommendations/${id}`, { status }),
@@ -257,7 +281,9 @@ export default function AdminPage() {
   });
 
   const pendingGuardian = guardianLogs.filter(l => l.status === "pending").length;
+  const inProgressGuardian = guardianLogs.filter(l => l.status === "in_progress").length;
   const pendingUpgrade = upgradeLogs.filter(l => l.status === "pending").length;
+  const inProgressUpgrade = upgradeLogs.filter(l => l.status === "in_progress").length;
   const pendingRecommendations = recommendations.filter(r => r.status === "pending").length;
 
   return (
@@ -373,18 +399,50 @@ export default function AdminPage() {
                       Monitors code for errors, security issues, and best practices
                     </CardDescription>
                   </div>
-                  <Button
-                    onClick={() => runGuardianMutation.mutate()}
-                    disabled={runGuardianMutation.isPending}
-                    data-testid="button-run-guardian"
-                  >
-                    {runGuardianMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4 mr-2" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {pendingGuardian > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => bulkImplementMutation.mutate("guardian")}
+                        disabled={bulkImplementMutation.isPending}
+                        data-testid="button-implement-all-guardian"
+                      >
+                        {bulkImplementMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Rocket className="w-4 h-4 mr-2" />
+                        )}
+                        Implement All ({pendingGuardian})
+                      </Button>
                     )}
-                    Run Scan
-                  </Button>
+                    {inProgressGuardian > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => bulkApplyMutation.mutate("guardian")}
+                        disabled={bulkApplyMutation.isPending}
+                        data-testid="button-apply-all-guardian"
+                      >
+                        {bulkApplyMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Apply All ({inProgressGuardian})
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => runGuardianMutation.mutate()}
+                      disabled={runGuardianMutation.isPending}
+                      data-testid="button-run-guardian"
+                    >
+                      {runGuardianMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      Run Scan
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -610,18 +668,50 @@ export default function AdminPage() {
                       Suggests improvements, optimizations, and modern patterns
                     </CardDescription>
                   </div>
-                  <Button
-                    onClick={() => runUpgradeMutation.mutate()}
-                    disabled={runUpgradeMutation.isPending}
-                    data-testid="button-run-upgrade"
-                  >
-                    {runUpgradeMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <TrendingUp className="w-4 h-4 mr-2" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {pendingUpgrade > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => bulkImplementMutation.mutate("upgrade")}
+                        disabled={bulkImplementMutation.isPending}
+                        data-testid="button-implement-all-upgrade"
+                      >
+                        {bulkImplementMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Rocket className="w-4 h-4 mr-2" />
+                        )}
+                        Implement All ({pendingUpgrade})
+                      </Button>
                     )}
-                    Analyze Code
-                  </Button>
+                    {inProgressUpgrade > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => bulkApplyMutation.mutate("upgrade")}
+                        disabled={bulkApplyMutation.isPending}
+                        data-testid="button-apply-all-upgrade"
+                      >
+                        {bulkApplyMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Apply All ({inProgressUpgrade})
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => runUpgradeMutation.mutate()}
+                      disabled={runUpgradeMutation.isPending}
+                      data-testid="button-run-upgrade"
+                    >
+                      {runUpgradeMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                      )}
+                      Analyze Code
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

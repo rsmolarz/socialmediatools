@@ -2920,6 +2920,112 @@ Generate a detailed implementation plan with specific code changes. Return JSON:
     }
   });
 
+  // Bulk implement all pending items for a given agent type
+  app.post("/api/admin/agent-logs/bulk-implement", async (req, res) => {
+    try {
+      const { type } = req.body;
+      if (!type || !["guardian", "upgrade"].includes(type)) {
+        return res.status(400).json({ error: "Invalid type. Must be 'guardian' or 'upgrade'" });
+      }
+      const { agentLogsTable } = await import("@shared/schema");
+      
+      const pendingLogs = await db.select().from(agentLogsTable)
+        .where(and(eq(agentLogsTable.agentType, type), eq(agentLogsTable.status, "pending")));
+      
+      if (pendingLogs.length === 0) {
+        return res.json({ success: true, processed: 0, message: "No pending items to process" });
+      }
+
+      const results: any[] = [];
+      for (const log of pendingLogs) {
+        try {
+          const implementPrompt = `You are a senior developer implementing a code ${type === 'guardian' ? 'fix' : 'upgrade'} for a YouTube thumbnail generator app built with React, TypeScript, Express, and PostgreSQL.
+
+${type === 'guardian' ? 'Issue' : 'Upgrade suggestion'}:
+Title: ${log.title}
+Description: ${log.description || ""}
+File: ${log.filePath || "Unknown"}
+Recommendation: ${log.recommendation || ""}
+
+Generate a detailed implementation plan with specific code changes. Return JSON:
+{
+  "summary": "Brief summary of what will be changed",
+  "steps": [
+    {
+      "step": 1,
+      "description": "What this step does",
+      "file": "path/to/file.tsx",
+      "action": "modify|create|delete",
+      "codeSnippet": "Key code to add/change",
+      "impact": "What this change improves"
+    }
+  ],
+  "estimatedImpact": "Description of improvement",
+  "risks": "Any potential risks"
+}`;
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: implementPrompt }],
+            max_tokens: 2000,
+          });
+
+          const content = response.choices[0]?.message?.content || "{}";
+          let implementationPlan: any = {};
+          try {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              implementationPlan = JSON.parse(jsonMatch[0]);
+            }
+          } catch (e) {
+            implementationPlan = { summary: "Could not parse plan", steps: [], estimatedImpact: "Unknown", risks: "Plan generation failed" };
+          }
+
+          const [updated] = await db.update(agentLogsTable)
+            .set({ 
+              status: "in_progress",
+              metadata: { ...((log.metadata as any) || {}), implementationPlan }
+            })
+            .where(eq(agentLogsTable.id, log.id))
+            .returning();
+
+          results.push({ id: log.id, status: "implemented", title: log.title });
+        } catch (err) {
+          results.push({ id: log.id, status: "failed", title: log.title });
+        }
+      }
+
+      res.json({ success: true, processed: results.length, results });
+    } catch (error) {
+      console.error("Error in bulk implement:", error);
+      res.status(500).json({ error: "Bulk implementation failed" });
+    }
+  });
+
+  // Bulk apply all in_progress items for a given agent type
+  app.post("/api/admin/agent-logs/bulk-apply", async (req, res) => {
+    try {
+      const { type } = req.body;
+      if (!type || !["guardian", "upgrade"].includes(type)) {
+        return res.status(400).json({ error: "Invalid type. Must be 'guardian' or 'upgrade'" });
+      }
+      const { agentLogsTable } = await import("@shared/schema");
+      
+      const updated = await db.update(agentLogsTable)
+        .set({ 
+          status: "resolved",
+          resolvedAt: new Date()
+        })
+        .where(and(eq(agentLogsTable.agentType, type), eq(agentLogsTable.status, "in_progress")))
+        .returning();
+
+      res.json({ success: true, processed: updated.length });
+    } catch (error) {
+      console.error("Error in bulk apply:", error);
+      res.status(500).json({ error: "Bulk apply failed" });
+    }
+  });
+
   // ===== Saved Photos API =====
   app.get("/api/saved-photos", async (req, res) => {
     try {
