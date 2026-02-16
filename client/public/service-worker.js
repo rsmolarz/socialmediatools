@@ -1,6 +1,6 @@
-const CACHE_NAME = 'thumb-meta-v3';
-const API_CACHE = 'thumb-meta-api-v3';
-const IMAGE_CACHE = 'thumb-meta-images-v3';
+const CACHE_NAME = 'thumb-meta-v4';
+const API_CACHE = 'thumb-meta-api-v4';
+const IMAGE_CACHE = 'thumb-meta-images-v4';
 
 const STATIC_ASSETS = [
   '/',

@@ -17,6 +17,29 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function() {
+        var SW_VERSION = 'v4';
+        var lastVersion = localStorage.getItem('sw_version');
+        if (lastVersion && lastVersion !== SW_VERSION) {
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              names.forEach(function(name) { caches.delete(name); });
+            });
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              registrations.forEach(function(reg) { reg.unregister(); });
+            }).then(function() {
+              localStorage.setItem('sw_version', SW_VERSION);
+              window.location.reload();
+            });
+          }
+        } else {
+          localStorage.setItem('sw_version', SW_VERSION);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

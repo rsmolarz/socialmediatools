@@ -52,7 +52,9 @@ export class PWAManager {
     try {
       const registration = await navigator.serviceWorker.register('/service-worker.js', {
         scope: '/',
+        updateViaCache: 'none',
       });
+      registration.update();
       console.log('Service Worker registered successfully');
       return registration;
     } catch (error) {
