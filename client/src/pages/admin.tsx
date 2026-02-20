@@ -255,6 +255,8 @@ export default function AdminPage() {
   const { data: optimizationStatus, isLoading: loadingOptStatus, refetch: refetchOptStatus } = useQuery<OptimizationStatus>({
     queryKey: ["/api/youtube/optimization-status"],
     queryFn: () => fetch("/api/youtube/optimization-status").then(r => r.json()),
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const bulkOptimizeMutation = useMutation({

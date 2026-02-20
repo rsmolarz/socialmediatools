@@ -62,7 +62,6 @@ async function getAccessToken() {
 async function getUncachableYouTubeClient() {
   const accessToken = await getAccessToken();
   
-  // Create an OAuth2 client and set the access token
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: accessToken });
   
@@ -72,14 +71,45 @@ async function getUncachableYouTubeClient() {
 // The Medicine & Money Show channel handle
 const TARGET_CHANNEL_HANDLE = "medicineandmoneyshow";
 
+// Server-side cache for video list to avoid burning API quota on every page load
+let videoCache: { videos: YouTubeVideo[]; totalFetched: number } | null = null;
+let videoCacheTime: number = 0;
+const VIDEO_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Track quota errors to stop retrying when quota is exhausted
+let quotaExceededAt: number = 0;
+const QUOTA_COOLDOWN = 30 * 60 * 1000; // 30 min cooldown after quota error
+
+export function invalidateVideoCache() {
+  videoCache = null;
+  videoCacheTime = 0;
+}
+
 export async function fetchYouTubeVideos(
   maxResults: number = 50,
-  daysBack: number = 365
+  daysBack: number = 365,
+  forceRefresh: boolean = false
 ): Promise<{ videos: YouTubeVideo[]; totalFetched: number }> {
+  // If quota was recently exceeded, don't hammer the API
+  if (quotaExceededAt && (Date.now() - quotaExceededAt) < QUOTA_COOLDOWN) {
+    if (videoCache) {
+      return videoCache;
+    }
+    throw new Error("YouTube API quota exceeded. Please try again later.");
+  }
+
+  if (!forceRefresh && videoCache && (Date.now() - videoCacheTime) < VIDEO_CACHE_TTL) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    const filtered = videoCache.videos.filter(
+      v => new Date(v.publishedAt) >= cutoffDate
+    ).slice(0, maxResults);
+    return { videos: filtered, totalFetched: filtered.length };
+  }
+
   try {
     const youtube = await getUncachableYouTubeClient();
 
-    // Get The Medicine & Money Show channel by handle
     const channelResponse = await youtube.channels.list({
       part: ["contentDetails"],
       forHandle: TARGET_CHANNEL_HANDLE,
@@ -90,7 +120,6 @@ export async function fetchYouTubeVideos(
         ?.uploads;
 
     if (!uploadsPlaylistId) {
-      // Fallback: try with mine=true if handle lookup fails
       const fallbackResponse = await youtube.channels.list({
         part: ["contentDetails"],
         mine: true,
@@ -103,7 +132,6 @@ export async function fetchYouTubeVideos(
       }
     }
 
-    // Get playlist items (recent uploads)
     const playlistResponse = await youtube.playlistItems.list({
       part: ["snippet", "contentDetails"],
       playlistId: uploadsPlaylistId,
@@ -125,10 +153,11 @@ export async function fetchYouTubeVideos(
     }
 
     if (videoIds.length === 0) {
-      return { videos: [], totalFetched: 0 };
+      videoCache = { videos: [], totalFetched: 0 };
+      videoCacheTime = Date.now();
+      return videoCache;
     }
 
-    // Get full video details including tags
     const videosResponse = await youtube.videos.list({
       part: ["snippet"],
       id: videoIds,
@@ -150,9 +179,17 @@ export async function fetchYouTubeVideos(
       });
     }
 
+    videoCache = { videos, totalFetched: videos.length };
+    videoCacheTime = Date.now();
     return { videos, totalFetched: videos.length };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching YouTube videos:", error);
+    if (error?.status === 403 || error?.code === 403 || 
+        error?.errors?.[0]?.reason === "quotaExceeded" ||
+        error?.message?.includes("quota")) {
+      quotaExceededAt = Date.now();
+      console.log("YouTube quota exceeded - entering 30 min cooldown to prevent further API calls");
+    }
     throw error;
   }
 }
@@ -167,22 +204,15 @@ export async function updateYouTubeVideo(
   try {
     const youtube = await getUncachableYouTubeClient();
 
-    // First, get the current video details to preserve category if not provided
-    const currentVideo = await youtube.videos.list({
-      part: ["snippet"],
-      id: [videoId],
-    });
-
-    const currentSnippet = currentVideo.data.items?.[0]?.snippet;
-    if (!currentSnippet) {
-      return {
-        success: false,
-        message: `Video ${videoId} not found or not accessible`,
-      };
+    // Try to use provided categoryId, then look up from cache, then default
+    let effectiveCategoryId = categoryId;
+    if (!effectiveCategoryId && videoCache) {
+      const cached = videoCache.videos.find(v => v.videoId === videoId);
+      effectiveCategoryId = cached?.categoryId;
     }
-
-    // Use provided categoryId, or fall back to current category, or default
-    const effectiveCategoryId = categoryId || currentSnippet.categoryId || "22";
+    if (!effectiveCategoryId) {
+      effectiveCategoryId = "22";
+    }
 
     await youtube.videos.update({
       part: ["snippet"],
@@ -197,6 +227,8 @@ export async function updateYouTubeVideo(
       },
     });
 
+    invalidateVideoCache();
+
     return {
       success: true,
       message: `Successfully updated video ${videoId}`,
@@ -204,7 +236,6 @@ export async function updateYouTubeVideo(
   } catch (error: any) {
     console.error("Error updating YouTube video:", error);
     
-    // Extract detailed error from YouTube API response
     let errorMessage = "Unknown error";
     if (error?.response?.data?.error?.message) {
       errorMessage = error.response.data.error.message;
@@ -214,7 +245,6 @@ export async function updateYouTubeVideo(
       errorMessage = error.message;
     }
     
-    // Check for common permission errors
     if (errorMessage.includes("forbidden") || errorMessage.includes("403")) {
       errorMessage = "Permission denied. Make sure the YouTube account is connected and has write access to this video.";
     }
@@ -233,4 +263,11 @@ export async function checkYouTubeConnection(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export function getCachedVideos(): { videos: YouTubeVideo[]; totalFetched: number } | null {
+  if (videoCache && (Date.now() - videoCacheTime) < VIDEO_CACHE_TTL) {
+    return videoCache;
+  }
+  return null;
 }

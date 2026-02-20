@@ -37,7 +37,8 @@ export function VideoSeoOptimizer({ onTitleSelect, defaultExpanded = true }: Vid
 
   const { data: connectionStatus } = useQuery<{ connected: boolean }>({
     queryKey: ["/api/youtube/status"],
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    staleTime: 60000,
   });
 
   const { data: videosData, isLoading: isLoadingVideos, refetch: refetchVideos, error: videosError } = useQuery<{
@@ -47,6 +48,8 @@ export function VideoSeoOptimizer({ onTitleSelect, defaultExpanded = true }: Vid
     queryKey: ["/api/youtube/videos"],
     enabled: connectionStatus?.connected === true,
     retry: false,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const optimizeMutation = useMutation({
@@ -222,7 +225,25 @@ export function VideoSeoOptimizer({ onTitleSelect, defaultExpanded = true }: Vid
             <Button
               variant="outline"
               size="sm"
-              onClick={() => refetchVideos()}
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/youtube/videos?refresh=true");
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    toast({
+                      title: "Refresh Failed",
+                      description: err.error || "Could not refresh videos. Quota may be exceeded.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  const data = await res.json();
+                  queryClient.setQueryData(["/api/youtube/videos"], data);
+                  toast({ title: "Refreshed", description: "Video list updated from YouTube." });
+                } catch {
+                  toast({ title: "Refresh Failed", description: "Network error. Please try again.", variant: "destructive" });
+                }
+              }}
               disabled={isLoadingVideos}
               data-testid="button-refresh-videos"
             >

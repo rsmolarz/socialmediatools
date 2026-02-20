@@ -40,7 +40,7 @@ import { Readable } from "stream";
 import { viralAnalyzer } from "./lib/viral-analyzer";
 import { randomBytes } from "crypto";
 import archiver from "archiver";
-import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo } from "./youtube";
+import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo, getCachedVideos, invalidateVideoCache } from "./youtube";
 import { setupOAuthRoutes, seedDemoAccount } from "./auth/oauth-routes";
 import { publishToGHL, getGHLConnectionStatus } from "./ghl-service";
 import multer from "multer";
@@ -1457,16 +1457,20 @@ Generate exactly 6 viral title options. Return ONLY a JSON object with this form
     }
   });
 
-  // Get YouTube videos from channel
+  // Get YouTube videos from channel (cached for 10 min to save API quota)
   app.get("/api/youtube/videos", async (req, res) => {
     try {
       const maxResults = parseInt(req.query.maxResults as string) || 20;
       const daysBack = parseInt(req.query.daysBack as string) || 365;
+      const forceRefresh = req.query.refresh === "true";
       
-      const result = await fetchYouTubeVideos(maxResults, daysBack);
+      const result = await fetchYouTubeVideos(maxResults, daysBack, forceRefresh);
       res.json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching YouTube videos:", error);
+      if (error?.message?.includes("quota") || error?.code === 403 || error?.errors?.[0]?.reason === "quotaExceeded") {
+        return res.status(429).json({ error: "YouTube API quota exceeded. Please try again later (resets at midnight Pacific Time)." });
+      }
       res.status(500).json({ error: "Failed to fetch YouTube videos" });
     }
   });
@@ -1810,10 +1814,11 @@ Return JSON:
     }
   });
 
-  // Get optimization status
+  // Get optimization status (uses cached video data to avoid extra API calls)
   app.get("/api/youtube/optimization-status", async (_req, res) => {
     try {
-      const { videos } = await fetchYouTubeVideos(50, 365);
+      const cached = getCachedVideos();
+      const { videos } = cached || await fetchYouTubeVideos(50, 365);
       
       const status = videos.map(v => ({
         videoId: v.videoId,
