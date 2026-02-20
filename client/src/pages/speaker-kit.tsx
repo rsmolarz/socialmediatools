@@ -574,6 +574,9 @@ export default function SpeakerKitPage() {
   const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
   const [topicInput, setTopicInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isParsingDoc, setIsParsingDoc] = useState(false);
+  const [docFileName, setDocFileName] = useState<string | null>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>(JSON.stringify(DEFAULT_FORM));
 
@@ -696,6 +699,98 @@ export default function SpeakerKitPage() {
     setForm(loaded);
     lastSavedRef.current = JSON.stringify(loaded);
     setSaveStatus("saved");
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/plain",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Unsupported file", description: "Please upload a PDF, Word document (.docx), or text file.", variant: "destructive" });
+      return;
+    }
+
+    setIsParsingDoc(true);
+    setDocFileName(file.name);
+
+    try {
+      const formData = new FormData();
+      formData.append("document", file);
+
+      const res = await fetch("/api/speaker-kits/parse-document", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+
+      const data = await res.json();
+      const ext = data.extracted;
+
+      if (ext) {
+        const updates: Partial<SpeakerKitFormState> = {};
+        if (ext.name) updates.name = ext.name;
+        if (ext.title) updates.title = ext.title;
+        if (ext.bio) updates.bio = ext.bio;
+        if (ext.email) updates.email = ext.email;
+        if (ext.phone) updates.phone = ext.phone;
+        if (ext.website) updates.website = ext.website;
+        if (ext.socialLinks) {
+          updates.socialLinks = { ...form.socialLinks };
+          if (ext.socialLinks.linkedin) updates.socialLinks.linkedin = ext.socialLinks.linkedin;
+          if (ext.socialLinks.twitter) updates.socialLinks.twitter = ext.socialLinks.twitter;
+          if (ext.socialLinks.instagram) updates.socialLinks.instagram = ext.socialLinks.instagram;
+          if (ext.socialLinks.facebook) updates.socialLinks.facebook = ext.socialLinks.facebook;
+          if (ext.socialLinks.youtube) updates.socialLinks.youtube = ext.socialLinks.youtube;
+        }
+        if (ext.programs?.length > 0) {
+          updates.programs = ext.programs.slice(0, 3).map((p: any) => ({
+            id: crypto.randomUUID(),
+            title: p.title || "",
+            format: p.format || "Keynote",
+            bio: p.bio || p.description || "",
+            takeaways: p.takeaways || [],
+          }));
+        }
+        if (ext.topics?.length > 0) {
+          updates.topics = Array.from(new Set([...form.topics, ...ext.topics]));
+        }
+        if (ext.testimonials?.length > 0) {
+          updates.testimonials = ext.testimonials.map((t: any) => ({
+            id: crypto.randomUUID(),
+            quote: t.quote || "",
+            author: t.author || "",
+            role: t.role || "",
+          }));
+        }
+        if (ext.featuredPodcasts?.length > 0) {
+          updates.featuredPodcasts = ext.featuredPodcasts.map((p: any) => ({
+            id: crypto.randomUUID(),
+            name: p.name || "",
+            url: p.url || "",
+          }));
+        }
+
+        updateForm(updates);
+        setSaveStatus("unsaved");
+        toast({ title: "Document parsed!", description: "Fields have been auto-populated from your document. Review and save when ready." });
+      }
+    } catch (error: any) {
+      toast({ title: "Parse failed", description: error.message || "Could not extract data from the document.", variant: "destructive" });
+    } finally {
+      setIsParsingDoc(false);
+      if (docInputRef.current) docInputRef.current.value = "";
+    }
   };
 
   const addProgram = () => {
@@ -945,6 +1040,69 @@ export default function SpeakerKitPage() {
 
               <main className="flex-1 min-w-0">
                 <div className="space-y-6">
+                  <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <FileText className="h-5 w-5 text-primary" />
+                            <h3 className="font-semibold">Import from Document</h3>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Upload a speaker kit, bio, resume, or media sheet (PDF, Word, or text file) and AI will auto-populate the fields below.
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="outline"
+                              onClick={() => docInputRef.current?.click()}
+                              disabled={isParsingDoc}
+                              data-testid="button-upload-document"
+                            >
+                              {isParsingDoc ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Analyzing...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Upload Document
+                                </>
+                              )}
+                            </Button>
+                            {docFileName && !isParsingDoc && (
+                              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Check className="h-3 w-3 text-green-500" />
+                                {docFileName}
+                              </span>
+                            )}
+                            {isParsingDoc && (
+                              <span className="text-sm text-muted-foreground">
+                                Reading and extracting data from {docFileName}...
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            ref={docInputRef}
+                            type="file"
+                            accept=".pdf,.docx,.doc,.txt"
+                            className="hidden"
+                            onChange={handleDocumentUpload}
+                            data-testid="input-document-file"
+                          />
+                        </div>
+                        <div className="hidden md:flex flex-col items-center text-center text-xs text-muted-foreground gap-1">
+                          <div className="flex gap-2">
+                            <Badge variant="secondary" className="text-xs">PDF</Badge>
+                            <Badge variant="secondary" className="text-xs">DOCX</Badge>
+                            <Badge variant="secondary" className="text-xs">TXT</Badge>
+                          </div>
+                          <span>Max 10MB</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">

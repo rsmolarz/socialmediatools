@@ -43,6 +43,8 @@ import archiver from "archiver";
 import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo } from "./youtube";
 import { setupOAuthRoutes, seedDemoAccount } from "./auth/oauth-routes";
 import { publishToGHL, getGHLConnectionStatus } from "./ghl-service";
+import multer from "multer";
+import * as mammoth from "mammoth";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -3321,6 +3323,109 @@ Return a JSON object with these application fields:
     } catch (error) {
       console.error("Error generating application:", error);
       res.status(500).json({ error: "Failed to generate application" });
+    }
+  });
+
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+  app.post("/api/speaker-kits/parse-document", upload.single("document"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const file = req.file;
+      let extractedText = "";
+
+      if (file.mimetype === "application/pdf") {
+        const pdfParse = (await import("pdf-parse")).default;
+        const pdfData = await pdfParse(file.buffer);
+        extractedText = pdfData.text;
+      } else if (
+        file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        file.mimetype === "application/msword"
+      ) {
+        const result = await mammoth.extractRawText({ buffer: file.buffer });
+        extractedText = result.value;
+      } else if (file.mimetype === "text/plain") {
+        extractedText = file.buffer.toString("utf-8");
+      } else {
+        return res.status(400).json({ error: "Unsupported file type. Please upload a PDF, Word document (.docx), or text file." });
+      }
+
+      if (!extractedText.trim()) {
+        return res.status(400).json({ error: "Could not extract any text from the document." });
+      }
+
+      const truncated = extractedText.substring(0, 8000);
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an assistant that extracts speaker profile information from documents. 
+Given the text from a speaker kit, bio, resume, or similar document, extract as much relevant information as possible and return it as JSON.
+
+Return a JSON object with these fields (leave empty string or empty array if not found):
+{
+  "name": "speaker's full name",
+  "title": "professional title or tagline",
+  "bio": "speaker bio / about section",
+  "email": "email address",
+  "phone": "phone number",
+  "website": "website URL",
+  "socialLinks": {
+    "linkedin": "linkedin URL",
+    "twitter": "twitter/X URL",
+    "instagram": "instagram URL",
+    "facebook": "facebook URL",
+    "youtube": "youtube URL"
+  },
+  "programs": [
+    {
+      "title": "program/talk title",
+      "format": "Keynote or Workshop or Virtual Presentation or Panel",
+      "bio": "description of this program",
+      "takeaways": ["takeaway 1", "takeaway 2"]
+    }
+  ],
+  "topics": ["topic 1", "topic 2"],
+  "testimonials": [
+    {
+      "quote": "testimonial text",
+      "author": "person's name",
+      "role": "their title/company"
+    }
+  ],
+  "featuredPodcasts": [
+    {
+      "name": "podcast name",
+      "url": "url if available"
+    }
+  ]
+}`,
+          },
+          {
+            role: "user",
+            content: `Extract speaker profile information from this document:\n\n${truncated}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        parsed = {};
+      }
+      res.json({ extracted: parsed, rawTextPreview: truncated.substring(0, 500) });
+    } catch (error) {
+      console.error("Error parsing document:", error);
+      res.status(500).json({ error: "Failed to parse document. Please try again." });
     }
   });
 
