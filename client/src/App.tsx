@@ -11,6 +11,7 @@ import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
+import SpeakerKit from "@/pages/speaker-kit";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -33,6 +34,7 @@ function AuthenticatedRouter() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/tools" component={Tools} />
+      <Route path="/speaker-kit" component={SpeakerKit} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>

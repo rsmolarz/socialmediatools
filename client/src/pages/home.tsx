@@ -52,6 +52,7 @@ import {
   Check,
   CloudOff,
   Loader2,
+  Mic,
 } from "lucide-react";
 import type {
   ThumbnailConfig,
@@ -643,6 +644,12 @@ export default function Home() {
                 )}
               </span>
             </div>
+            <Link href="/speaker-kit">
+              <Button variant="outline" data-testid="button-speaker-kit">
+                <Mic className="h-4 w-4 mr-2" />
+                Speaker Kit
+              </Button>
+            </Link>
             <Link href="/tools">
               <Button variant="outline" data-testid="button-tools">
                 <Wrench className="h-4 w-4 mr-2" />

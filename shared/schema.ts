@@ -575,5 +575,82 @@ export const insertFeatureRecommendationSchema = createInsertSchema(featureRecom
     reviewedAt: true,
 });
 
+// Speaker Kit table
+export const speakerKitsTable = pgTable("speaker_kits", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id"),
+    name: text("name").notNull(),
+    title: text("title"),
+    headshot: text("headshot"),
+    bio: text("bio"),
+    website: text("website"),
+    email: text("email"),
+    phone: text("phone"),
+    socialLinks: jsonb("social_links").$type<{ linkedin?: string; twitter?: string; instagram?: string; facebook?: string; youtube?: string }>(),
+    programs: jsonb("programs").$type<Array<{
+        id: string;
+        title: string;
+        format: string;
+        bio: string;
+        takeaways: string[];
+    }>>().default([]),
+    topics: text("topics").array().default([]),
+    testimonials: jsonb("testimonials").$type<Array<{
+        id: string;
+        quote: string;
+        author: string;
+        role: string;
+    }>>().default([]),
+    featuredPodcasts: jsonb("featured_podcasts").$type<Array<{
+        id: string;
+        name: string;
+        url: string;
+    }>>().default([]),
+    mediaPhotos: text("media_photos").array().default([]),
+    brandColors: jsonb("brand_colors").$type<{ primary?: string; secondary?: string; accent?: string }>(),
+    status: text("status").default("draft"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SpeakerKit = typeof speakerKitsTable.$inferSelect;
+export type InsertSpeakerKit = z.infer<typeof insertSpeakerKitSchema>;
+export const insertSpeakerKitSchema = createInsertSchema(speakerKitsTable).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+});
+
+// Speaker Opportunities table
+export const speakerOpportunitiesTable = pgTable("speaker_opportunities", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id"),
+    title: text("title").notNull(),
+    organization: text("organization"),
+    type: text("type").default("conference"),
+    url: text("url"),
+    description: text("description"),
+    location: text("location"),
+    date: text("date"),
+    deadline: text("deadline"),
+    compensation: text("compensation"),
+    audienceSize: text("audience_size"),
+    requirements: text("requirements"),
+    contactName: text("contact_name"),
+    contactEmail: text("contact_email"),
+    status: text("status").default("discovered"),
+    applicationData: jsonb("application_data").$type<Record<string, any>>(),
+    notes: text("notes"),
+    source: text("source"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SpeakerOpportunity = typeof speakerOpportunitiesTable.$inferSelect;
+export type InsertSpeakerOpportunity = z.infer<typeof insertSpeakerOpportunitySchema>;
+export const insertSpeakerOpportunitySchema = createInsertSchema(speakerOpportunitiesTable).omit({
+    id: true,
+    createdAt: true,
+});
+
 // Auth models
 export * from "./models/auth";

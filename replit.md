@@ -2,7 +2,7 @@
 
 ## Overview
 
-A web-based YouTube thumbnail generator that allows users to create, customize, and save thumbnail designs. The application features a canvas-based editor with text overlay support, customizable backgrounds (solid colors, gradients, or images), and persistent storage for saving thumbnail configurations.
+This project is a web-based YouTube thumbnail generator designed to empower content creators with an intuitive tool for crafting, customizing, and saving high-quality thumbnail designs. It features a canvas-based editor, robust text overlay capabilities, and flexible background options including solid colors, gradients, and images. The application aims to streamline the thumbnail creation process, offering persistent storage for designs and advanced features to optimize content visibility and engagement on YouTube and other social media platforms. The long-term vision includes becoming a comprehensive content creation and optimization suite, integrating AI-powered tools for SEO, content generation, and performance analytics.
 
 ## User Preferences
 
@@ -12,153 +12,89 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
-- **Routing**: Wouter for lightweight client-side routing
+- **Routing**: Wouter
 - **State Management**: TanStack React Query for server state, React useState for local state
-- **Styling**: Tailwind CSS with shadcn/ui component library (New York style)
-- **Build Tool**: Vite with custom path aliases (@/, @shared/, @assets/)
-
-The frontend follows a component-based architecture with:
-- Page components in `client/src/pages/`
-- Reusable UI components from shadcn/ui in `client/src/components/ui/`
-- Feature components in `client/src/components/`
-- Custom hooks in `client/src/hooks/`
-- Theme support (light/dark mode) via ThemeProvider
+- **Styling**: Tailwind CSS with shadcn/ui (New York style)
+- **Build Tool**: Vite
+- **Architecture**: Component-based with dedicated directories for pages, UI components, feature components, and custom hooks. Includes theme support (light/dark mode).
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express 5
 - **Language**: TypeScript with ES modules
-- **API Pattern**: RESTful endpoints under `/api/` prefix
+- **API Pattern**: RESTful endpoints
 - **Database ORM**: Drizzle ORM with PostgreSQL dialect
-
-The server uses a layered architecture:
-- `server/index.ts`: Express app setup, middleware configuration
-- `server/routes.ts`: API route definitions
-- `server/storage.ts`: Data access layer with IStorage interface
-- `server/db.ts`: Database connection pool
+- **Architecture**: Layered, separating Express app setup, route definitions, data access, and database connection.
 
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
-- **Schema Location**: `shared/schema.ts` (shared between frontend and backend)
-- **Migrations**: Generated in `./migrations` directory via `drizzle-kit push`
-
-Key entities:
-- `thumbnails`: Stores thumbnail configurations with JSONB for flexible config storage
-- `users`: Basic user table for future authentication support
+- **Schema**: Defined in `shared/schema.ts` for shared access.
+- **Migrations**: Managed via `drizzle-kit`.
+- **Key Entities**: `thumbnails` (JSONB for configurations), `users` (for authentication), `speaker_kits`, `speaker_opportunities`, `viral_content`, `social_posts`, `social_thumbnails`, `viral_topics`, `thumbnail_analytics`, `analytics_events`, `templates`, `brandKits`, `scheduledContent`, `collections`, `collaborations`, `comments`, `keyboardShortcuts`, `analytics`.
 
 ### Build System
-- **Development**: Vite dev server with HMR, proxied through Express
-- **Production**: Custom build script (`script/build.ts`) using esbuild for server and Vite for client
-- **Output**: Combined into `dist/` directory with server bundle and static client files
+- **Development**: Vite dev server with HMR, proxied through Express.
+- **Production**: Custom build script using esbuild for server and Vite for client, outputting to `dist/`.
 
-## Recent Changes
+### UI/UX Decisions
+- **Canvas Editor**: Core interface for thumbnail design.
+- **Theming**: Light/dark mode support.
+- **Component Library**: shadcn/ui for consistent UI elements.
+- **Content Scheduling Calendar**: Visual interface for managing content.
+- **Layer Panel**: Drag-and-drop reordering, visibility toggles.
+- **Analytics Dashboard**: Performance metrics, charts (recharts), A/B test results.
+- **Export Options**: Advanced controls for format, quality, platform presets.
+- **Keyboard Shortcuts**: Global shortcuts for common actions.
+- **Undo/Redo System**: History stack for design changes.
 
-### Latest Updates (February 14, 2026)
-- **Auto-Save System**: Thumbnails now auto-save 3 seconds after any change with visual status indicator (Saved/Unsaved/Saving)
-- **YouTube Metadata Persistence**: Added youtubeTitle, youtubeDescription, and tags fields to thumbnailConfigSchema - these persist with the thumbnail and survive tab switches
-- **MetadataEditor Component**: New editable YouTube Metadata section in BG tab with title input, description textarea, tag management (add/remove), and copy-to-clipboard buttons
-- **TranscriptAnalyzer Integration**: Analysis results now automatically populate the MetadataEditor fields and persist in the thumbnail config
-- **Save Status Indicator**: Header shows real-time save status with green "Saved", amber "Unsaved", or blue spinning "Saving..." indicator
-- **Incremental Saving**: Changes are saved incrementally - each change triggers a debounced auto-save that creates or updates the current thumbnail
+### Technical Implementations
+- **Auto-Save System**: Debounced saving of thumbnail configurations.
+- **Transcript Analyzer**: AI-powered analysis of podcast transcripts for themes, headlines, and background generation.
+- **AI SEO Optimizer**: AI-driven optimization for video descriptions and tags.
+- **Background Remover**: Three modes (remove, blur, replace) with presets and color options.
+- **Stock Image Integration**: Curated library with search and categorization.
+- **User Authentication**: Replit Auth integration with OIDC and session management.
+- **Social Media Suite**: AI-powered viral topic discovery, multi-platform content generation, content queue management, virality scoring, photo upload with background removal, post previews, and logo overlays.
+- **A/B Testing**: Variant creation and tracking.
+- **Instagram-style Filters**: Preset filters and manual adjustment sliders.
+- **Search & Organization**: Full-text search, tag filtering, folder management, sorting.
+- **Analytics Event Tracking**: Recording impressions and clicks.
 
-### Previous Updates (January 31, 2026)
-- **YouTube Video Upgrade**: New tab in Tools page for managing YouTube channel videos:
-  - **Video Library**: View all videos from connected YouTube channel
-  - **AI SEO Optimizer**: AI-powered optimization for video descriptions and tags
-  - **Direct YouTube Updates**: Push optimized metadata directly to YouTube
-  - **Tag Management**: Add, remove, and edit video tags
-  - API endpoints: /api/youtube/status, /api/youtube/videos, /api/youtube/optimize-seo, /api/youtube/videos/:videoId (PATCH)
-  - Uses Replit's YouTube integration for OAuth authentication
-- **Tools Page (Tier 1 Features)**: New dedicated tools page accessible via header button with 7 feature tabs:
-  - **Template Library**: Browse and apply pre-made thumbnail templates with categories (Health, Finance, Tech, Gaming, Lifestyle, Business), search functionality, and 6 default templates
-  - **Batch Export**: Export multiple thumbnails at once in PNG/JPG/WebP formats with quality control (10-100%) and ZIP download, includes configuration file export option
-  - **Content Scheduling Calendar**: Visual calendar interface for scheduling content across platforms (YouTube, TikTok, Instagram, Twitter), date navigation, and scheduled item management
-  - **Font Management**: Comprehensive typography controls with 13+ fonts across categories (Modern, Classic, Creative), font size/weight controls, letter spacing, line height, text alignment, color presets, and text shadow effects
-  - **Collaboration Panel**: Share thumbnails with team members via email with permission levels (view, edit, comment), share link generation, and comments system with resolve/delete functionality
-  - **Collections Panel**: Color-coded folder organization for thumbnails with 8 colors, 6 icons, privacy settings, and full CRUD operations
-  - Database tables: templates, brandKits, scheduledContent, collections, collaborations, comments, keyboardShortcuts, analytics
-  - Navigation: Tools button in home header, back button in tools header, ThemeToggle on both pages
-- **Social Media Suite**: New comprehensive social media dashboard (Social tab) with:
-  - **Viral Topic Discovery**: AI-powered trending topic analysis for Medicine & Money niche
-  - **Multi-Platform Content Generation**: Generate optimized content for YouTube, TikTok, and Instagram
-  - **Content Queue Management**: Review, approve, reject, and delete generated content
-  - **Virality Scoring**: AI-assessed viral potential scores for all content
-  - **Photo Upload**: Upload custom photos for social post thumbnails via file input with base64 encoding, supports drag and drop, automatic background removal using @imgly/background-removal
-  - **Background Layering**: Upload background images behind person cutouts with opacity control (10-100%)
-  - **Post Preview Modal**: View platform-specific preview of posts with thumbnail, description, and hashtags
-  - **Logo Overlay**: Toggle to add Medicine & Money Show logo to post thumbnails (showLogo field)
-  - **Platform Switching**: Change post format between Facebook, Instagram, and LinkedIn with optimistic UI updates
-  - **AI Hook Selection**: Auto-picks the best hook from generated options using GPT-4 (selectedHook field)
-  - **Editable Call-to-Action**: Inline CTA input field with auto-save on blur (callToAction field, default: "Come join us at medmoneyincubator.com...")
-  - Database tables: viral_content, social_posts, social_thumbnails, viral_topics
-  - API endpoints: /api/viral/discover-topics, /api/viral/generate-content, /api/viral/posts (GET, POST, PATCH, DELETE) - PATCH supports platform, selectedHook, callToAction field updates
-- **Three-Line Text Fix**: Viral title handlers now preserve all three text lines (only updates line 1)
-- **Viral Title Helper**: AI-powered feature in Text tab to create short, punchy viral titles
-- **Background Opacity Control**: Slider to adjust background image transparency (10-100%)
-- **Tier 3 Features Complete**:
-  - **Background Remover (Feature 11)**: New component with 3 modes (remove, blur, replace), blur presets (slight/moderate/heavy), 8 background colors, transparent background support, accessible via BG Remover tab in Tools page
-  - **Stock Image Integration (Feature 12)**: Curated stock photo library with 4 categories (Medical, Finance, Podcast, Abstract), search functionality, grid/list view toggle, favorites system, one-click background application
-  - **User Authentication (Feature 13)**: Replit Auth integration with OIDC, session management via PostgreSQL, users/sessions tables, /api/login, /api/logout, /api/auth/user endpoints, useAuth hook for React
-  - **Export Optimization (Feature 14)**: Advanced export controls with 4 formats (PNG, JPG, WebP, AVIF), quality slider (10-100%), platform presets (YouTube, Instagram, Twitter, LinkedIn, Custom), transparency preservation, web optimization, metadata stripping, estimated file size preview
-  - **Keyboard Shortcuts (Feature 15)**: Global shortcuts with useKeyboardShortcuts hook - Ctrl+S (save), Ctrl+E (export), Ctrl+Z (undo), Ctrl+Y/Ctrl+Shift+Z (redo), Ctrl+N (new), Ctrl+R (reset), Ctrl+T (toggle theme), Shift+? (show help), plus keyboard shortcuts help modal
-  - **Undo/Redo System (Feature 16)**: Full history stack with useHistory hook, 50-step history limit, undo/redo buttons in header with visual disabled states, integrated with keyboard shortcuts
-- **Tier 4 Features Complete**:
-  - **Drag & Drop Layers (Feature 17)**: LayerPanel component with drag-and-drop reordering, visual layer list showing all elements (background, highlight, text lines, person image), layer visibility toggle, move up/down buttons, delete layer functionality, layer selection with visual highlighting
-  - **A/B Testing (Feature 18)**: ABTestingPanel for creating thumbnail variants, tracking test status (draft/active/completed), selecting winners, with validated PATCH endpoints
-  - **Instagram-style Filters (Feature 19)**: ImageFiltersPanel with 12 preset filters (Vintage, Warm, Cool, Dramatic, Muted, B&W, Noir, Fade, Punch, Glow, Cinematic, Classic) plus manual sliders for brightness, contrast, saturation, hue, sepia, grayscale, blur
-  - **Search & Organization (Feature 20)**: SearchOrganization component with full-text search, tag-based filtering, folder management, sort options (date, title, engagement), and grid/list view toggle
-- **Analytics Dashboard**: New comprehensive analytics system for tracking thumbnail performance:
-  - **Performance Metrics**: Track total impressions, clicks, and engagement rates
-  - **Per-Thumbnail Stats**: View performance for individual thumbnails with CTR calculations
-  - **Daily Statistics**: Historical data with 30-day views for trend analysis
-  - **Manual Data Entry**: Add analytics data via dialog with thumbnail selector, impressions, clicks, platform, and date fields
-  - **Event Recording**: API endpoints for recording individual impression/click events
-  - **Performance Charts**: Line graphs for views over time, bar charts for thumbnail comparison using recharts library
-  - **Engagement Visualization**: Pie chart showing impressions vs clicks breakdown, CTR leaderboard ranking top performers
-  - **A/B Test Results**: Compare thumbnail variants side-by-side with winner highlighting
-  - **Export Reports**: Export analytics as CSV spreadsheet or PDF report with summary and per-thumbnail data
-  - Database tables: thumbnail_analytics, analytics_events
-  - API endpoints: /api/analytics/summary, /api/analytics/thumbnail/:id, /api/analytics/event, /api/analytics/bulk, /api/analytics/events/:id
-
-### Previous Updates (January 30, 2026)
-- **Transcript Analyzer**: New AI-powered feature to analyze podcast transcripts and generate:
-  - Key themes detection (3-5 topics extracted from content)
-  - Auto-generated headlines for thumbnail text lines
-  - AI background generation based on transcript themes
-- **Updated Tab Layout**: Changed from (Text, BG, SEO, Saved) to (Text, Photos, BG, Saved)
-- **Removed YouTube SEO Optimizer**: Replaced with Transcript Analyzer feature
-
-### Previous Updates
-- **Layout Options**: Updated from (centered, left-aligned, stacked) to (centered, twoFace, soloLeft, soloRight) with backward compatibility for legacy values
-- **Quick Headlines**: Added 8 preset headline options for rapid content creation
-- **AI Background Generator**: Enhanced with additional styles (Futuristic, Abstract, Cosmic, Cyberpunk, Medical, Financial) and moods (Luxurious, Tech-focused, Trustworthy, Urgent)
-- **Element Opacity**: Added slider control to adjust highlight background transparency (0-100%)
-- **Preset Backgrounds**: Added grid of 12 preset gradients and solid colors
-- **Mobile Feed Preview**: Added component showing how thumbnail appears in mobile feeds
-- **Export 1280×720**: Added dedicated export button for full-resolution PNG output
-- **Reset to Default**: Added button to reset all settings to defaults
+### Feature Specifications
+- **Thumbnail Editor**: Text overlay, customizable backgrounds (solid, gradient, image), image uploads, layer management, undo/redo.
+- **Speaker Kit Builder**: Comprehensive profile creation for speakers including bio, programs, topics, testimonials, and brand colors.
+- **Speaker Opportunity Finder**: AI-powered search for speaking engagements with opportunity tracking and AI auto-fill for applications.
+- **YouTube Video Management**: View channel videos, AI SEO optimization, direct YouTube metadata updates.
+- **Tools Page**: Template library, batch export, content scheduling, font management, collaboration panel, collections panel.
+- **Social Media Tools**: Content generation, queue management, virality scoring, custom photo uploads with background removal, post previews, editable CTAs.
+- **Advanced Image Editing**: Background remover, stock image integration, Instagram-style filters.
+- **User Management**: Authentication, session handling.
+- **Optimization & Workflow**: Export optimization, keyboard shortcuts, undo/redo, search and organization.
+- **Analytics**: Performance tracking (impressions, clicks, CTR), per-thumbnail stats, historical data, chart visualizations, A/B test result comparison, exportable reports.
 
 ## External Dependencies
 
 ### Database
-- PostgreSQL (required, connection via `DATABASE_URL` environment variable)
-- Drizzle ORM for type-safe database operations
-- connect-pg-simple for session storage support
+- PostgreSQL
+- Drizzle ORM
+- connect-pg-simple
 
 ### UI Framework
-- shadcn/ui components built on Radix UI primitives
-- Tailwind CSS for styling with CSS variables for theming
-- Lucide React for icons
+- shadcn/ui (built on Radix UI)
+- Tailwind CSS
+- Lucide React (icons)
 
 ### Frontend Libraries
-- TanStack React Query for data fetching and caching
-- react-hook-form with zod resolvers for form validation
-- wouter for client-side routing
-- date-fns for date formatting
+- TanStack React Query
+- react-hook-form (with Zod resolvers)
+- wouter
+- date-fns
+- recharts (for analytics charts)
 
 ### Validation
-- Zod for runtime type validation
-- drizzle-zod for generating Zod schemas from database tables
+- Zod
+- drizzle-zod
 
 ### Development Tools
-- TypeScript for type safety across the stack
-- Vite plugins for Replit integration (error overlay, cartographer, dev banner)
+- TypeScript
+- Vite plugins (for Replit integration)
+- @imgly/background-removal (for background removal functionality)

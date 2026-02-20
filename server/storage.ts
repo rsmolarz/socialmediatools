@@ -27,6 +27,10 @@ import {
   type InsertAnalytics,
   type SavedPhotoRecord,
   type InsertSavedPhoto,
+  type SpeakerKit,
+  type InsertSpeakerKit,
+  type SpeakerOpportunity,
+  type InsertSpeakerOpportunity,
   thumbnails,
   users,
   viralContent,
@@ -41,6 +45,8 @@ import {
   keyboardShortcutsTable,
   analyticsTable,
   savedPhotos,
+  speakerKitsTable,
+  speakerOpportunitiesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, or, and, gte, lte } from "drizzle-orm";
@@ -131,6 +137,20 @@ export interface IStorage {
   getSavedPhoto(id: string): Promise<SavedPhotoRecord | undefined>;
   createSavedPhoto(photo: InsertSavedPhoto): Promise<SavedPhotoRecord>;
   deleteSavedPhoto(id: string): Promise<boolean>;
+
+  // Speaker Kit methods
+  getAllSpeakerKits(): Promise<SpeakerKit[]>;
+  getSpeakerKit(id: number): Promise<SpeakerKit | undefined>;
+  createSpeakerKit(kit: InsertSpeakerKit): Promise<SpeakerKit>;
+  updateSpeakerKit(id: number, updates: Partial<InsertSpeakerKit>): Promise<SpeakerKit | undefined>;
+  deleteSpeakerKit(id: number): Promise<boolean>;
+
+  // Speaker Opportunity methods
+  getAllSpeakerOpportunities(): Promise<SpeakerOpportunity[]>;
+  getSpeakerOpportunity(id: number): Promise<SpeakerOpportunity | undefined>;
+  createSpeakerOpportunity(opp: InsertSpeakerOpportunity): Promise<SpeakerOpportunity>;
+  updateSpeakerOpportunity(id: number, updates: Partial<InsertSpeakerOpportunity>): Promise<SpeakerOpportunity | undefined>;
+  deleteSpeakerOpportunity(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -489,6 +509,56 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSavedPhoto(id: string): Promise<boolean> {
     const result = await db.delete(savedPhotos).where(eq(savedPhotos.id, id));
+    return true;
+  }
+
+  // Speaker Kit methods
+  async getAllSpeakerKits(): Promise<SpeakerKit[]> {
+    return db.select().from(speakerKitsTable).orderBy(desc(speakerKitsTable.createdAt));
+  }
+
+  async getSpeakerKit(id: number): Promise<SpeakerKit | undefined> {
+    const [kit] = await db.select().from(speakerKitsTable).where(eq(speakerKitsTable.id, id));
+    return kit;
+  }
+
+  async createSpeakerKit(kit: InsertSpeakerKit): Promise<SpeakerKit> {
+    const [created] = await db.insert(speakerKitsTable).values(kit).returning();
+    return created;
+  }
+
+  async updateSpeakerKit(id: number, updates: Partial<InsertSpeakerKit>): Promise<SpeakerKit | undefined> {
+    const [updated] = await db.update(speakerKitsTable).set({ ...updates, updatedAt: new Date() }).where(eq(speakerKitsTable.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSpeakerKit(id: number): Promise<boolean> {
+    await db.delete(speakerKitsTable).where(eq(speakerKitsTable.id, id));
+    return true;
+  }
+
+  // Speaker Opportunity methods
+  async getAllSpeakerOpportunities(): Promise<SpeakerOpportunity[]> {
+    return db.select().from(speakerOpportunitiesTable).orderBy(desc(speakerOpportunitiesTable.createdAt));
+  }
+
+  async getSpeakerOpportunity(id: number): Promise<SpeakerOpportunity | undefined> {
+    const [opp] = await db.select().from(speakerOpportunitiesTable).where(eq(speakerOpportunitiesTable.id, id));
+    return opp;
+  }
+
+  async createSpeakerOpportunity(opp: InsertSpeakerOpportunity): Promise<SpeakerOpportunity> {
+    const [created] = await db.insert(speakerOpportunitiesTable).values(opp).returning();
+    return created;
+  }
+
+  async updateSpeakerOpportunity(id: number, updates: Partial<InsertSpeakerOpportunity>): Promise<SpeakerOpportunity | undefined> {
+    const [updated] = await db.update(speakerOpportunitiesTable).set(updates).where(eq(speakerOpportunitiesTable.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSpeakerOpportunity(id: number): Promise<boolean> {
+    await db.delete(speakerOpportunitiesTable).where(eq(speakerOpportunitiesTable.id, id));
     return true;
   }
 }

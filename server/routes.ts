@@ -19,6 +19,8 @@ import {
   insertThumbnailAnalyticsSchema,
   insertAnalyticsEventSchema,
   insertSavedPhotoSchema,
+  insertSpeakerKitSchema,
+  insertSpeakerOpportunitySchema,
   brandKitsTable,
   abTestsTable,
   thumbnailTagsTable,
@@ -26,6 +28,8 @@ import {
   thumbnailAnalyticsTable,
   analyticsEventsTable,
   thumbnails,
+  speakerKitsTable,
+  speakerOpportunitiesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, gte, and, count, sum } from "drizzle-orm";
@@ -3077,6 +3081,246 @@ Generate a detailed implementation plan with specific code changes. Return JSON:
     } catch (error) {
       console.error("Error deleting saved photo:", error);
       res.status(500).json({ error: "Failed to delete photo" });
+    }
+  });
+
+  // ============================================
+  // Speaker Kit Routes
+  // ============================================
+
+  app.get("/api/speaker-kits", async (req, res) => {
+    try {
+      const kits = await storage.getAllSpeakerKits();
+      res.json(kits);
+    } catch (error) {
+      console.error("Error fetching speaker kits:", error);
+      res.status(500).json({ error: "Failed to fetch speaker kits" });
+    }
+  });
+
+  app.get("/api/speaker-kits/:id", async (req, res) => {
+    try {
+      const kit = await storage.getSpeakerKit(parseInt(req.params.id));
+      if (!kit) return res.status(404).json({ error: "Speaker kit not found" });
+      res.json(kit);
+    } catch (error) {
+      console.error("Error fetching speaker kit:", error);
+      res.status(500).json({ error: "Failed to fetch speaker kit" });
+    }
+  });
+
+  app.post("/api/speaker-kits", async (req, res) => {
+    try {
+      const parsed = insertSpeakerKitSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten() });
+      }
+      const kit = await storage.createSpeakerKit(parsed.data);
+      res.json(kit);
+    } catch (error) {
+      console.error("Error creating speaker kit:", error);
+      res.status(500).json({ error: "Failed to create speaker kit" });
+    }
+  });
+
+  app.patch("/api/speaker-kits/:id", async (req, res) => {
+    try {
+      const parsed = insertSpeakerKitSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten() });
+      }
+      const kit = await storage.updateSpeakerKit(parseInt(req.params.id), parsed.data);
+      if (!kit) return res.status(404).json({ error: "Speaker kit not found" });
+      res.json(kit);
+    } catch (error) {
+      console.error("Error updating speaker kit:", error);
+      res.status(500).json({ error: "Failed to update speaker kit" });
+    }
+  });
+
+  app.delete("/api/speaker-kits/:id", async (req, res) => {
+    try {
+      await storage.deleteSpeakerKit(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting speaker kit:", error);
+      res.status(500).json({ error: "Failed to delete speaker kit" });
+    }
+  });
+
+  // ============================================
+  // Speaker Opportunity Routes
+  // ============================================
+
+  app.get("/api/speaker-opportunities", async (req, res) => {
+    try {
+      const opportunities = await storage.getAllSpeakerOpportunities();
+      res.json(opportunities);
+    } catch (error) {
+      console.error("Error fetching opportunities:", error);
+      res.status(500).json({ error: "Failed to fetch opportunities" });
+    }
+  });
+
+  app.get("/api/speaker-opportunities/:id", async (req, res) => {
+    try {
+      const opp = await storage.getSpeakerOpportunity(parseInt(req.params.id));
+      if (!opp) return res.status(404).json({ error: "Opportunity not found" });
+      res.json(opp);
+    } catch (error) {
+      console.error("Error fetching opportunity:", error);
+      res.status(500).json({ error: "Failed to fetch opportunity" });
+    }
+  });
+
+  app.post("/api/speaker-opportunities", async (req, res) => {
+    try {
+      const parsed = insertSpeakerOpportunitySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten() });
+      }
+      const opp = await storage.createSpeakerOpportunity(parsed.data);
+      res.json(opp);
+    } catch (error) {
+      console.error("Error creating opportunity:", error);
+      res.status(500).json({ error: "Failed to create opportunity" });
+    }
+  });
+
+  app.patch("/api/speaker-opportunities/:id", async (req, res) => {
+    try {
+      const parsed = insertSpeakerOpportunitySchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten() });
+      }
+      const opp = await storage.updateSpeakerOpportunity(parseInt(req.params.id), parsed.data);
+      if (!opp) return res.status(404).json({ error: "Opportunity not found" });
+      res.json(opp);
+    } catch (error) {
+      console.error("Error updating opportunity:", error);
+      res.status(500).json({ error: "Failed to update opportunity" });
+    }
+  });
+
+  app.delete("/api/speaker-opportunities/:id", async (req, res) => {
+    try {
+      await storage.deleteSpeakerOpportunity(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting opportunity:", error);
+      res.status(500).json({ error: "Failed to delete opportunity" });
+    }
+  });
+
+  // AI-powered opportunity search
+  app.post("/api/speaker-opportunities/search", async (req, res) => {
+    try {
+      const { prompt, speakerKitId } = req.body;
+      if (!prompt) return res.status(400).json({ error: "Search prompt is required" });
+
+      let speakerContext = "";
+      if (speakerKitId) {
+        const kit = await storage.getSpeakerKit(speakerKitId);
+        if (kit) {
+          speakerContext = `\nSpeaker Profile:\n- Name: ${kit.name}\n- Title: ${kit.title}\n- Bio: ${kit.bio}\n- Topics: ${(kit.topics || []).join(", ")}\n- Programs: ${(kit.programs || []).map((p: any) => p.title).join(", ")}`;
+        }
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a speaker opportunity research assistant. Based on the user's search prompt, generate a list of 5-8 realistic and relevant speaking opportunities. Each opportunity should include realistic details that match the speaker's expertise.${speakerContext}
+
+Return a JSON object with an "opportunities" key containing an array of opportunities with these fields:
+- title: Name of the event/opportunity
+- organization: Hosting organization
+- type: "conference" | "podcast" | "summit" | "workshop" | "webinar" | "panel"
+- description: Brief description of the opportunity
+- location: City, State or "Virtual"
+- date: Approximate date range (e.g., "March 2026", "Q2 2026")
+- deadline: Application deadline
+- compensation: Expected compensation or "Unpaid" or "Travel covered"
+- audienceSize: Estimated audience size
+- requirements: What they're looking for in speakers
+- contactEmail: A realistic contact email
+- url: A realistic URL for the opportunity
+- source: Where this was found (e.g., "SpeakerHub", "Conference Alerts", "Podcast Booking")
+
+Make the opportunities diverse (mix of conferences, podcasts, summits, etc.) and realistic for the speaker's niche.`
+          },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      const parsed = JSON.parse(content);
+      const opportunities = Array.isArray(parsed) ? parsed : (parsed.opportunities || parsed.results || []);
+      res.json({ opportunities });
+    } catch (error) {
+      console.error("Error searching opportunities:", error);
+      res.status(500).json({ error: "Failed to search opportunities" });
+    }
+  });
+
+  // AI-powered application auto-fill
+  app.post("/api/speaker-opportunities/auto-fill", async (req, res) => {
+    try {
+      const { opportunityId, speakerKitId } = req.body;
+      if (!speakerKitId) return res.status(400).json({ error: "Speaker kit ID is required" });
+
+      const kit = await storage.getSpeakerKit(speakerKitId);
+      if (!kit) return res.status(404).json({ error: "Speaker kit not found" });
+
+      let oppContext = "";
+      if (opportunityId) {
+        const opp = await storage.getSpeakerOpportunity(opportunityId);
+        if (opp) {
+          oppContext = `\nOpportunity Details:\n- Event: ${opp.title}\n- Organization: ${opp.organization}\n- Type: ${opp.type}\n- Description: ${opp.description}\n- Requirements: ${opp.requirements}`;
+        }
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a speaker application assistant. Using the speaker's profile, generate a compelling application for a speaking opportunity. Create professional, personalized responses.
+
+Speaker Profile:
+- Name: ${kit.name}
+- Title: ${kit.title || ""}
+- Bio: ${kit.bio || ""}
+- Topics: ${(kit.topics || []).join(", ")}
+- Programs: ${(kit.programs || []).map((p: any) => `${p.title}: ${p.bio}`).join("\n  ")}
+- Testimonials: ${(kit.testimonials || []).map((t: any) => `"${t.quote}" - ${t.author}`).join("\n  ")}
+${oppContext}
+
+Return a JSON object with these application fields:
+- speakerBio: A tailored 150-word bio for this opportunity
+- proposedTopics: Array of 2-3 topic titles relevant to this event
+- talkAbstract: A compelling 200-word talk abstract
+- whyMe: A persuasive paragraph on why this speaker is perfect for this event
+- audienceValue: What the audience will gain
+- previousExperience: Highlight relevant past speaking experience
+- techRequirements: Standard technical requirements
+- socialProof: Key testimonials and achievements to include`
+          },
+          { role: "user", content: `Generate an application for this speaking opportunity.${oppContext}` }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      const applicationData = JSON.parse(content);
+      res.json({ applicationData });
+    } catch (error) {
+      console.error("Error generating application:", error);
+      res.status(500).json({ error: "Failed to generate application" });
     }
   });
 
