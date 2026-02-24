@@ -24,6 +24,7 @@ import { MobilePreview } from "@/components/mobile-preview";
 import { PresetBackgrounds } from "@/components/preset-backgrounds";
 import { PhotoControls, PhotoConfig } from "@/components/photo-controls";
 import { TranscriptAnalyzer } from "@/components/transcript-analyzer";
+import { ThumbnailScorer } from "@/components/thumbnail-scorer";
 import { ViralTitleHelper } from "@/components/viral-title-helper";
 import { LayerPanel } from "@/components/layer-panel";
 import { MetadataEditor } from "@/components/metadata-editor";
@@ -760,6 +761,13 @@ export default function Home() {
               onConfigChange={setConfig}
               selectedLayerId={selectedTextId}
               onLayerSelect={(id) => setSelectedTextId(id)}
+            />
+
+            {/* AI Thumbnail Scorer */}
+            <ThumbnailScorer
+              getCanvasDataUrl={() => canvasRef.current?.getDataUrl() || null}
+              currentConfig={config}
+              onConfigChange={setConfig}
             />
           </div>
 

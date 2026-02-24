@@ -3434,5 +3434,160 @@ Return a JSON object with these fields (leave empty string or empty array if not
     }
   });
 
+  // AI Thumbnail Scoring - analyzes thumbnail image and returns score + suggestions
+  app.post("/api/thumbnail/score", async (req, res) => {
+    try {
+      const { imageDataUrl } = req.body;
+      if (!imageDataUrl || typeof imageDataUrl !== "string") {
+        return res.status(400).json({ error: "imageDataUrl is required" });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert YouTube thumbnail analyst. You evaluate thumbnails based on professional criteria that drive high click-through rates. You must return ONLY valid JSON with no additional text.
+
+Score the thumbnail from 0-100 based on these categories (each scored 0-100):
+1. "contrast" - Color contrast and visual pop. Do elements stand out? Is there sufficient contrast between text and background?
+2. "textReadability" - Can text be read at small sizes (mobile)? Is font size large enough? Is there text shadow/outline for visibility?
+3. "composition" - Rule of thirds, visual hierarchy, focal point placement, use of negative space
+4. "colorPsychology" - Emotional impact of colors. Do colors match the content topic? Are colors attention-grabbing?
+5. "facesAndEmotions" - Are human faces/emotions visible and expressive? Faces with strong emotions drive 30%+ more clicks
+6. "thumbnailClarity" - Will it be clear and recognizable as a small 120x90 thumbnail on mobile?
+7. "brandConsistency" - Does it have consistent branding elements (colors, style, logo)?
+8. "clickBait" - Curiosity gap - does it make viewers NEED to click? Intrigue without being misleading
+
+Return JSON format:
+{
+  "overallScore": number,
+  "categories": {
+    "contrast": { "score": number, "feedback": "string" },
+    "textReadability": { "score": number, "feedback": "string" },
+    "composition": { "score": number, "feedback": "string" },
+    "colorPsychology": { "score": number, "feedback": "string" },
+    "facesAndEmotions": { "score": number, "feedback": "string" },
+    "thumbnailClarity": { "score": number, "feedback": "string" },
+    "brandConsistency": { "score": number, "feedback": "string" },
+    "clickBait": { "score": number, "feedback": "string" }
+  },
+  "topImprovements": [
+    { "priority": 1, "category": "string", "action": "specific actionable improvement" },
+    { "priority": 2, "category": "string", "action": "specific actionable improvement" },
+    { "priority": 3, "category": "string", "action": "specific actionable improvement" }
+  ],
+  "optimizationSuggestions": {
+    "textColor": "suggested hex color or null",
+    "textSize": "increase/decrease/keep or null",
+    "backgroundColor": "suggested hex color or gradient or null",
+    "addTextShadow": true/false,
+    "addTextOutline": true/false,
+    "increaseContrast": true/false,
+    "suggestedTextOutlineColor": "hex color or null",
+    "suggestedOverlayOpacity": number or null
+  }
+}`
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Analyze this YouTube thumbnail and score it. Be critical but fair. Focus on what would actually improve click-through rates."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageDataUrl
+                }
+              }
+            ]
+          }
+        ],
+        max_completion_tokens: 2000,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "Failed to parse AI response" });
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error scoring thumbnail:", error);
+      res.status(500).json({ error: "Failed to score thumbnail. Please try again." });
+    }
+  });
+
+  // AI Thumbnail Auto-Optimize - returns optimized config suggestions
+  app.post("/api/thumbnail/optimize", async (req, res) => {
+    try {
+      const { imageDataUrl, currentConfig, scoreData } = req.body;
+      if (!imageDataUrl || !currentConfig) {
+        return res.status(400).json({ error: "imageDataUrl and currentConfig are required" });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert YouTube thumbnail optimizer. Given a thumbnail image, its current configuration, and its score analysis, suggest SPECIFIC config changes to maximize the score. You must return ONLY valid JSON.
+
+The thumbnail config has these modifiable properties:
+- overlays: array of text overlays with { fontSize, fontColor, fontWeight, textShadow, strokeColor, strokeWidth } (do NOT change text content)
+- backgroundColor: hex color or CSS gradient string
+- backgroundOpacity: 0-100
+- accentColor: must be one of "orange", "blue", or "purple" only
+
+Return JSON with ONLY the fields that should change:
+{
+  "changes": {
+    "overlays": [{ "id": "existing-id", "fontColor": "#FFFFFF", "fontSize": 72, "strokeColor": "#000000", "strokeWidth": 3, "textShadow": "2px 2px 4px rgba(0,0,0,0.8)" }],
+    "backgroundColor": "#1a1a2e",
+    "backgroundOpacity": 40,
+    "accentColor": "#FF6600"
+  },
+  "explanation": "Brief explanation of what was changed and why",
+  "expectedScoreImprovement": number
+}`
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Optimize this thumbnail to maximize its score. Current score data: ${JSON.stringify(scoreData || {})}. Current config: ${JSON.stringify({
+                  overlays: currentConfig.overlays?.map((o: any) => ({ id: o.id, text: o.text, fontSize: o.fontSize, fontColor: o.fontColor, x: o.x, y: o.y, fontWeight: o.fontWeight, strokeColor: o.strokeColor, strokeWidth: o.strokeWidth, textShadow: o.textShadow })),
+                  backgroundColor: currentConfig.backgroundColor,
+                  backgroundOpacity: currentConfig.backgroundOpacity,
+                  accentColor: currentConfig.accentColor,
+                })}`
+              },
+              {
+                type: "image_url",
+                image_url: { url: imageDataUrl }
+              }
+            ]
+          }
+        ],
+        max_completion_tokens: 2000,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "Failed to parse AI optimization response" });
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error optimizing thumbnail:", error);
+      res.status(500).json({ error: "Failed to optimize thumbnail. Please try again." });
+    }
+  });
+
   return httpServer;
 }
