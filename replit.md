@@ -61,7 +61,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Feature Specifications
 - **Thumbnail Editor**: Text overlay, customizable backgrounds (solid, gradient, image), image uploads, layer management, undo/redo.
-- **Speaker Kit Builder**: Comprehensive profile creation for speakers including bio, programs, topics, testimonials, and brand colors.
+- **Speaker Kit Builder**: Comprehensive profile creation for speakers including bio, programs, topics, testimonials, and brand colors. Features brand kit integration (import colors from saved brand kits) and AI-powered document upload (PDF/DOCX/TXT) to auto-populate all form fields.
 - **Speaker Opportunity Finder**: AI-powered search for speaking engagements with opportunity tracking and AI auto-fill for applications.
 - **YouTube Video Management**: View channel videos, AI SEO optimization, direct YouTube metadata updates.
 - **Tools Page**: Template library, batch export, content scheduling, font management, collaboration panel, collections panel.

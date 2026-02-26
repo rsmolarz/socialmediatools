@@ -55,7 +55,26 @@ import {
   Target,
   Send,
   ClipboardList,
+  Link2,
 } from "lucide-react";
+
+interface BrandKitData {
+  id: number;
+  name: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+  };
+  fonts: {
+    heading: string;
+    body: string;
+    accent: string;
+  };
+  logos: Array<{ url: string; variant: string }>;
+}
 
 interface SpeakerKitFormState {
   name: string;
@@ -584,6 +603,10 @@ export default function SpeakerKitPage() {
     queryKey: ["/api/speaker-kits"],
   });
 
+  const { data: brandKits = [] } = useQuery<BrandKitData[]>({
+    queryKey: ["/api/brand-kits"],
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<SpeakerKitFormState>) => {
       const payload = {
@@ -670,6 +693,22 @@ export default function SpeakerKitPage() {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setSaveStatus("saving");
     saveMutation.mutate(form);
+  };
+
+  const handleApplyBrandKit = (brandKit: BrandKitData) => {
+    const colors = brandKit.colors;
+    updateForm({
+      brandColors: {
+        primary: colors.primary || form.brandColors.primary,
+        secondary: colors.secondary || form.brandColors.secondary,
+        accent: colors.accent || form.brandColors.accent,
+      },
+    });
+    setSaveStatus("unsaved");
+    toast({
+      title: "Brand kit applied",
+      description: `Colors from "${brandKit.name}" have been imported. Save to keep changes.`,
+    });
   };
 
   const handleNewKit = () => {
@@ -1624,7 +1663,37 @@ export default function SpeakerKitPage() {
                         Brand Colors
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-6">
+                      {brandKits.length > 0 && (
+                        <div className="p-4 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5" data-testid="brand-kit-import-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Link2 className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium">Import from Brand Kit</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Pull colors from a saved brand kit so you don't have to re-enter them.
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {brandKits.map((bk) => (
+                              <Button
+                                key={bk.id}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleApplyBrandKit(bk)}
+                                className="flex items-center gap-2"
+                                data-testid={`button-apply-brand-kit-${bk.id}`}
+                              >
+                                <div className="flex gap-0.5">
+                                  <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: bk.colors?.primary || "#6366f1" }} />
+                                  <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: bk.colors?.secondary || "#8b5cf6" }} />
+                                  <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: bk.colors?.accent || "#f59e0b" }} />
+                                </div>
+                                {bk.name}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                           <Label>Primary</Label>
