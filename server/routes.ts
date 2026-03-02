@@ -3589,5 +3589,284 @@ Return JSON with ONLY the fields that should change:
     }
   });
 
+  // Website Copy & SEO Evaluator - analyzes website against 15 P's, SEO, and graphics
+  app.post("/api/site-evaluator/evaluate", async (req, res) => {
+    try {
+      const { url, rawContent } = req.body;
+
+      if (!url && !rawContent) {
+        return res.status(400).json({ error: "Provide a URL or paste content to evaluate." });
+      }
+
+      let pageContent = rawContent || "";
+      let pageUrl = url || "pasted content";
+
+      if (url && !rawContent) {
+        try {
+          const parsedUrl = new URL(url);
+          if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+            return res.status(400).json({ error: "Only http and https URLs are allowed." });
+          }
+          const hostname = parsedUrl.hostname.toLowerCase();
+          const blockedPatterns = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "169.254.", "metadata.google"];
+          if (blockedPatterns.some((p) => hostname.startsWith(p) || hostname === p)) {
+            return res.status(400).json({ error: "Internal or private URLs are not allowed." });
+          }
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 15000);
+          const response = await fetch(url, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; SiteEvaluator/1.0)" },
+            signal: controller.signal,
+            redirect: "follow",
+          });
+          clearTimeout(timeout);
+          pageContent = await response.text();
+        } catch (fetchError: any) {
+          return res.status(400).json({ error: `Could not fetch the website: ${fetchError.message}. Try pasting the content instead.` });
+        }
+      }
+
+      const truncatedContent = pageContent.substring(0, 30000);
+
+      const evaluationPrompt = `You are an expert website evaluator specializing in copywriting (using the 15 P's of Compelling Copy framework by Brand Builders Group), SEO analysis, and graphic/design evaluation.
+
+Analyze the following website content and return a comprehensive JSON evaluation.
+
+The 15 P's of Compelling Copy are:
+1. Problem - Does the copy clearly identify the audience's pain point or problem?
+2. Promise - Is there a clear promise of what the reader/customer will gain?
+3. Picture - Does the copy paint a vivid picture of the desired outcome or transformation?
+4. Proof - Is there social proof, testimonials, case studies, or evidence of results?
+5. Proposition - Is the unique value proposition clear and differentiated?
+6. Price - Is pricing presented in a way that anchors value and justifies the investment?
+7. Push - Is there urgency, scarcity, or a compelling reason to act now?
+8. Pull-Back - Is there risk reversal (guarantees, free trials, money-back offers)?
+9. Purpose - Does the brand communicate a higher purpose, mission, or "why"?
+10. Personality - Does authentic brand voice and personality come through?
+11. Proximity - Does the copy create closeness and make the reader feel understood?
+12. Positioning - Is the brand clearly positioned and differentiated from alternatives?
+13. Platform - Is the copy optimized for the medium/platform it appears on?
+14. Progression - Does the copy guide the reader through a logical, compelling journey?
+15. Prestige - Does the copy build authority, credibility, and aspirational status?
+
+Return ONLY valid JSON in this exact structure:
+{
+  "url": "${pageUrl}",
+  "copyScore": <0-100 overall copy score>,
+  "seoScore": <0-100 overall SEO score>,
+  "graphicsScore": <0-100 overall graphics/design score>,
+  "overallScore": <0-100 weighted average>,
+  "copySummary": "<2-3 sentence summary of the copy quality>",
+  "topPriorities": ["<priority 1>", "<priority 2>", "<priority 3>", "<priority 4>", "<priority 5>"],
+  "fifteenPs": [
+    {
+      "key": "problem",
+      "score": <0-100>,
+      "analysis": "<2-3 sentences analyzing this P>",
+      "suggestions": ["<suggestion 1>", "<suggestion 2>"]
+    },
+    {
+      "key": "promise",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "picture",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "proof",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "proposition",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "price",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "push",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "pullback",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "purpose",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "personality",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "proximity",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "positioning",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "platform",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "progression",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    },
+    {
+      "key": "prestige",
+      "score": <0-100>,
+      "analysis": "<analysis>",
+      "suggestions": ["<suggestion>"]
+    }
+  ],
+  "seo": {
+    "score": <0-100>,
+    "title": {
+      "present": <true/false>,
+      "optimized": <true/false>,
+      "text": "<the title tag text if found>",
+      "suggestion": "<improvement suggestion>"
+    },
+    "metaDescription": {
+      "present": <true/false>,
+      "optimized": <true/false>,
+      "text": "<the meta description if found>",
+      "suggestion": "<improvement suggestion>"
+    },
+    "headings": {
+      "h1Count": <number>,
+      "h2Count": <number>,
+      "structure": "<brief assessment of heading structure>",
+      "suggestion": "<improvement suggestion>"
+    },
+    "images": {
+      "total": <number>,
+      "withAlt": <number>,
+      "suggestion": "<improvement suggestion>"
+    },
+    "links": {
+      "internal": <number>,
+      "external": <number>,
+      "suggestion": "<improvement suggestion>"
+    },
+    "mobile": {
+      "responsive": <true/false based on viewport meta tag and responsive indicators>,
+      "suggestion": "<suggestion>"
+    },
+    "speed": {
+      "suggestion": "<suggestion based on code analysis - large scripts, unoptimized images, etc>"
+    },
+    "schema": {
+      "present": <true/false - check for JSON-LD, microdata, or RDFa>,
+      "suggestion": "<suggestion>"
+    },
+    "keywords": {
+      "found": ["<keyword1>", "<keyword2>", "<keyword3>"],
+      "suggestion": "<suggestion>"
+    },
+    "overallSuggestions": ["<seo suggestion 1>", "<seo suggestion 2>", "<seo suggestion 3>"]
+  },
+  "graphics": {
+    "score": <0-100>,
+    "visualHierarchy": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "colorScheme": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "typography": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "imagery": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "whitespace": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "consistency": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "callToAction": {
+      "score": <0-100>,
+      "analysis": "<assessment>",
+      "suggestion": "<suggestion>"
+    },
+    "overallSuggestions": ["<design suggestion 1>", "<design suggestion 2>", "<design suggestion 3>"]
+  }
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: evaluationPrompt },
+          { role: "user", content: `Evaluate this website content:\n\n${truncatedContent}` },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.4,
+        max_tokens: 4096,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        return res.status(500).json({ error: "Failed to parse AI evaluation response." });
+      }
+
+      if (!parsed.fifteenPs || !Array.isArray(parsed.fifteenPs)) {
+        return res.status(500).json({ error: "AI returned invalid evaluation format." });
+      }
+
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error evaluating website:", error);
+      res.status(500).json({ error: "Failed to evaluate the website. Please try again." });
+    }
+  });
+
   return httpServer;
 }

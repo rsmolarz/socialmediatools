@@ -70,6 +70,7 @@ Preferred communication style: Simple, everyday language.
 - **User Management**: Authentication, session handling.
 - **Optimization & Workflow**: Export optimization, keyboard shortcuts, undo/redo, search and organization.
 - **Analytics**: Performance tracking (impressions, clicks, CTR), per-thumbnail stats, historical data, chart visualizations, A/B test result comparison, exportable reports.
+- **Website Evaluator**: AI-powered website analysis evaluating copy against the 15 P's of Compelling Copy (Brand Builders Group framework), SEO audit (title, meta, headings, images, links, mobile, schema, keywords), and graphics/design quality (visual hierarchy, color scheme, typography, imagery, whitespace, consistency, CTAs). Supports URL input or pasted content. Route: `/site-evaluator`.
 
 ## External Dependencies
 

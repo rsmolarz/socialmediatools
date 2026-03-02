@@ -54,6 +54,7 @@ import {
   CloudOff,
   Loader2,
   Mic,
+  Globe,
 } from "lucide-react";
 import type {
   ThumbnailConfig,
@@ -655,6 +656,12 @@ export default function Home() {
               <Button variant="outline" data-testid="button-tools">
                 <Wrench className="h-4 w-4 mr-2" />
                 Tools
+              </Button>
+            </Link>
+            <Link href="/site-evaluator">
+              <Button variant="outline" data-testid="button-site-evaluator">
+                <Globe className="h-4 w-4 mr-2" />
+                Site Evaluator
               </Button>
             </Link>
             <Link href="/admin">
