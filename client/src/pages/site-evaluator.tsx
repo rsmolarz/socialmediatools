@@ -176,7 +176,7 @@ function ScoreGauge({ score, label, size = "lg" }: { score: number; label: strin
   );
 }
 
-export default function SiteEvaluatorPage() {
+export function SiteEvaluatorPanel() {
   const { toast } = useToast();
   const [url, setUrl] = useState("");
   const [rawHtml, setRawHtml] = useState("");
@@ -213,31 +213,7 @@ export default function SiteEvaluatorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back-home">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Globe className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-lg leading-tight">Website Evaluator</h1>
-              <p className="text-xs text-muted-foreground">Copy · Graphics · SEO Analysis</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <UserMenu />
-          </div>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="max-w-6xl mx-auto">
         <Card className="mb-8" data-testid="evaluation-input-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -743,6 +719,37 @@ export default function SiteEvaluatorPage() {
             </TabsContent>
           </Tabs>
         )}
+    </div>
+  );
+}
+
+export default function SiteEvaluatorPage() {
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="icon" data-testid="button-back-home">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+              <Globe className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-semibold text-lg leading-tight">Website Evaluator</h1>
+              <p className="text-xs text-muted-foreground">Copy · Graphics · SEO Analysis</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+        </div>
+      </header>
+      <div className="container mx-auto px-4 py-8">
+        <SiteEvaluatorPanel />
       </div>
     </div>
   );

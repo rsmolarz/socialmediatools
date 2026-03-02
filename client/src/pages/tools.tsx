@@ -29,6 +29,7 @@ import { LiveCursors } from "@/components/live-cursors";
 import { ActivityLog } from "@/components/activity-log";
 import { AISmartLayouts } from "@/components/ai-smart-layouts";
 import { ColorPaletteGenerator } from "@/components/color-palette-generator";
+import { SiteEvaluatorPanel } from "@/pages/site-evaluator";
 import { 
   LayoutTemplate, 
   Download, 
@@ -48,7 +49,8 @@ import {
   Settings2,
   FlaskConical,
   Search,
-  BarChart3
+  BarChart3,
+  Globe,
 } from "lucide-react";
 
 const TOOLS = [
@@ -72,6 +74,7 @@ const TOOLS = [
   { id: "filters", name: "Filters", icon: Sparkles, description: "Instagram-style image filters" },
   { id: "search", name: "Search & Organize", icon: Search, description: "Full-text search, tags & folders" },
   { id: "analytics", name: "Analytics", icon: BarChart3, description: "Track performance & engagement" },
+  { id: "site-eval", name: "Site Evaluator", icon: Globe, description: "Copy, SEO & design analysis" },
 ];
 
 export default function ToolsPage() {
@@ -250,6 +253,10 @@ export default function ToolsPage() {
 
             <TabsContent value="analytics" className="mt-0">
               <AnalyticsDashboard />
+            </TabsContent>
+
+            <TabsContent value="site-eval" className="mt-0">
+              <SiteEvaluatorPanel />
             </TabsContent>
           </div>
         </Tabs>
