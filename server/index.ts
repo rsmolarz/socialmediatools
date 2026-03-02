@@ -53,6 +53,15 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+let appReady = false;
+
+app.use((req, res, next) => {
+  if (!appReady && req.method === "GET" && (req.path === "/" || req.path === "/__healthcheck")) {
+    return res.status(200).send("ok");
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -114,6 +123,8 @@ app.use((req, res, next) => {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
+
+  appReady = true;
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
