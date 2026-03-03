@@ -51,12 +51,25 @@ async function buildAll() {
     platform: "node",
     bundle: true,
     format: "cjs",
-    outfile: "dist/index.cjs",
+    outfile: "dist/app.cjs",
     define: {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
     external: externals,
+    logLevel: "info",
+  });
+
+  await esbuild({
+    entryPoints: ["server/startup.ts"],
+    platform: "node",
+    bundle: false,
+    format: "cjs",
+    outfile: "dist/index.cjs",
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
+    minify: false,
     logLevel: "info",
   });
 }
