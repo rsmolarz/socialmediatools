@@ -71,6 +71,7 @@ Preferred communication style: Simple, everyday language.
 - **Optimization & Workflow**: Export optimization, keyboard shortcuts, undo/redo, search and organization.
 - **Analytics**: Performance tracking (impressions, clicks, CTR), per-thumbnail stats, historical data, chart visualizations, A/B test result comparison, exportable reports.
 - **Website Evaluator**: AI-powered website analysis evaluating copy against the 15 P's of Compelling Copy (Brand Builders Group framework), SEO audit (title, meta, headings, images, links, mobile, schema, keywords), and graphics/design quality (visual hierarchy, color scheme, typography, imagery, whitespace, consistency, CTAs). Supports URL input or pasted content. Route: `/site-evaluator`.
+- **Feature Documentation System**: Self-contained, versioned knowledge base in the Admin section documenting every platform feature. Each feature entry includes summary, architecture, files, API routes, and dependencies. Supports version history, full-text search, Markdown export (individual or all), and sharing to other Replit apps or external teams via URL POST or clipboard copy. Component: `client/src/components/feature-docs.tsx`. Tab in Admin page (`/admin`).
 
 ## External Dependencies
 

@@ -36,8 +36,10 @@ import {
   ChevronUp,
   Rocket,
   Code,
-  XCircle
+  XCircle,
+  BookOpen,
 } from "lucide-react";
+import { FeatureDocs } from "@/components/feature-docs";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -385,6 +387,10 @@ export default function AdminPage() {
             <TabsTrigger value="youtube" className="flex items-center gap-2">
               <Youtube className="w-4 h-4" />
               YouTube Optimizer
+            </TabsTrigger>
+            <TabsTrigger value="feature-docs" className="flex items-center gap-2" data-testid="tab-feature-docs">
+              <BookOpen className="w-4 h-4" />
+              Feature Docs
             </TabsTrigger>
           </TabsList>
 
@@ -1259,6 +1265,27 @@ export default function AdminPage() {
                     <p className="text-sm mt-2">When ready, disable Preview Mode and click "Optimize Now" to update YouTube.</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="feature-docs">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5" />
+                      Feature Documentation
+                    </CardTitle>
+                    <CardDescription>
+                      Platform knowledge base — every feature documented with architecture, files, API routes, and dependencies. Export or share with other apps.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <FeatureDocs />
               </CardContent>
             </Card>
           </TabsContent>
