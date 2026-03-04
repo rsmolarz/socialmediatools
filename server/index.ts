@@ -40,6 +40,10 @@ export function log(message: string, source = "express") {
 export async function initApp(httpServer: Server, app: Express) {
   setupWebSocket(httpServer);
 
+  app.get("/__health", (_req: Request, res: Response) => {
+    res.status(200).send("ok");
+  });
+
   app.use(
     express.json({
       limit: '50mb',

@@ -1,15 +1,23 @@
 const http = require("http");
+const url = require("url");
 
 let expressApp: any = null;
 
 const server = http.createServer((req: any, res: any) => {
-  if (req.method === "GET" && req.url === "/") {
+  const pathname = url.parse(req.url || "/").pathname;
+
+  if (req.method === "GET" && pathname === "/__health") {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("ok");
     return;
   }
   if (expressApp) {
     expressApp(req, res);
+    return;
+  }
+  if (req.method === "GET" && pathname === "/") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
     return;
   }
   res.writeHead(503, { "Content-Type": "text/plain" });
