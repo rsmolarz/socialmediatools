@@ -12,9 +12,10 @@ process.on("unhandledRejection", (err: any) => {
 
 let expressApp: any = null;
 let indexHtml: string = "<!DOCTYPE html><html><head><title>Medicine &amp; Money Hub</title></head><body><p>Loading...</p></body></html>";
+const publicDir = path.resolve(__dirname, "public");
 
 try {
-  const p = path.resolve(__dirname, "public", "index.html");
+  const p = path.resolve(publicDir, "index.html");
   if (fs.existsSync(p)) {
     indexHtml = fs.readFileSync(p, "utf-8");
     console.log("[startup] index.html loaded (" + indexHtml.length + " bytes)");
@@ -25,21 +26,60 @@ try {
   console.log("[startup] Error reading index.html:", e.message);
 }
 
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".webp": "image/webp",
+  ".webm": "video/webm",
+  ".mp4": "video/mp4",
+  ".map": "application/json",
+};
+
+function serveStaticFile(pathname: string, res: any): boolean {
+  const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, "");
+  const filePath = path.join(publicDir, safePath);
+  if (!filePath.startsWith(publicDir)) return false;
+
+  try {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = MIME_TYPES[ext] || "application/octet-stream";
+      const body = fs.readFileSync(filePath);
+      const cacheControl = pathname.includes("/assets/")
+        ? "public, max-age=31536000, immutable"
+        : "no-cache";
+      res.writeHead(200, {
+        "Content-Type": contentType,
+        "Content-Length": body.length,
+        "Cache-Control": cacheControl,
+      });
+      res.end(body);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
 const server = http.createServer((req: any, res: any) => {
   try {
     const rawUrl = req.url || "/";
     const pathname = rawUrl.split("?")[0].replace(/\/+$/, "") || "/";
 
-    if (req.method === "GET" && (pathname === "/" || pathname === "/__health")) {
-      const body = pathname === "/__health" ? "ok" : indexHtml;
-      const contentType = pathname === "/__health" ? "text/plain" : "text/html; charset=utf-8";
-      console.log(`[health] ${req.method} ${pathname} -> 200 (${body.length} bytes)`);
-      res.writeHead(200, {
-        "Content-Type": contentType,
-        "Content-Length": Buffer.byteLength(body),
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-      });
-      res.end(body);
+    if (req.method === "GET" && pathname === "/__health") {
+      res.writeHead(200, { "Content-Type": "text/plain", "Content-Length": 2 });
+      res.end("ok");
       return;
     }
 
@@ -48,8 +88,22 @@ const server = http.createServer((req: any, res: any) => {
       return;
     }
 
-    res.writeHead(503, { "Content-Type": "text/plain" });
-    res.end("Starting...");
+    if (req.method === "GET") {
+      if (serveStaticFile(pathname, res)) return;
+
+      if (!pathname.startsWith("/api/")) {
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Length": Buffer.byteLength(indexHtml),
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        });
+        res.end(indexHtml);
+        return;
+      }
+    }
+
+    res.writeHead(503, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Application is starting, please wait..." }));
   } catch (err: any) {
     console.error("[startup] REQUEST HANDLER ERROR:", err);
     try {
@@ -69,7 +123,7 @@ const port = parseInt(process.env.PORT || "5000", 10);
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`[startup] Server listening on 0.0.0.0:${port}`);
-  console.log(`[startup] Health checks responding immediately`);
+  console.log(`[startup] Static files + health checks responding immediately`);
 
   loadApp();
 });
