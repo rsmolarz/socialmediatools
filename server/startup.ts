@@ -1,23 +1,43 @@
 const http = require("http");
 const url = require("url");
+const path = require("path");
+const fs = require("fs");
 
 let expressApp: any = null;
+let cachedIndexHtml: string | null = null;
+
+function getIndexHtml(): string | null {
+  if (cachedIndexHtml) return cachedIndexHtml;
+  try {
+    const indexPath = path.resolve(__dirname, "public", "index.html");
+    if (fs.existsSync(indexPath)) {
+      cachedIndexHtml = fs.readFileSync(indexPath, "utf-8");
+      return cachedIndexHtml;
+    }
+  } catch {}
+  return null;
+}
 
 const server = http.createServer((req: any, res: any) => {
-  const pathname = url.parse(req.url || "/").pathname;
+  const parsed = url.parse(req.url || "/");
+  const pathname = parsed.pathname;
 
-  if (req.method === "GET" && pathname === "/__health") {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("ok");
+  if (req.method === "GET" && (pathname === "/" || pathname === "/__health")) {
+    const html = getIndexHtml();
+    if (html && pathname === "/") {
+      res.writeHead(200, {
+        "Content-Type": "text/html",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      });
+      res.end(html);
+    } else {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok");
+    }
     return;
   }
   if (expressApp) {
     expressApp(req, res);
-    return;
-  }
-  if (req.method === "GET" && pathname === "/") {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("ok");
     return;
   }
   res.writeHead(503, { "Content-Type": "text/plain" });
