@@ -78,6 +78,7 @@ server.listen(port, "0.0.0.0", () => {
   console.log(`[startup] Server listening on 0.0.0.0:${port}`);
 
   setTimeout(async () => {
+    console.log("[startup] Health check window complete, loading app...");
     try {
       console.log("[startup] Loading express...");
       const express = require("express");
@@ -102,5 +103,5 @@ server.listen(port, "0.0.0.0", () => {
     } catch (err: any) {
       console.error("[startup] INIT ERROR:", err);
     }
-  }, 1000);
+  }, 10000);
 });
