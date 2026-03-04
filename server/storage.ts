@@ -47,6 +47,15 @@ import {
   savedPhotos,
   speakerKitsTable,
   speakerOpportunitiesTable,
+  type AiSuggestion,
+  type InsertAiSuggestion,
+  type AiAction,
+  type InsertAiAction,
+  type AiAutomation,
+  type InsertAiAutomation,
+  aiSuggestionsTable,
+  aiActionsTable,
+  aiAutomationsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, or, and, gte, lte } from "drizzle-orm";
@@ -151,6 +160,21 @@ export interface IStorage {
   createSpeakerOpportunity(opp: InsertSpeakerOpportunity): Promise<SpeakerOpportunity>;
   updateSpeakerOpportunity(id: number, updates: Partial<InsertSpeakerOpportunity>): Promise<SpeakerOpportunity | undefined>;
   deleteSpeakerOpportunity(id: number): Promise<boolean>;
+
+  // AI Content Team - Suggestions
+  getAllAiSuggestions(userId?: string): Promise<AiSuggestion[]>;
+  createAiSuggestion(suggestion: InsertAiSuggestion): Promise<AiSuggestion>;
+  updateAiSuggestion(id: number, updates: Partial<InsertAiSuggestion>): Promise<AiSuggestion | undefined>;
+
+  // AI Content Team - Actions
+  getAllAiActions(userId?: string, limit?: number): Promise<AiAction[]>;
+  createAiAction(action: InsertAiAction): Promise<AiAction>;
+
+  // AI Content Team - Automations
+  getAllAiAutomations(userId?: string): Promise<AiAutomation[]>;
+  createAiAutomation(automation: InsertAiAutomation): Promise<AiAutomation>;
+  updateAiAutomation(id: number, updates: Partial<InsertAiAutomation>): Promise<AiAutomation | undefined>;
+  deleteAiAutomation(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -559,6 +583,64 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSpeakerOpportunity(id: number): Promise<boolean> {
     await db.delete(speakerOpportunitiesTable).where(eq(speakerOpportunitiesTable.id, id));
+    return true;
+  }
+
+  // AI Content Team - Suggestions
+  async getAllAiSuggestions(userId?: string): Promise<AiSuggestion[]> {
+    if (userId) {
+      return db.select().from(aiSuggestionsTable).where(eq(aiSuggestionsTable.userId, userId)).orderBy(desc(aiSuggestionsTable.createdAt));
+    }
+    return db.select().from(aiSuggestionsTable).orderBy(desc(aiSuggestionsTable.createdAt));
+  }
+
+  async createAiSuggestion(suggestion: InsertAiSuggestion): Promise<AiSuggestion> {
+    const [created] = await db.insert(aiSuggestionsTable).values(suggestion).returning();
+    return created;
+  }
+
+  async updateAiSuggestion(id: number, updates: Partial<InsertAiSuggestion>): Promise<AiSuggestion | undefined> {
+    const [updated] = await db.update(aiSuggestionsTable).set(updates).where(eq(aiSuggestionsTable.id, id)).returning();
+    return updated;
+  }
+
+  // AI Content Team - Actions
+  async getAllAiActions(userId?: string, limit?: number): Promise<AiAction[]> {
+    let query = db.select().from(aiActionsTable).orderBy(desc(aiActionsTable.createdAt));
+    if (userId) {
+      query = db.select().from(aiActionsTable).where(eq(aiActionsTable.userId, userId)).orderBy(desc(aiActionsTable.createdAt));
+    }
+    if (limit) {
+      return query.limit(limit);
+    }
+    return query;
+  }
+
+  async createAiAction(action: InsertAiAction): Promise<AiAction> {
+    const [created] = await db.insert(aiActionsTable).values(action).returning();
+    return created;
+  }
+
+  // AI Content Team - Automations
+  async getAllAiAutomations(userId?: string): Promise<AiAutomation[]> {
+    if (userId) {
+      return db.select().from(aiAutomationsTable).where(eq(aiAutomationsTable.userId, userId)).orderBy(desc(aiAutomationsTable.createdAt));
+    }
+    return db.select().from(aiAutomationsTable).orderBy(desc(aiAutomationsTable.createdAt));
+  }
+
+  async createAiAutomation(automation: InsertAiAutomation): Promise<AiAutomation> {
+    const [created] = await db.insert(aiAutomationsTable).values(automation).returning();
+    return created;
+  }
+
+  async updateAiAutomation(id: number, updates: Partial<InsertAiAutomation>): Promise<AiAutomation | undefined> {
+    const [updated] = await db.update(aiAutomationsTable).set(updates).where(eq(aiAutomationsTable.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAiAutomation(id: number): Promise<boolean> {
+    await db.delete(aiAutomationsTable).where(eq(aiAutomationsTable.id, id));
     return true;
   }
 }

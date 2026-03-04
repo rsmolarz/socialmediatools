@@ -652,5 +652,68 @@ export const insertSpeakerOpportunitySchema = createInsertSchema(speakerOpportun
     createdAt: true,
 });
 
+// AI Content Team - Suggestions table
+export const aiSuggestionsTable = pgTable("ai_suggestions", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id"),
+    type: text("type").notNull().default("title"),
+    targetId: text("target_id"),
+    targetTitle: text("target_title"),
+    currentValue: text("current_value"),
+    suggestedValue: text("suggested_value"),
+    reasoning: text("reasoning"),
+    impact: text("impact").default("medium"),
+    status: text("status").default("pending"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiSuggestion = typeof aiSuggestionsTable.$inferSelect;
+export type InsertAiSuggestion = z.infer<typeof insertAiSuggestionSchema>;
+export const insertAiSuggestionSchema = createInsertSchema(aiSuggestionsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
+// AI Content Team - Actions/Activity log
+export const aiActionsTable = pgTable("ai_actions", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id"),
+    actionType: text("action_type").notNull(),
+    description: text("description"),
+    toolUsed: text("tool_used"),
+    input: jsonb("input").$type<Record<string, any>>(),
+    output: jsonb("output").$type<Record<string, any>>(),
+    status: text("status").default("completed"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiAction = typeof aiActionsTable.$inferSelect;
+export type InsertAiAction = z.infer<typeof insertAiActionSchema>;
+export const insertAiActionSchema = createInsertSchema(aiActionsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
+// AI Content Team - Automation rules
+export const aiAutomationsTable = pgTable("ai_automations", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id"),
+    name: text("name").notNull(),
+    trigger: text("trigger").notNull(),
+    action: text("action").notNull(),
+    config: jsonb("config").$type<Record<string, any>>(),
+    enabled: boolean("enabled").default(true),
+    lastRun: timestamp("last_run"),
+    runCount: integer("run_count").default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiAutomation = typeof aiAutomationsTable.$inferSelect;
+export type InsertAiAutomation = z.infer<typeof insertAiAutomationSchema>;
+export const insertAiAutomationSchema = createInsertSchema(aiAutomationsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
 // Auth models
 export * from "./models/auth";

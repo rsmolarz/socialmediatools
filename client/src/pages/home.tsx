@@ -664,6 +664,12 @@ export default function Home() {
                 Site Evaluator
               </Button>
             </Link>
+            <Link href="/ai-team">
+              <Button variant="outline" data-testid="button-ai-team">
+                <Users className="h-4 w-4 mr-2" />
+                AI Team
+              </Button>
+            </Link>
             <Link href="/admin">
               <Button variant="outline" data-testid="button-admin">
                 <Shield className="h-4 w-4 mr-2" />

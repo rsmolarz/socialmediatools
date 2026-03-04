@@ -3868,5 +3868,356 @@ Return ONLY valid JSON in this exact structure:
     }
   });
 
+  // ==========================================
+  // AI Content Team Routes
+  // ==========================================
+
+  // Get AI team stats
+  app.get("/api/ai-team/stats", async (_req, res) => {
+    try {
+      const suggestions = await storage.getAllAiSuggestions();
+      const actions = await storage.getAllAiActions(undefined, 100);
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(todayStart);
+      weekStart.setDate(weekStart.getDate() - 7);
+
+      const pendingSuggestions = suggestions.filter(s => s.status === "pending").length;
+      const acceptedToday = suggestions.filter(s => s.status === "accepted" && s.createdAt >= todayStart).length;
+      const autoResponded = actions.filter(a => a.actionType === "auto_response" && a.createdAt >= todayStart).length;
+      const actionsThisWeek = actions.filter(a => a.createdAt >= weekStart).length;
+
+      res.json({ pendingSuggestions, acceptedToday, autoResponded, actionsThisWeek });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to get AI team stats" });
+    }
+  });
+
+  // Get all suggestions
+  app.get("/api/ai-team/suggestions", async (_req, res) => {
+    try {
+      const suggestions = await storage.getAllAiSuggestions();
+      res.json(suggestions);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to get suggestions" });
+    }
+  });
+
+  // Update suggestion status
+  app.patch("/api/ai-team/suggestions/:id", async (req, res) => {
+    try {
+      const statusSchema = z.object({ status: z.enum(["pending", "accepted", "dismissed"]) });
+      const parsed = statusSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Invalid status. Must be pending, accepted, or dismissed." });
+      const id = parseInt(req.params.id);
+      const updated = await storage.updateAiSuggestion(id, parsed.data);
+      if (!updated) return res.status(404).json({ error: "Suggestion not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to update suggestion" });
+    }
+  });
+
+  // Run AI Review - generates optimization suggestions for content
+  app.post("/api/ai-team/run-review", async (_req, res) => {
+    try {
+      const thumbnails = await storage.getAllThumbnails();
+      if (thumbnails.length === 0) {
+        return res.json({ suggestions: [], message: "No content found to review" });
+      }
+
+      const contentSummary = thumbnails.slice(0, 10).map(t => ({
+        id: t.id,
+        title: t.title,
+      }));
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an AI content optimization expert for a medical/health podcast and video content platform called "The Medicine & Money Show". Analyze the provided content titles and generate specific, actionable optimization suggestions. Return a JSON array of suggestions, each with: type (title|description|seo|engagement), targetId (the content id), targetTitle (current title), currentValue (what's there now), suggestedValue (your improvement), reasoning (why this change helps), impact (high|medium|low).`
+          },
+          {
+            role: "user",
+            content: `Review these content items and suggest optimizations:\n${JSON.stringify(contentSummary)}`
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        parsed = { suggestions: [] };
+      }
+
+      const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
+      const created = [];
+      for (const s of suggestions) {
+        const suggestion = await storage.createAiSuggestion({
+          type: s.type || "title",
+          targetId: String(s.targetId || ""),
+          targetTitle: s.targetTitle || "",
+          currentValue: s.currentValue || "",
+          suggestedValue: s.suggestedValue || "",
+          reasoning: s.reasoning || "",
+          impact: s.impact || "medium",
+          status: "pending",
+        });
+        created.push(suggestion);
+      }
+
+      await storage.createAiAction({
+        actionType: "ai_review",
+        description: `AI Review generated ${created.length} suggestions`,
+        toolUsed: "ai_review",
+        input: { contentCount: contentSummary.length },
+        output: { suggestionsGenerated: created.length },
+        status: "completed",
+      });
+
+      res.json({ suggestions: created, message: `Generated ${created.length} optimization suggestions` });
+    } catch (error: any) {
+      console.error("Error running AI review:", error);
+      res.status(500).json({ error: "Failed to run AI review" });
+    }
+  });
+
+  // Optimize Title tool
+  app.post("/api/ai-team/optimize-title", async (req, res) => {
+    try {
+      const { currentTitle, category } = req.body;
+      if (!currentTitle) return res.status(400).json({ error: "Current title is required" });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at optimizing content titles for maximum search visibility and click-through rates in the medical, health, and finance space. Generate 5 optimized title variations. Return JSON: { "titles": [{ "title": "...", "reasoning": "...", "estimatedCTR": "high|medium" }] }`
+          },
+          {
+            role: "user",
+            content: `Optimize this title${category ? ` in the ${category} category` : ""}:\n"${currentTitle}"`
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try { parsed = JSON.parse(content); } catch { parsed = { titles: [] }; }
+
+      await storage.createAiAction({
+        actionType: "optimize_title",
+        description: `Optimized title: "${currentTitle}"`,
+        toolUsed: "optimize_title",
+        input: { currentTitle, category },
+        output: parsed,
+        status: "completed",
+      });
+
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error optimizing title:", error);
+      res.status(500).json({ error: "Failed to optimize title" });
+    }
+  });
+
+  // Generate Description tool
+  app.post("/api/ai-team/generate-description", async (req, res) => {
+    try {
+      const { productTitle, currentDescription, condition, category } = req.body;
+      if (!productTitle) return res.status(400).json({ error: "Product title is required" });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert content writer specializing in compelling descriptions for medical, health, and finance content. Generate an optimized description that's engaging, SEO-friendly, and conversion-focused. Return JSON: { "description": "...", "highlights": ["..."], "seoKeywords": ["..."] }`
+          },
+          {
+            role: "user",
+            content: `Generate a compelling description for:\nTitle: ${productTitle}${currentDescription ? `\nCurrent Description: ${currentDescription}` : ""}${condition ? `\nCondition/Context: ${condition}` : ""}${category ? `\nCategory: ${category}` : ""}`
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try { parsed = JSON.parse(content); } catch { parsed = { description: "", highlights: [], seoKeywords: [] }; }
+
+      await storage.createAiAction({
+        actionType: "generate_description",
+        description: `Generated description for: "${productTitle}"`,
+        toolUsed: "generate_description",
+        input: { productTitle, category },
+        output: parsed,
+        status: "completed",
+      });
+
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error generating description:", error);
+      res.status(500).json({ error: "Failed to generate description" });
+    }
+  });
+
+  // Performance Analysis tool
+  app.post("/api/ai-team/performance-analysis", async (req, res) => {
+    try {
+      const { contentId, contentTitle } = req.body;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a content performance analyst for medical/health podcast content. Provide detailed performance analysis with actionable recommendations. Return JSON: { "score": 0-100, "strengths": ["..."], "weaknesses": ["..."], "recommendations": [{ "action": "...", "impact": "high|medium|low", "effort": "easy|medium|hard" }], "competitorInsights": "...", "trendAlignment": "..." }`
+          },
+          {
+            role: "user",
+            content: `Analyze the performance potential of this content:\n${contentTitle || contentId || "General content review"}`
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try { parsed = JSON.parse(content); } catch { parsed = { score: 0, strengths: [], weaknesses: [], recommendations: [] }; }
+
+      await storage.createAiAction({
+        actionType: "performance_analysis",
+        description: `Performance analysis for: "${contentTitle || contentId}"`,
+        toolUsed: "performance_analysis",
+        input: { contentId, contentTitle },
+        output: parsed,
+        status: "completed",
+      });
+
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error analyzing performance:", error);
+      res.status(500).json({ error: "Failed to analyze performance" });
+    }
+  });
+
+  // Engagement Strategy tool
+  app.post("/api/ai-team/engagement-strategy", async (req, res) => {
+    try {
+      const { contentId, contentTitle } = req.body;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an engagement strategist for medical/health content creators. Provide smart strategies to boost audience engagement, retention, and growth. Return JSON: { "overallStrategy": "...", "hooks": [{ "type": "...", "example": "...", "placement": "..." }], "ctaRecommendations": ["..."], "communityTactics": ["..."], "crossPromotionIdeas": ["..."], "estimatedEngagementBoost": "..." }`
+          },
+          {
+            role: "user",
+            content: `Create an engagement strategy for this content:\n${contentTitle || contentId || "General content engagement"}`
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let parsed;
+      try { parsed = JSON.parse(content); } catch { parsed = { overallStrategy: "", hooks: [], ctaRecommendations: [], communityTactics: [] }; }
+
+      await storage.createAiAction({
+        actionType: "engagement_strategy",
+        description: `Engagement strategy for: "${contentTitle || contentId}"`,
+        toolUsed: "engagement_strategy",
+        input: { contentId, contentTitle },
+        output: parsed,
+        status: "completed",
+      });
+
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Error generating engagement strategy:", error);
+      res.status(500).json({ error: "Failed to generate engagement strategy" });
+    }
+  });
+
+  // Get all actions/activity
+  app.get("/api/ai-team/actions", async (_req, res) => {
+    try {
+      const actions = await storage.getAllAiActions(undefined, 50);
+      res.json(actions);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to get actions" });
+    }
+  });
+
+  // Get all automations
+  app.get("/api/ai-team/automations", async (_req, res) => {
+    try {
+      const automations = await storage.getAllAiAutomations();
+      res.json(automations);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to get automations" });
+    }
+  });
+
+  // Create automation
+  app.post("/api/ai-team/automations", async (req, res) => {
+    try {
+      const createSchema = z.object({
+        name: z.string().min(1),
+        trigger: z.string().min(1),
+        action: z.string().min(1),
+        enabled: z.boolean().optional(),
+        config: z.record(z.any()).optional(),
+      });
+      const parsed = createSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Invalid automation data", details: parsed.error.issues });
+      const automation = await storage.createAiAutomation(parsed.data);
+      res.json(automation);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to create automation" });
+    }
+  });
+
+  // Update automation
+  app.patch("/api/ai-team/automations/:id", async (req, res) => {
+    try {
+      const updateSchema = z.object({
+        name: z.string().min(1).optional(),
+        trigger: z.string().min(1).optional(),
+        action: z.string().min(1).optional(),
+        enabled: z.boolean().optional(),
+        config: z.record(z.any()).optional(),
+      });
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Invalid update data", details: parsed.error.issues });
+      const id = parseInt(req.params.id);
+      const updated = await storage.updateAiAutomation(id, parsed.data);
+      if (!updated) return res.status(404).json({ error: "Automation not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to update automation" });
+    }
+  });
+
+  // Delete automation
+  app.delete("/api/ai-team/automations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteAiAutomation(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to delete automation" });
+    }
+  });
+
   return httpServer;
 }
