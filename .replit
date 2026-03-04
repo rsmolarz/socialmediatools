@@ -22,8 +22,8 @@ externalPort = 3001
 PORT = "5000"
 
 [deployment]
-deploymentTarget = "vm"
-run = ["node", "./dist/index.cjs"]
+deploymentTarget = "autoscale"
+run = ["node", "dist/index.cjs"]
 build = ["node", "script/build.mjs"]
 
 [workflows]
