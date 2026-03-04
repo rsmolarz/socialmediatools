@@ -30,7 +30,7 @@ export function getOAuthSession(): RequestHandler {
     cookie: {
       httpOnly: true,
       secure: isHttps,
-      sameSite: isHttps ? "none" : "lax", // Required for cross-origin OAuth callbacks
+      sameSite: "lax",
       maxAge: sessionTtl,
     },
   });
@@ -216,7 +216,12 @@ export function setupOAuthRoutes(app: Express) {
           return res.redirect("/?error=google_auth_failed&detail=login_error");
         }
         console.log("[oauth] Google auth successful, user:", user.id);
-        res.redirect("/");
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[oauth] Session save error:", saveErr);
+          }
+          res.redirect("/");
+        });
       });
     } catch (err) {
       console.error("[oauth] Google OAuth error:", err);
@@ -247,7 +252,12 @@ export function setupOAuthRoutes(app: Express) {
     }),
     (req, res) => {
       console.log("[oauth] Facebook auth successful, user:", (req.user as any)?.id);
-      res.redirect("/");
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("[oauth] Facebook session save error:", saveErr);
+        }
+        res.redirect("/");
+      });
     }
   );
 
@@ -278,7 +288,12 @@ export function setupOAuthRoutes(app: Express) {
     }),
     (req, res) => {
       console.log("[oauth] GitHub auth successful, user:", req.user);
-      res.redirect("/");
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("[oauth] GitHub session save error:", saveErr);
+        }
+        res.redirect("/");
+      });
     }
   );
 
@@ -400,7 +415,12 @@ export function setupOAuthRoutes(app: Express) {
           return res.status(500).json({ error: "session_error" });
         }
         console.log("[oauth] Apple JS SDK auth successful!");
-        res.json({ success: true, redirectUrl: "/" });
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[oauth] Apple JS SDK session save error:", saveErr);
+          }
+          res.json({ success: true, redirectUrl: "/" });
+        });
       });
     } catch (error: any) {
       console.error("[oauth] Apple JS SDK error:", error);
@@ -516,7 +536,12 @@ export function setupOAuthRoutes(app: Express) {
           return res.redirect("/?error=apple_auth_failed&message=session_error");
         }
         console.log("[oauth] Apple auth successful!");
-        res.redirect("/");
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[oauth] Apple session save error:", saveErr);
+          }
+          res.redirect("/");
+        });
       });
     } catch (err: any) {
       console.error("[oauth] Apple OAuth error:", err);
@@ -572,7 +597,12 @@ export function setupOAuthRoutes(app: Express) {
           console.error("[auth] Demo login session error:", err);
           return res.status(500).json({ message: "Session error" });
         }
-        res.json({ success: true, user: safeUser });
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[auth] Demo session save error:", saveErr);
+          }
+          res.json({ success: true, user: safeUser });
+        });
       });
     } catch (err: any) {
       console.error("[auth] Demo login error:", err);
