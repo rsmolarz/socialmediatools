@@ -10,24 +10,35 @@ try {
   if (fs.existsSync(p)) indexHtml = fs.readFileSync(p, "utf-8");
 } catch {}
 
+console.log("[startup] Pre-loading modules...");
+const express = require("express");
+const appModule = require("./app.cjs");
+console.log("[startup] Modules loaded");
+
+function getPathname(rawUrl: string): string {
+  const qIdx = rawUrl.indexOf("?");
+  return qIdx === -1 ? rawUrl : rawUrl.substring(0, qIdx);
+}
+
 const server = http.createServer((req: any, res: any) => {
-  if (req.method === "GET" && req.url === "/__health") {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("ok");
+  const pathname = getPathname(req.url || "/");
+
+  if (req.method === "GET" && (pathname === "/" || pathname === "/__health")) {
+    if (pathname === "/__health") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok");
+    } else {
+      res.writeHead(200, {
+        "Content-Type": "text/html",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      });
+      res.end(indexHtml);
+    }
     return;
   }
 
   if (expressApp) {
     expressApp(req, res);
-    return;
-  }
-
-  if (req.method === "GET") {
-    res.writeHead(200, {
-      "Content-Type": "text/html",
-      "Cache-Control": "no-cache",
-    });
-    res.end(indexHtml);
     return;
   }
 
@@ -42,16 +53,14 @@ server.listen(port, "0.0.0.0", () => {
 
   setImmediate(async () => {
     try {
-      const express = require("express");
       const app = express();
 
       app.get("/__health", (_req: any, res: any) => {
         res.status(200).send("ok");
       });
 
-      const mod = require("./app.cjs");
-      if (!mod.initApp) throw new Error("initApp not found in app.cjs");
-      await mod.initApp(server, app);
+      if (!appModule.initApp) throw new Error("initApp not found in app.cjs");
+      await appModule.initApp(server, app);
       expressApp = app;
       console.log(`[startup] Application fully initialized`);
     } catch (err) {
