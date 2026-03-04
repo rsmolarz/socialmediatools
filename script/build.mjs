@@ -19,10 +19,20 @@ async function buildAll() {
     entryPoints: ["server/index.ts"],
     platform: "node",
     bundle: true,
-    format: "cjs",
-    outfile: "dist/app.cjs",
+    format: "esm",
+    outfile: "dist/app.mjs",
     define: {
       "process.env.NODE_ENV": '"production"',
+    },
+    banner: {
+      js: [
+        'import { createRequire } from "module";',
+        'const require = createRequire(import.meta.url);',
+        'import { fileURLToPath as __esm_fileURLToPath } from "url";',
+        'import { dirname as __esm_dirname } from "path";',
+        'const __filename = __esm_fileURLToPath(import.meta.url);',
+        'const __dirname = __esm_dirname(__filename);',
+      ].join("\n"),
     },
     minify: true,
     external: allDeps,

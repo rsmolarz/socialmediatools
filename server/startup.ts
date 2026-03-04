@@ -20,13 +20,6 @@ try {
     console.log("[startup] index.html loaded (" + indexHtml.length + " bytes)");
   } else {
     console.log("[startup] WARNING: No index.html found at " + p);
-    const files = fs.readdirSync(__dirname);
-    console.log("[startup] Files in __dirname:", files.join(", "));
-    const publicDir = path.resolve(__dirname, "public");
-    if (fs.existsSync(publicDir)) {
-      const pubFiles = fs.readdirSync(publicDir);
-      console.log("[startup] Files in public/:", pubFiles.join(", "));
-    }
   }
 } catch (e: any) {
   console.log("[startup] Error reading index.html:", e.message);
@@ -76,32 +69,42 @@ const port = parseInt(process.env.PORT || "5000", 10);
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`[startup] Server listening on 0.0.0.0:${port}`);
+  console.log(`[startup] Health checks responding immediately`);
 
-  setTimeout(async () => {
-    console.log("[startup] Health check window complete, loading app...");
-    try {
-      console.log("[startup] Loading express...");
-      const express = require("express");
-      console.log("[startup] Loading app bundle...");
-      const appModule = require("./app.cjs");
-      console.log("[startup] Initializing app...");
-
-      const app = express();
-
-      app.get("/__health", (_req: any, res: any) => {
-        res.status(200).send("ok");
-      });
-
-      if (!appModule.initApp) {
-        console.error("[startup] FATAL: initApp not exported from app.cjs");
-        return;
-      }
-
-      await appModule.initApp(server, app);
-      expressApp = app;
-      console.log("[startup] Application fully initialized");
-    } catch (err: any) {
-      console.error("[startup] INIT ERROR:", err);
-    }
-  }, 10000);
+  loadApp();
 });
+
+async function loadApp() {
+  try {
+    console.log("[startup] Beginning async app load via dynamic import()...");
+    const t0 = Date.now();
+
+    console.log("[startup] Importing express...");
+    const expressModule = await import("express");
+    const express = expressModule.default || expressModule;
+    console.log(`[startup] express loaded in ${Date.now() - t0}ms`);
+
+    console.log("[startup] Importing app bundle (app.mjs)...");
+    const t1 = Date.now();
+    const appModule = await import("./app.mjs");
+    console.log(`[startup] app.mjs loaded in ${Date.now() - t1}ms`);
+
+    console.log("[startup] Initializing app...");
+    const app = express();
+
+    app.get("/__health", (_req: any, res: any) => {
+      res.status(200).send("ok");
+    });
+
+    if (!appModule.initApp) {
+      console.error("[startup] FATAL: initApp not exported from app.mjs");
+      return;
+    }
+
+    await appModule.initApp(server, app);
+    expressApp = app;
+    console.log(`[startup] Application fully initialized in ${Date.now() - t0}ms`);
+  } catch (err: any) {
+    console.error("[startup] INIT ERROR:", err);
+  }
+}
