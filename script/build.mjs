@@ -9,10 +9,18 @@ async function buildAll() {
   await viteBuild();
 
   console.log("building server...");
-  const pkg = JSON.parse(await readFile("package.json", "utf-8"));
-  const allDeps = [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {}),
+  const nativeOnly = [
+    "pg-native",
+    "better-sqlite3",
+    "cpu-features",
+    "ssh2",
+    "bufferutil",
+    "utf-8-validate",
+    "canvas",
+    "sharp",
+    "@mapbox/node-pre-gyp",
+    "bcrypt",
+    "nodemailer",
   ];
 
   await esbuild({
@@ -35,7 +43,7 @@ async function buildAll() {
       ].join("\n"),
     },
     minify: true,
-    external: allDeps,
+    external: nativeOnly,
     logLevel: "info",
   });
 
