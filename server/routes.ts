@@ -21,6 +21,7 @@ import {
   insertSavedPhotoSchema,
   insertSpeakerKitSchema,
   insertSpeakerOpportunitySchema,
+  insertSiteReviewSchema,
   brandKitsTable,
   abTestsTable,
   thumbnailTagsTable,
@@ -30,6 +31,7 @@ import {
   thumbnails,
   speakerKitsTable,
   speakerOpportunitiesTable,
+  siteReviewsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, gte, and, count, sum } from "drizzle-orm";
@@ -3589,10 +3591,10 @@ Return JSON with ONLY the fields that should change:
     }
   });
 
-  // Website Copy & SEO Evaluator - analyzes website against 15 P's, SEO, and graphics
+  // Website Copy & SEO Evaluator - analyzes website against 15 P's, SEO, graphics, performance, security, mobile, content
   app.post("/api/site-evaluator/evaluate", async (req, res) => {
     try {
-      const { url, rawContent } = req.body;
+      const { url, rawContent, userId, email } = req.body;
 
       if (!url && !rawContent) {
         return res.status(400).json({ error: "Provide a URL or paste content to evaluate." });
@@ -3626,9 +3628,19 @@ Return JSON with ONLY the fields that should change:
         }
       }
 
+      const proofId = randomBytes(8).toString("hex");
+
+      const reviewRecord = await storage.createSiteReview({
+        url: pageUrl,
+        status: "analyzing",
+        proofId,
+        userId: userId || null,
+        email: email || null,
+      });
+
       const truncatedContent = pageContent.substring(0, 30000);
 
-      const evaluationPrompt = `You are an expert website evaluator specializing in copywriting (using the 15 P's of Compelling Copy framework by Brand Builders Group), SEO analysis, and graphic/design evaluation.
+      const evaluationPrompt = `You are an expert website evaluator specializing in copywriting (using the 15 P's of Compelling Copy framework by Brand Builders Group), SEO analysis, graphic/design evaluation, performance analysis, security assessment, mobile optimization, and content quality.
 
 Analyze the following website content and return a comprehensive JSON evaluation.
 
@@ -3655,188 +3667,108 @@ Return ONLY valid JSON in this exact structure:
   "copyScore": <0-100 overall copy score>,
   "seoScore": <0-100 overall SEO score>,
   "graphicsScore": <0-100 overall graphics/design score>,
-  "overallScore": <0-100 weighted average>,
+  "performanceScore": <0-100 overall performance score>,
+  "securityScore": <0-100 overall security score>,
+  "mobileScore": <0-100 overall mobile optimization score>,
+  "contentScore": <0-100 overall content quality score>,
+  "overallScore": <0-100 weighted average of all 7 categories>,
   "copySummary": "<2-3 sentence summary of the copy quality>",
   "topPriorities": ["<priority 1>", "<priority 2>", "<priority 3>", "<priority 4>", "<priority 5>"],
   "fifteenPs": [
-    {
-      "key": "problem",
-      "score": <0-100>,
-      "analysis": "<2-3 sentences analyzing this P>",
-      "suggestions": ["<suggestion 1>", "<suggestion 2>"]
-    },
-    {
-      "key": "promise",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "picture",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "proof",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "proposition",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "price",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "push",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "pullback",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "purpose",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "personality",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "proximity",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "positioning",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "platform",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "progression",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    },
-    {
-      "key": "prestige",
-      "score": <0-100>,
-      "analysis": "<analysis>",
-      "suggestions": ["<suggestion>"]
-    }
+    {"key": "problem", "score": <0-100>, "analysis": "<2-3 sentences>", "suggestions": ["<suggestion 1>", "<suggestion 2>"]},
+    {"key": "promise", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "picture", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "proof", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "proposition", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "price", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "push", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "pullback", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "purpose", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "personality", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "proximity", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "positioning", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "platform", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "progression", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]},
+    {"key": "prestige", "score": <0-100>, "analysis": "<analysis>", "suggestions": ["<suggestion>"]}
   ],
   "seo": {
     "score": <0-100>,
-    "title": {
-      "present": <true/false>,
-      "optimized": <true/false>,
-      "text": "<the title tag text if found>",
-      "suggestion": "<improvement suggestion>"
-    },
-    "metaDescription": {
-      "present": <true/false>,
-      "optimized": <true/false>,
-      "text": "<the meta description if found>",
-      "suggestion": "<improvement suggestion>"
-    },
-    "headings": {
-      "h1Count": <number>,
-      "h2Count": <number>,
-      "structure": "<brief assessment of heading structure>",
-      "suggestion": "<improvement suggestion>"
-    },
-    "images": {
-      "total": <number>,
-      "withAlt": <number>,
-      "suggestion": "<improvement suggestion>"
-    },
-    "links": {
-      "internal": <number>,
-      "external": <number>,
-      "suggestion": "<improvement suggestion>"
-    },
-    "mobile": {
-      "responsive": <true/false based on viewport meta tag and responsive indicators>,
-      "suggestion": "<suggestion>"
-    },
-    "speed": {
-      "suggestion": "<suggestion based on code analysis - large scripts, unoptimized images, etc>"
-    },
-    "schema": {
-      "present": <true/false - check for JSON-LD, microdata, or RDFa>,
-      "suggestion": "<suggestion>"
-    },
-    "keywords": {
-      "found": ["<keyword1>", "<keyword2>", "<keyword3>"],
-      "suggestion": "<suggestion>"
-    },
-    "overallSuggestions": ["<seo suggestion 1>", "<seo suggestion 2>", "<seo suggestion 3>"]
+    "title": {"present": <true/false>, "optimized": <true/false>, "text": "<title tag text>", "suggestion": "<suggestion>"},
+    "metaDescription": {"present": <true/false>, "optimized": <true/false>, "text": "<meta description>", "suggestion": "<suggestion>"},
+    "headings": {"h1Count": <number>, "h2Count": <number>, "structure": "<assessment>", "suggestion": "<suggestion>"},
+    "images": {"total": <number>, "withAlt": <number>, "suggestion": "<suggestion>"},
+    "links": {"internal": <number>, "external": <number>, "suggestion": "<suggestion>"},
+    "mobile": {"responsive": <true/false>, "suggestion": "<suggestion>"},
+    "speed": {"suggestion": "<suggestion>"},
+    "schema": {"present": <true/false>, "suggestion": "<suggestion>"},
+    "keywords": {"found": ["<keyword1>", "<keyword2>", "<keyword3>"], "suggestion": "<suggestion>"},
+    "overallSuggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
   },
   "graphics": {
     "score": <0-100>,
-    "visualHierarchy": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "colorScheme": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "typography": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "imagery": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "whitespace": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "consistency": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "callToAction": {
-      "score": <0-100>,
-      "analysis": "<assessment>",
-      "suggestion": "<suggestion>"
-    },
-    "overallSuggestions": ["<design suggestion 1>", "<design suggestion 2>", "<design suggestion 3>"]
+    "visualHierarchy": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "colorScheme": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "typography": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "imagery": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "whitespace": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "consistency": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "callToAction": {"score": <0-100>, "analysis": "<assessment>", "suggestion": "<suggestion>"},
+    "overallSuggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
+  },
+  "performance": {
+    "score": <0-100>,
+    "loadSpeed": {"score": <0-100>, "analysis": "<assessment of page load indicators, script sizes, render-blocking resources>", "suggestion": "<suggestion>"},
+    "cdn": {"score": <0-100>, "analysis": "<assessment of CDN usage, external resource hosting>", "suggestion": "<suggestion>"},
+    "caching": {"score": <0-100>, "analysis": "<assessment of caching headers, service worker usage>", "suggestion": "<suggestion>"},
+    "codeOptimization": {"score": <0-100>, "analysis": "<assessment of minification, dead code, bundle size indicators>", "suggestion": "<suggestion>"},
+    "bundleSize": {"score": <0-100>, "analysis": "<assessment of script/css file sizes and count>", "suggestion": "<suggestion>"},
+    "overallSuggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
+  },
+  "security": {
+    "score": <0-100>,
+    "https": {"score": <0-100>, "analysis": "<assessment of HTTPS usage, mixed content>", "suggestion": "<suggestion>"},
+    "authPatterns": {"score": <0-100>, "analysis": "<assessment of authentication patterns, login forms, token handling>", "suggestion": "<suggestion>"},
+    "headers": {"score": <0-100>, "analysis": "<assessment of security headers like CSP, X-Frame-Options, HSTS indicators>", "suggestion": "<suggestion>"},
+    "dataProtection": {"score": <0-100>, "analysis": "<assessment of form handling, data exposure, privacy practices>", "suggestion": "<suggestion>"},
+    "compliance": {"score": <0-100>, "analysis": "<assessment of GDPR, cookie consent, privacy policy, terms presence>", "suggestion": "<suggestion>"},
+    "overallSuggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
+  },
+  "mobile": {
+    "score": <0-100>,
+    "responsiveDesign": {"score": <0-100>, "analysis": "<assessment of responsive design patterns, media queries, flexible layouts>", "suggestion": "<suggestion>"},
+    "touchTargets": {"score": <0-100>, "analysis": "<assessment of button sizes, tap targets, spacing for touch>", "suggestion": "<suggestion>"},
+    "viewport": {"score": <0-100>, "analysis": "<assessment of viewport meta tag, initial scale, width settings>", "suggestion": "<suggestion>"},
+    "pwaIndicators": {"score": <0-100>, "analysis": "<assessment of manifest.json, service worker, app-like features>", "suggestion": "<suggestion>"},
+    "mobileFirst": {"score": <0-100>, "analysis": "<assessment of mobile-first approach, progressive enhancement>", "suggestion": "<suggestion>"},
+    "overallSuggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
+  },
+  "content": {
+    "score": <0-100>,
+    "readability": {"score": <0-100>, "analysis": "<assessment of reading level, sentence length, clarity>", "suggestion": "<suggestion>"},
+    "structure": {"score": <0-100>, "analysis": "<assessment of content organization, sections, flow>", "suggestion": "<suggestion>"},
+    "freshness": {"score": <0-100>, "analysis": "<assessment of content dates, update indicators, relevance>", "suggestion": "<suggestion>"},
+    "documentationQuality": {"score": <0-100>, "analysis": "<assessment of help text, tooltips, documentation links>", "suggestion": "<suggestion>"},
+    "writingClarity": {"score": <0-100>, "analysis": "<assessment of grammar, spelling, professional tone>", "suggestion": "<suggestion>"},
+    "overallSuggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
+  },
+  "actionPlan": [
+    {"priority": "high", "category": "<category name>", "action": "<specific action to take>", "impact": "<expected impact>", "effort": "small|medium|large"},
+    {"priority": "high", "category": "<category>", "action": "<action>", "impact": "<impact>", "effort": "<effort>"},
+    {"priority": "medium", "category": "<category>", "action": "<action>", "impact": "<impact>", "effort": "<effort>"},
+    {"priority": "medium", "category": "<category>", "action": "<action>", "impact": "<impact>", "effort": "<effort>"},
+    {"priority": "low", "category": "<category>", "action": "<action>", "impact": "<impact>", "effort": "<effort>"}
+  ],
+  "executiveSummary": {
+    "summary": "<3-5 sentence executive summary of the website evaluation>",
+    "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
+    "weaknesses": ["<weakness 1>", "<weakness 2>", "<weakness 3>"],
+    "immediateActions": ["<immediate action 1>", "<immediate action 2>", "<immediate action 3>"],
+    "longTermStrategy": "<2-3 sentence long-term improvement strategy>",
+    "nextSteps": "<2-3 sentence recommended next steps>"
   }
-}`;
+}
+
+Generate at least 5-10 action plan items across all categories with a mix of priorities. Be thorough and specific.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -3846,7 +3778,7 @@ Return ONLY valid JSON in this exact structure:
         ],
         response_format: { type: "json_object" },
         temperature: 0.4,
-        max_tokens: 4096,
+        max_tokens: 8192,
       });
 
       const content = response.choices[0]?.message?.content || "{}";
@@ -3854,17 +3786,228 @@ Return ONLY valid JSON in this exact structure:
       try {
         parsed = JSON.parse(content);
       } catch {
+        await storage.updateSiteReview(reviewRecord.id, { status: "failed" } as any);
         return res.status(500).json({ error: "Failed to parse AI evaluation response." });
       }
 
       if (!parsed.fifteenPs || !Array.isArray(parsed.fifteenPs)) {
+        await storage.updateSiteReview(reviewRecord.id, { status: "failed" } as any);
         return res.status(500).json({ error: "AI returned invalid evaluation format." });
       }
+
+      parsed.proofId = proofId;
+      parsed.reviewId = reviewRecord.id;
+
+      await storage.updateSiteReview(reviewRecord.id, {
+        status: "complete",
+        scores: {
+          overallScore: parsed.overallScore || 0,
+          copyScore: parsed.copyScore || 0,
+          seoScore: parsed.seoScore || 0,
+          graphicsScore: parsed.graphicsScore || 0,
+          performanceScore: parsed.performanceScore || 0,
+          securityScore: parsed.securityScore || 0,
+          mobileScore: parsed.mobileScore || 0,
+          contentScore: parsed.contentScore || 0,
+        },
+        result: parsed,
+        completedAt: new Date(),
+      } as any);
 
       res.json(parsed);
     } catch (error: any) {
       console.error("Error evaluating website:", error);
       res.status(500).json({ error: "Failed to evaluate the website. Please try again." });
+    }
+  });
+
+  // Get all site reviews (history)
+  app.get("/api/site-evaluator/reviews", async (req, res) => {
+    try {
+      const userId = req.query.userId as string | undefined;
+      const reviews = await storage.getAllSiteReviews(userId);
+      res.json(reviews);
+    } catch (error: any) {
+      console.error("Error fetching site reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Get single review by id
+  app.get("/api/site-evaluator/review/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid review ID" });
+      }
+      const review = await storage.getSiteReview(id);
+      if (!review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+      res.json(review);
+    } catch (error: any) {
+      console.error("Error fetching site review:", error);
+      res.status(500).json({ error: "Failed to fetch review" });
+    }
+  });
+
+  // Get review by proof ID (public)
+  app.get("/api/site-evaluator/proof/:proofId", async (req, res) => {
+    try {
+      const review = await storage.getSiteReviewByProofId(req.params.proofId);
+      if (!review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+      res.json(review);
+    } catch (error: any) {
+      console.error("Error fetching site review by proof:", error);
+      res.status(500).json({ error: "Failed to fetch review" });
+    }
+  });
+
+  // Download markdown report
+  app.get("/api/site-evaluator/review/:id/download", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid review ID" });
+      }
+      const review = await storage.getSiteReview(id);
+      if (!review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+
+      const result = review.result as any;
+      if (!result) {
+        return res.status(400).json({ error: "Review has no results yet" });
+      }
+
+      let md = `# Website Evaluation Report\n\n`;
+      md += `**URL:** ${review.url}\n`;
+      md += `**Date:** ${review.createdAt ? new Date(review.createdAt).toLocaleDateString() : "N/A"}\n`;
+      md += `**Proof ID:** ${review.proofId || "N/A"}\n\n`;
+
+      md += `## Overall Score: ${result.overallScore || 0}/100\n\n`;
+      md += `| Category | Score |\n|----------|-------|\n`;
+      md += `| Copy | ${result.copyScore || 0}/100 |\n`;
+      md += `| SEO | ${result.seoScore || 0}/100 |\n`;
+      md += `| Graphics | ${result.graphicsScore || 0}/100 |\n`;
+      md += `| Performance | ${result.performanceScore || 0}/100 |\n`;
+      md += `| Security | ${result.securityScore || 0}/100 |\n`;
+      md += `| Mobile | ${result.mobileScore || 0}/100 |\n`;
+      md += `| Content | ${result.contentScore || 0}/100 |\n\n`;
+
+      if (result.executiveSummary) {
+        md += `## Executive Summary\n\n`;
+        md += `${result.executiveSummary.summary || ""}\n\n`;
+        if (result.executiveSummary.strengths?.length) {
+          md += `### Strengths\n`;
+          result.executiveSummary.strengths.forEach((s: string) => { md += `- ${s}\n`; });
+          md += `\n`;
+        }
+        if (result.executiveSummary.weaknesses?.length) {
+          md += `### Weaknesses\n`;
+          result.executiveSummary.weaknesses.forEach((w: string) => { md += `- ${w}\n`; });
+          md += `\n`;
+        }
+        if (result.executiveSummary.immediateActions?.length) {
+          md += `### Immediate Actions\n`;
+          result.executiveSummary.immediateActions.forEach((a: string) => { md += `- ${a}\n`; });
+          md += `\n`;
+        }
+        md += `### Long-Term Strategy\n${result.executiveSummary.longTermStrategy || ""}\n\n`;
+        md += `### Next Steps\n${result.executiveSummary.nextSteps || ""}\n\n`;
+      }
+
+      if (result.fifteenPs?.length) {
+        md += `## Copy Analysis (15 P's)\n\n`;
+        md += `${result.copySummary || ""}\n\n`;
+        result.fifteenPs.forEach((p: any) => {
+          md += `### ${p.key?.charAt(0).toUpperCase()}${p.key?.slice(1)} - ${p.score}/100\n`;
+          md += `${p.analysis || ""}\n`;
+          if (p.suggestions?.length) {
+            p.suggestions.forEach((s: string) => { md += `- ${s}\n`; });
+          }
+          md += `\n`;
+        });
+      }
+
+      const categories = [
+        { key: "seo", title: "SEO Analysis" },
+        { key: "graphics", title: "Graphics & Design" },
+        { key: "performance", title: "Performance" },
+        { key: "security", title: "Security" },
+        { key: "mobile", title: "Mobile Optimization" },
+        { key: "content", title: "Content Quality" },
+      ];
+
+      for (const cat of categories) {
+        const data = result[cat.key];
+        if (data) {
+          md += `## ${cat.title} - ${data.score || 0}/100\n\n`;
+          for (const [subKey, subVal] of Object.entries(data)) {
+            if (subKey === "score" || subKey === "overallSuggestions") continue;
+            const sub = subVal as any;
+            if (sub && typeof sub === "object" && ("analysis" in sub || "suggestion" in sub)) {
+              md += `### ${subKey.replace(/([A-Z])/g, " $1").replace(/^./, (s: string) => s.toUpperCase())}\n`;
+              if (sub.score !== undefined) md += `**Score:** ${sub.score}/100\n`;
+              if (sub.analysis) md += `${sub.analysis}\n`;
+              if (sub.suggestion) md += `**Suggestion:** ${sub.suggestion}\n`;
+              md += `\n`;
+            }
+          }
+          if (data.overallSuggestions?.length) {
+            md += `### Key Suggestions\n`;
+            data.overallSuggestions.forEach((s: string) => { md += `- ${s}\n`; });
+            md += `\n`;
+          }
+        }
+      }
+
+      if (result.actionPlan?.length) {
+        md += `## Action Plan\n\n`;
+        md += `| Priority | Category | Action | Impact | Effort |\n`;
+        md += `|----------|----------|--------|--------|--------|\n`;
+        result.actionPlan.forEach((item: any) => {
+          md += `| ${item.priority} | ${item.category} | ${item.action} | ${item.impact} | ${item.effort} |\n`;
+        });
+        md += `\n`;
+      }
+
+      md += `---\n*Generated by Site Evaluator*\n`;
+
+      res.setHeader("Content-Type", "text/markdown");
+      res.setHeader("Content-Disposition", `attachment; filename="site-evaluation-${review.proofId || review.id}.md"`);
+      res.send(md);
+    } catch (error: any) {
+      console.error("Error generating report:", error);
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  // Email markdown report (simple approach - returns the markdown content for now)
+  app.post("/api/site-evaluator/review/:id/email", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid review ID" });
+      }
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email address is required" });
+      }
+
+      const review = await storage.getSiteReview(id);
+      if (!review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+
+      await storage.updateSiteReview(id, { email } as any);
+
+      res.json({ success: true, message: `Report saved. Share link: /site-evaluator/proof/${review.proofId}` });
+    } catch (error: any) {
+      console.error("Error emailing report:", error);
+      res.status(500).json({ error: "Failed to process email request" });
     }
   });
 

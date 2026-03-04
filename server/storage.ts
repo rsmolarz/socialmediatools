@@ -31,6 +31,8 @@ import {
   type InsertSpeakerKit,
   type SpeakerOpportunity,
   type InsertSpeakerOpportunity,
+  type SiteReview,
+  type InsertSiteReview,
   thumbnails,
   users,
   viralContent,
@@ -47,6 +49,7 @@ import {
   savedPhotos,
   speakerKitsTable,
   speakerOpportunitiesTable,
+  siteReviewsTable,
   type AiSuggestion,
   type InsertAiSuggestion,
   type AiAction,
@@ -175,6 +178,13 @@ export interface IStorage {
   createAiAutomation(automation: InsertAiAutomation): Promise<AiAutomation>;
   updateAiAutomation(id: number, updates: Partial<InsertAiAutomation>): Promise<AiAutomation | undefined>;
   deleteAiAutomation(id: number): Promise<boolean>;
+
+  // Site Review methods
+  createSiteReview(review: InsertSiteReview): Promise<SiteReview>;
+  getSiteReview(id: number): Promise<SiteReview | undefined>;
+  getSiteReviewByProofId(proofId: string): Promise<SiteReview | undefined>;
+  getAllSiteReviews(userId?: string): Promise<SiteReview[]>;
+  updateSiteReview(id: number, updates: Partial<InsertSiteReview>): Promise<SiteReview | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -642,6 +652,34 @@ export class DatabaseStorage implements IStorage {
   async deleteAiAutomation(id: number): Promise<boolean> {
     await db.delete(aiAutomationsTable).where(eq(aiAutomationsTable.id, id));
     return true;
+  }
+
+  // Site Review methods
+  async createSiteReview(review: InsertSiteReview): Promise<SiteReview> {
+    const [created] = await db.insert(siteReviewsTable).values(review).returning();
+    return created;
+  }
+
+  async getSiteReview(id: number): Promise<SiteReview | undefined> {
+    const [review] = await db.select().from(siteReviewsTable).where(eq(siteReviewsTable.id, id));
+    return review;
+  }
+
+  async getSiteReviewByProofId(proofId: string): Promise<SiteReview | undefined> {
+    const [review] = await db.select().from(siteReviewsTable).where(eq(siteReviewsTable.proofId, proofId));
+    return review;
+  }
+
+  async getAllSiteReviews(userId?: string): Promise<SiteReview[]> {
+    if (userId) {
+      return db.select().from(siteReviewsTable).where(eq(siteReviewsTable.userId, userId)).orderBy(desc(siteReviewsTable.createdAt));
+    }
+    return db.select().from(siteReviewsTable).orderBy(desc(siteReviewsTable.createdAt));
+  }
+
+  async updateSiteReview(id: number, updates: Partial<InsertSiteReview>): Promise<SiteReview | undefined> {
+    const [updated] = await db.update(siteReviewsTable).set(updates).where(eq(siteReviewsTable.id, id)).returning();
+    return updated;
   }
 }
 

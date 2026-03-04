@@ -12,7 +12,7 @@ import Landing from "@/pages/landing";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
 import SpeakerKit from "@/pages/speaker-kit";
-import SiteEvaluator from "@/pages/site-evaluator";
+import SiteEvaluator, { ProofViewer } from "@/pages/site-evaluator";
 import AiContentTeam from "@/pages/ai-content-team";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -55,6 +55,9 @@ function App() {
             <Switch>
               <Route path="/privacy" component={PrivacyPolicy} />
               <Route path="/terms" component={TermsOfService} />
+              <Route path="/site-evaluator/proof/:proofId">
+                {(params) => <ProofViewer proofId={params.proofId} />}
+              </Route>
               <Route>
                 <AuthenticatedRouter />
               </Route>

@@ -715,5 +715,34 @@ export const insertAiAutomationSchema = createInsertSchema(aiAutomationsTable).o
     createdAt: true,
 });
 
+export const siteReviewsTable = pgTable("site_reviews", {
+    id: serial("id").primaryKey(),
+    url: text("url").notNull(),
+    status: text("status").notNull().default("pending"),
+    scores: jsonb("scores").$type<{
+        overallScore: number;
+        copyScore: number;
+        seoScore: number;
+        graphicsScore: number;
+        performanceScore: number;
+        securityScore: number;
+        mobileScore: number;
+        contentScore: number;
+    }>(),
+    result: jsonb("result").$type<Record<string, any>>(),
+    proofId: text("proof_id").unique(),
+    userId: text("user_id"),
+    email: text("email"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+});
+
+export type SiteReview = typeof siteReviewsTable.$inferSelect;
+export type InsertSiteReview = z.infer<typeof insertSiteReviewSchema>;
+export const insertSiteReviewSchema = createInsertSchema(siteReviewsTable).omit({
+    id: true,
+    createdAt: true,
+});
+
 // Auth models
 export * from "./models/auth";

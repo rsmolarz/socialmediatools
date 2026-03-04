@@ -1,0 +1,226 @@
+Here's a full breakdown of the website and app analysis code from App Proz (appproz.com). The site is a minified React/Vite app — there's no source map available, so the code below is extracted directly from the production bundle (/assets/index-Bt_EDfk_.js).
+App Review Module — Code Summary
+The analysis feature is split across several minified functions in the bundle. Here's what each does and the key code:
+1. _T — Main Form / Submission Handler (~11,372 chars, pos 3194855)
+This is the URL submission form on /app-review. It handles validation, form state, and the initial POST to submit a URL for analysis.
+Key logic (minified):
+jsfunction _T(){
+  const{t}=Ka(),
+  [a,s]=b.useState(""),
+  [r,n]=b.useState(""),
+  [i,o]=b.useState(!1),
+  [l,c]=b.useState(""),
+  [u,]=Mr(),
+  [h,m]=b.useState([]);
+  b.useEffect(()=>{
+    fetch("/api/public/featured-docs")
+      .then(f=>f.json())
+      .then(f=>{Array.isArray(f)&&m(f)})
+      .catch(()=>{})
+  },[]);
+  const x = async f=>{
+    if(f.preventDefault(), !a.trim()) return;
+    let y = a.trim();
+    y.startsWith("http://")||y.startsWith("https://")||y.startsWith("https://")||
+    y.o(!0),c("");
+    try{
+      const v = await fetch("/api/app-review/submit", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({url: y, email: r||void 0})
+      });
+      j = await v.json();
+      if(!v.ok) throw new Error(j.error||"Submission failed");
+      u(`/app-review/${j.id}`)
+    } catch(v){
+      c(v.message||"Something went wrong. Please try again.")
+    } finally{
+      o(!1)
+    }
+  };
+  // ... returns JSX form with URL input, email input, submit button
+}
+API Call: POST /api/app-review/submit with {url, email?}
+2. GDe — Progress Timer Component (~3,138 chars, pos 3234061)
+Displays the animated countdown/progress while the AI is analyzing the app.
+jsfunction GDe({url:t, createdAt:a}){
+  const[s,r]=b.useState(0),
+  n=b.useRef(Date.now());
+  b.useEffect(()=>{
+    const x=new Date(a).getTime(),
+    f=Math.floor((Date.now()-x)/1e3);
+    f>0&&(r(f), n.current=Date.now()-f*1e3);
+    const y=setInterval(()=>{
+      const v=Math.floor((Date.now()-n.current)/1e3);
+      r(v)
+    },500);
+    return ()=>clearInterval(y)
+  },[a]);
+  // Timer display: "a few seconds" or "X seconds" or "X minutes"
+  const i=Math.min(s,Y_),
+  o=Math.min(Math.round(i/Y_*95),95),
+  l=Math.max(Y_-i,5);
+  let c=0;
+  const u=Ew.findIndex(x=>(c+=x.duration, i<c)),
+  h = u===-1 ? Ew.length-1 : u,
+  m=m=>x<=5?"a few seconds":x<60?`~${x} seconds`:`~${Math.ceil(x/60)} minute${Math.ceil(x/60)>1?"s":""}`;
+  // ... renders progress bar + step labels
+}
+
+3. Ie — Review Status Poller (~547 chars, pos 3237852)
+Polls the review status every 3 seconds until analysis is complete, then fetches content.
+jsconst Ie = async()=>{
+  try{
+    const qe = await fetch(`/api/app-review/${t}`);
+    if(!qe.ok) throw new Error("Review not found");
+    const Ze = await qe.json();
+    s(Ze);
+    Ze.status==="analyzing"||Ze.status==="pending"
+      ? we||(we=setInterval(Ie,3e3))
+      : we&&clearInterval(we)
+  } catch(qe){
+    h(qe.message);
+    we&&clearInterval(we)
+  } finally{
+    n(!1)
+  }
+};
+// Also: when status becomes "paid" or "complete", 
+// auto-fetch content:
+b.useEffect(()=>{
+  (a&&(a.status==="paid"||a.status==="complete"))
+  &&!v&&fetch(`/api/app-review/${t}/content`)
+    .then(we=>we.json())
+    .then(we=>{Array.isArray(we)&&x(we), j(!0)})
+    .catch(()=>j(!0))
+},[a,t,v]);
+API Calls:
+
+GET /api/app-review/${id} — poll status
+GET /api/app-review/${id}/content — fetch content sections
+
+
+4. Ae — Content Generation & Report Builder (~5,635 chars, pos 3238399)
+This is the core analysis engine — triggers AI content generation, assembles the report sections, and handles PDF download.
+jsconst Ae = async()=>{
+  y(!0);
+  try{
+    // Step 1: trigger AI generation
+    const we = await fetch(`/api/app-review/${t}/content/generate`, {method:"POST"});
+    Ie = await we.json();
+    if(!we.ok) throw new Error(Ie.error||"Generation failed");
+    // Step 2: get generated content
+    const Ze = await (await fetch(`/api/app-review/${t}/content`)).json();
+    Array.isArray(Ze)&&x(Ze)
+  } catch(we){
+    console.error("Content generation error:", we)
+  } finally{
+    y(!1)
+  }
+  // Assemble the report from content sections:
+  ge=()=>{
+    const we = m.find(Pt=>Pt.contentType==="summary"),
+    Ie = m.find(Pt=>Pt.contentType==="action_plan"),
+    qe = m.find(Pt=>Pt.contentType==="report"),
+    Ze = we?.content,
+    fe = Ie?.content,
+    Re = qe?.content;
+    let at=`# Website Improvement Report
+**URL:** ${a?.submittedUrl}
+**Score:** ${a?.previewScores?.overallScore}/100
+**Date:** ${new Date().toLocaleDateString()}
+`;
+    Ze&&(at+=`## Summary\\n\\n**${Ze.headline}**\\n\\n${Ze.overallAssessment}\\n`);
+    Ze.strengths?.length&&(at+=`### Strengths\\n${Ze.strengths.map(Pt=>`- ${Pt}`).join("\\n")}\\n`);
+    Ze.weaknesses?.length&&(at+=`### Areas for Improvement\\n${Ze.weaknesses.map(Pt=>`- ${Pt}`).join("\\n")}\\n`);
+    fe?.items?.length&&(at+=`## Action Plan\\n\\n| Priority | Category | Action | Impact | Effort |\\n|----------|----------|--------|--------|--------|\\n`);
+    fe.items.forEach(Pt=>{at+=`| ${Pt.priority} | ${Pt.category} | ${Pt.action} | ${Pt.impact} | ${Pt.effort} |\\n`});
+    Re&&(Re.executiveSummary&&(at+=`## Executive Summary\\n\\n${Re.executiveSummary}\\n`));
+    Re.immediateActions?.length&&(at+=`## Immediate Actions\\n${Re.immediateActions.map((Pt,Ya)=>`${Ya+1}. ${Pt}`).join("\\n")}\\n`);
+    Re.longTermStrategy&&(at+=`## Long-Term Strategy\\n\\n${Re.longTermStrategy}\\n`);
+    Re.nextSteps&&(at+=`## Next Steps\\n\\n${Re.nextSteps}\\n`);
+    at+=`\\n---\\n*Generated by Harbor Platform Group App Review Service*\\n`;
+    a?.proofId&&(at+=`\\nProof ID: ${a.proofId}\\nVerify: ${window.location.origin}/app-review/proof/${a.proofId}\\n`);
+    at+=`\\n> *This report is AI-assisted and provided for informational purposes only. Harbor Platform Group and Doc Captain LLC are not responsible for decisions made based on this report.*`;
+    // PDF download via jsPDF
+    const wt=new Blob([at],{type:"text/markdown"});
+    Yt=URL.createObjectURL(wt);
+    Yt.href=Ct;
+    Yt.download=`improvement-report-${t.slice(0,8)}.md`;
+    Yt.click(); URL.revokeObjectURL(Ct);
+    // Also renders PDF with jsPDF at page size...
+  };
+  // Email report endpoint:
+  // POST /api/app-review/${t}/email-report
+  // body: {email, consent, includeFollowUp}
+};
+API Calls:
+
+POST /api/app-review/${id}/content/generate — trigger AI generation
+GET /api/app-review/${id}/content — retrieve content sections
+POST /api/app-review/${id}/email-report — email the report
+
+
+5. TT — Proof ID Viewer (~9,810 chars, pos 3277847)
+Handles the /app-review/proof/${id} shareable verification page.
+jsfunction TT({proofId:t}){
+  const[a,s]=b.useState(null),
+  [r,n]=b.useState(!0),
+  [i,o]=b.useState(""),
+  [l,c]=b.useState(!1),
+  [u,h]=b.useState(!1);
+  if(b.useEffect(()=>{
+    fetch(`/api/app-review/proof/${t}`)
+      .then(f=>f.ok?f.json():f.json()
+        .then(y=>{throw y.deleted&&c(!0), new Error(y.error)}))
+      .then(f=>s(f))
+      .catch(f=>o(f.message))
+      .finally(()=>n(!1))
+  },[t]),
+  // ... renders proof certificate with score, categories, QR code
+  // Copy proof link:
+  ce=()=>{
+    (se.review)&&h(we.message)
+    finally(()=>{o(!1)})
+  };
+  // Unlock full report:
+  // POST /api/app-review/${t}/unlock
+}
+API Calls:
+
+GET /api/app-review/proof/${id} — fetch proof/verification data
+POST /api/app-review/${id}/unlock — unlock paid full report
+
+
+6. My Reviews Dashboard — Query (in ZMe component, pos ~3683735)
+The user's review history is fetched via:
+js// "my-reviews" query key
+yt({
+  queryKey: ["my-reviews"],
+  queryFn: async()=>{
+    const z = await fetch("/api/my-reviews", {
+      headers: {Authorization: `Bearer ${t}`}
+    });
+    if(!z.ok) throw new Error("Failed to fetch reviews");
+    return z.json()
+  },
+  enabled: !!t
+})
+API Call: GET /api/my-reviews with Bearer auth token
+Complete API Endpoint Map
+EndpointMethodPurpose/api/app-review/submitPOSTSubmit URL for analysis/api/app-review/:idGETPoll analysis status/api/app-review/:id/contentGETRetrieve content sections/api/app-review/:id/content/generatePOSTTrigger AI content generation/api/app-review/:id/email-reportPOSTEmail report to user/api/app-review/:id/unlockPOSTUnlock paid full report/api/app-review/proof/:idGETFetch shareable proof certificate/api/my-reviewsGETList user's past reviews
+
+The app is fully minified with no source map, so the function names above (_T, GDe, Ie, Ae, TT) are the minified names from the production bundle. The report generation uses markdown templating built client-side and jsPDF for PDF export, with AI content fetched from the server-side generation endpoint. The backend appears to use Bearer token auth for protected routes and runs on Harbor Platform Group infrastructure.is this the website analysis too?23 steps23 stepsGet tabsGet tabsJavascript toolJavascript toolJavascript toolJavascript toolJavascript toolTake screenshotTake screenshotJavascript toolJavascript toolTake screenshotTake screenshotZoomComputer action: zoomThis is very revealing. I can now see the full category taxonomy.Javascript toolJavascript toolJavascript toolJavascript toolJavascript toolJavascript toolJavascript toolTake screenshotTake screenshotZoomComputer action: zoomNow I can see the full submit payload clearly. Let me clean up and give the definitive answer:Javascript toolDoneYes — it's one unified system for both. Here's the confirmation from the code:
+The submit payload is simply:
+jsJSON.stringify({ url: y, email: r || void 0 })
+There's no type field distinguishing "website" vs "app". It accepts any URL — whether it points to a website or a mobile/web app — and runs the exact same 6-category analysis against it. The page even says "Paste your website or app URL below" to reflect this.
+The category taxonomy confirms it's designed to cover both use cases:
+js$= {
+  seo:         ["seo", "search", "discoverability", "metadata", "structured data", "sitemap"],
+  design:      ["design", "ux", "ui", "interface", "accessibility", "tours", "interactive"],
+  performance: ["performance", "speed", "optimization", "cdn", "caching"],
+  security:    ["security", "authentication", "auth", "mfa", "encryption", "compliance"],
+  mobile:      ["mobile", "responsive", "touch", "viewport"],
+  content:     ["content", "documentation", "knowledge", "vault", "crm", "writing"]
+}
+So to directly answer your question: yes, the code I pulled earlier covers both website and app analysis — it's the same /api/app-review/submit endpoint, same 6 scoring categories, same report generation logic, and same proof/unlock flow regardless of whether the URL is a marketing website, a SaaS app, or anything else.
