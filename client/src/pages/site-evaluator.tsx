@@ -51,7 +51,9 @@ import {
   ArrowRight,
   History,
   ExternalLink,
+  FileDown,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 const FIFTEEN_PS = [
   { key: "problem", label: "Problem", description: "Does the copy clearly identify the problem the audience faces?" },
@@ -441,6 +443,346 @@ function downloadMarkdown(result: EvaluationResult) {
   URL.revokeObjectURL(url);
 }
 
+function generatePdfReport(result: EvaluationResult) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 18;
+  const contentWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  const colors = {
+    primary: [79, 70, 229] as [number, number, number],
+    dark: [30, 30, 46] as [number, number, number],
+    text: [51, 51, 51] as [number, number, number],
+    muted: [120, 120, 140] as [number, number, number],
+    green: [34, 197, 94] as [number, number, number],
+    yellow: [234, 179, 8] as [number, number, number],
+    orange: [249, 115, 22] as [number, number, number],
+    red: [239, 68, 68] as [number, number, number],
+    lightBg: [245, 245, 250] as [number, number, number],
+    white: [255, 255, 255] as [number, number, number],
+  };
+
+  function scoreColor(score: number): [number, number, number] {
+    if (score >= 80) return colors.green;
+    if (score >= 60) return colors.yellow;
+    if (score >= 40) return colors.orange;
+    return colors.red;
+  }
+
+  function checkPage(needed: number) {
+    if (y + needed > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+  }
+
+  function addSectionTitle(title: string) {
+    checkPage(14);
+    doc.setFillColor(...colors.primary);
+    doc.roundedRect(margin, y, contentWidth, 9, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...colors.white);
+    doc.text(title.toUpperCase(), margin + 4, y + 6.5);
+    y += 14;
+  }
+
+  function addText(text: string, opts?: { bold?: boolean; size?: number; color?: [number, number, number]; indent?: number }) {
+    const size = opts?.size ?? 9;
+    const indent = opts?.indent ?? 0;
+    doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
+    doc.setFontSize(size);
+    doc.setTextColor(...(opts?.color ?? colors.text));
+    const lines = doc.splitTextToSize(text, contentWidth - indent);
+    const lineHeight = size * 0.45;
+    checkPage(lines.length * lineHeight + 2);
+    doc.text(lines, margin + indent, y);
+    y += lines.length * lineHeight + 1.5;
+  }
+
+  function addKeyValue(key: string, value: string, indent = 0) {
+    checkPage(6);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.dark);
+    doc.text(key + ":", margin + indent, y);
+    const keyWidth = doc.getTextWidth(key + ": ");
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...colors.text);
+    const remaining = contentWidth - indent - keyWidth;
+    const lines = doc.splitTextToSize(value, remaining);
+    doc.text(lines, margin + indent + keyWidth, y);
+    y += lines.length * 4.2 + 1.5;
+  }
+
+  function addScoreBar(label: string, score: number, maxWidth = 60) {
+    checkPage(8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...colors.text);
+    doc.text(label, margin + 2, y + 3);
+    const barX = margin + 55;
+    const barY = y;
+    const barH = 5;
+    doc.setFillColor(230, 230, 240);
+    doc.roundedRect(barX, barY, maxWidth, barH, 1.5, 1.5, "F");
+    const fillW = (score / 100) * maxWidth;
+    doc.setFillColor(...scoreColor(score));
+    if (fillW > 0) doc.roundedRect(barX, barY, Math.max(fillW, 3), barH, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...scoreColor(score));
+    doc.text(`${score}`, barX + maxWidth + 3, y + 3.5);
+    y += 7.5;
+  }
+
+  doc.setFillColor(...colors.dark);
+  doc.rect(0, 0, pageWidth, 48, "F");
+  doc.setFillColor(...colors.primary);
+  doc.rect(0, 48, pageWidth, 3, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...colors.white);
+  doc.text("Website Evaluation Report", margin, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(180, 180, 200);
+  const domain = result.url ? (() => { try { return new URL(result.url.startsWith("http") ? result.url : `https://${result.url}`).hostname; } catch { return result.url; } })() : "N/A";
+  doc.text(domain, margin, 28);
+  doc.setFontSize(8);
+  doc.text(`Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, 35);
+  if (result.proofId) {
+    doc.text(`Proof ID: ${result.proofId}`, margin, 41);
+  }
+
+  const scoreCircleX = pageWidth - margin - 16;
+  const scoreCircleY = 25;
+  doc.setFillColor(...scoreColor(result.overallScore));
+  doc.circle(scoreCircleX, scoreCircleY, 13, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...colors.white);
+  doc.text(`${result.overallScore}`, scoreCircleX, scoreCircleY + 3, { align: "center" });
+  doc.setFontSize(6);
+  doc.text("OVERALL", scoreCircleX, scoreCircleY + 8, { align: "center" });
+
+  y = 58;
+
+  addSectionTitle("Scores Overview");
+  const categories = [
+    { label: "Copy (15 P's)", score: result.copyScore },
+    { label: "SEO", score: result.seoScore },
+    { label: "Graphics", score: result.graphicsScore },
+    { label: "Performance", score: result.performanceScore ?? 0 },
+    { label: "Security", score: result.securityScore ?? 0 },
+    { label: "Mobile", score: result.mobileScore ?? 0 },
+    { label: "Content", score: result.contentScore ?? 0 },
+  ];
+  const colW = contentWidth / 2;
+  const startY = y;
+  categories.forEach((cat, i) => {
+    const col = i < 4 ? 0 : 1;
+    const row = i < 4 ? i : i - 4;
+    const cx = margin + col * colW;
+    const cy = startY + row * 7.5;
+    if (cy + 7.5 > pageHeight - margin) return;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...colors.text);
+    doc.text(cat.label, cx + 2, cy + 3);
+    const barX = cx + 38;
+    const barW = colW - 52;
+    doc.setFillColor(230, 230, 240);
+    doc.roundedRect(barX, cy, barW, 5, 1.5, 1.5, "F");
+    const fillW = (cat.score / 100) * barW;
+    doc.setFillColor(...scoreColor(cat.score));
+    if (fillW > 0) doc.roundedRect(barX, cy, Math.max(fillW, 3), 5, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...scoreColor(cat.score));
+    doc.text(`${cat.score}`, barX + barW + 3, cy + 3.5);
+  });
+  y = startY + Math.min(categories.length, 4) * 7.5 + 4;
+
+  if (result.executiveSummary) {
+    addSectionTitle("Executive Summary");
+    if (result.executiveSummary.summary) {
+      addText(result.executiveSummary.summary, { size: 9 });
+      y += 2;
+    }
+    if (result.executiveSummary.strengths?.length) {
+      addText("Strengths", { bold: true, size: 10, color: colors.green });
+      result.executiveSummary.strengths.forEach((s) => addText(`•  ${s}`, { size: 8.5, indent: 3 }));
+      y += 1;
+    }
+    if (result.executiveSummary.weaknesses?.length) {
+      addText("Weaknesses", { bold: true, size: 10, color: colors.red });
+      result.executiveSummary.weaknesses.forEach((w) => addText(`•  ${w}`, { size: 8.5, indent: 3 }));
+      y += 1;
+    }
+    if (result.executiveSummary.immediateActions?.length) {
+      addText("Immediate Actions", { bold: true, size: 10, color: colors.primary });
+      result.executiveSummary.immediateActions.forEach((a) => addText(`•  ${a}`, { size: 8.5, indent: 3 }));
+      y += 1;
+    }
+    if (result.executiveSummary.longTermStrategy) {
+      addText("Long-Term Strategy", { bold: true, size: 10, color: colors.dark });
+      addText(result.executiveSummary.longTermStrategy, { size: 8.5, indent: 3 });
+    }
+    if (result.executiveSummary.nextSteps) {
+      addText("Next Steps", { bold: true, size: 10, color: colors.dark });
+      addText(result.executiveSummary.nextSteps, { size: 8.5, indent: 3 });
+    }
+  }
+
+  addSectionTitle("15 P's of Compelling Copy");
+  addText(`Copy Score: ${result.copyScore}/100`, { bold: true, size: 10 });
+  if (result.copySummary) addText(result.copySummary, { size: 8.5 });
+  y += 2;
+  result.fifteenPs?.forEach((p) => {
+    const pDef = FIFTEEN_PS.find((d) => d.key === p.key);
+    checkPage(18);
+    addScoreBar(pDef?.label || p.key, p.score);
+    if (p.analysis) addText(p.analysis, { size: 8, indent: 3, color: colors.muted });
+    if (p.suggestions?.length) {
+      p.suggestions.forEach((s) => addText(`→ ${s}`, { size: 8, indent: 5, color: colors.primary }));
+    }
+    y += 1;
+  });
+
+  const detailSections: { title: string; score: number; data?: Record<string, CategorySubScore>; suggestions?: string[] }[] = [];
+  if (result.performance) {
+    const { score, overallSuggestions, ...subs } = result.performance;
+    detailSections.push({ title: "Performance", score, data: subs as Record<string, CategorySubScore>, suggestions: overallSuggestions });
+  }
+  if (result.security) {
+    const { score, overallSuggestions, ...subs } = result.security;
+    detailSections.push({ title: "Security", score, data: subs as Record<string, CategorySubScore>, suggestions: overallSuggestions });
+  }
+  if (result.mobile) {
+    const { score, overallSuggestions, ...subs } = result.mobile;
+    detailSections.push({ title: "Mobile Optimization", score, data: subs as Record<string, CategorySubScore>, suggestions: overallSuggestions });
+  }
+  if (result.content) {
+    const { score, overallSuggestions, ...subs } = result.content;
+    detailSections.push({ title: "Content Quality", score, data: subs as Record<string, CategorySubScore>, suggestions: overallSuggestions });
+  }
+
+  detailSections.forEach((section) => {
+    addSectionTitle(`${section.title} — ${section.score}/100`);
+    if (section.data) {
+      Object.entries(section.data).forEach(([key, sub]) => {
+        if (sub && typeof sub === "object" && "score" in sub) {
+          const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+          addScoreBar(label, sub.score);
+          if (sub.analysis) addText(sub.analysis, { size: 8, indent: 3, color: colors.muted });
+          if (sub.suggestion) addText(`→ ${sub.suggestion}`, { size: 8, indent: 5, color: colors.primary });
+          y += 1;
+        }
+      });
+    }
+    if (section.suggestions?.length) {
+      addText("Key Recommendations:", { bold: true, size: 9 });
+      section.suggestions.forEach((s) => addText(`•  ${s}`, { size: 8.5, indent: 3 }));
+    }
+  });
+
+  if (result.seo) {
+    addSectionTitle(`SEO — ${result.seoScore}/100`);
+    if (result.seo.title) addKeyValue("Title Tag", result.seo.title.text || "Not found");
+    if (result.seo.metaDescription) addKeyValue("Meta Description", result.seo.metaDescription.text || "Not found");
+    if (result.seo.headings) addKeyValue("Headings", `H1: ${result.seo.headings.h1Count}, H2: ${result.seo.headings.h2Count}`);
+    if (result.seo.images) addKeyValue("Images", `${result.seo.images.withAlt}/${result.seo.images.total} with alt text`);
+    if (result.seo.keywords?.found?.length) addKeyValue("Keywords", result.seo.keywords.found.join(", "));
+    if (result.seo.overallSuggestions?.length) {
+      y += 1;
+      addText("SEO Recommendations:", { bold: true, size: 9 });
+      result.seo.overallSuggestions.forEach((s) => addText(`•  ${s}`, { size: 8.5, indent: 3 }));
+    }
+  }
+
+  if (result.graphics) {
+    addSectionTitle(`Graphics & Design — ${result.graphicsScore}/100`);
+    const gfxEntries = Object.entries(result.graphics).filter(([k]) => k !== "score" && k !== "overallSuggestions");
+    gfxEntries.forEach(([key, val]) => {
+      if (val && typeof val === "object" && "score" in val) {
+        const v = val as { score: number; analysis: string; suggestion: string };
+        const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+        addScoreBar(label, v.score);
+        if (v.analysis) addText(v.analysis, { size: 8, indent: 3, color: colors.muted });
+        if (v.suggestion) addText(`→ ${v.suggestion}`, { size: 8, indent: 5, color: colors.primary });
+        y += 1;
+      }
+    });
+  }
+
+  if (result.actionPlan?.length) {
+    addSectionTitle("Action Plan");
+    checkPage(10);
+    const tableX = margin;
+    const colWidths = [20, 28, contentWidth - 20 - 28 - 22 - 22, 22, 22];
+    const headers = ["Priority", "Category", "Action", "Impact", "Effort"];
+    doc.setFillColor(...colors.lightBg);
+    doc.rect(tableX, y, contentWidth, 6, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...colors.dark);
+    let hx = tableX + 2;
+    headers.forEach((h, i) => {
+      doc.text(h, hx, y + 4);
+      hx += colWidths[i];
+    });
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    result.actionPlan.forEach((item, idx) => {
+      checkPage(8);
+      if (idx % 2 === 0) {
+        doc.setFillColor(250, 250, 255);
+        doc.rect(tableX, y - 1, contentWidth, 6, "F");
+      }
+      const pColor = item.priority === "high" ? colors.red : item.priority === "medium" ? colors.yellow : colors.green;
+      doc.setTextColor(...pColor);
+      doc.setFont("helvetica", "bold");
+      let rx = tableX + 2;
+      doc.text(item.priority.toUpperCase(), rx, y + 3);
+      rx += colWidths[0];
+      doc.setTextColor(...colors.text);
+      doc.setFont("helvetica", "normal");
+      doc.text(item.category.substring(0, 18), rx, y + 3);
+      rx += colWidths[1];
+      const actionLines = doc.splitTextToSize(item.action, colWidths[2] - 2);
+      doc.text(actionLines[0], rx, y + 3);
+      rx += colWidths[2];
+      doc.text(item.impact.substring(0, 14), rx, y + 3);
+      rx += colWidths[3];
+      doc.text(item.effort.substring(0, 14), rx, y + 3);
+      y += 6.5;
+    });
+  }
+
+  if (result.topPriorities?.length) {
+    addSectionTitle("Top Priorities");
+    result.topPriorities.forEach((p, i) => addText(`${i + 1}. ${p}`, { size: 9 }));
+  }
+
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.muted);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+    doc.text("Medicine & Money Hub — Website Evaluator", margin, pageHeight - 8);
+  }
+
+  doc.save(`${domain}-evaluation-report.pdf`);
+}
+
 function CategoryAnalysisTab({
   title,
   icon: Icon,
@@ -599,15 +941,25 @@ export function SiteEvaluatorPanel() {
             {showHistory ? "Hide History" : "Review History"}
           </Button>
           {result && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => downloadMarkdown(result)}
-              data-testid="button-download-report"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              Download Report
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadMarkdown(result)}
+                data-testid="button-download-report"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Markdown
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => generatePdfReport(result)}
+                data-testid="button-download-pdf"
+              >
+                <FileDown className="h-4 w-4 mr-1" />
+                Download PDF
+              </Button>
+            </>
           )}
         </div>
       </div>
