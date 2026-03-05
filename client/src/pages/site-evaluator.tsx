@@ -862,20 +862,48 @@ function CategoryAnalysisTab({
   );
 }
 
+function loadSavedResult(): EvaluationResult | null {
+  try {
+    const saved = localStorage.getItem("site-evaluator-result");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
+function saveResult(result: EvaluationResult | null) {
+  try {
+    if (result) {
+      localStorage.setItem("site-evaluator-result", JSON.stringify(result));
+    } else {
+      localStorage.removeItem("site-evaluator-result");
+    }
+  } catch {}
+}
+
 export function SiteEvaluatorPanel() {
   const { toast } = useToast();
-  const [url, setUrl] = useState("");
+  const [savedInit] = useState(loadSavedResult);
+  const [url, setUrl] = useState(savedInit?.url || "");
   const [rawHtml, setRawHtml] = useState("");
   const [inputMode, setInputMode] = useState<"url" | "paste">("url");
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [result, setResult] = useState<EvaluationResult | null>(savedInit);
   const [activeTab, setActiveTab] = useState("overview");
   const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    saveResult(result);
+  }, [result]);
 
   const { data: reviews, isLoading: reviewsLoading } = useQuery<ReviewListItem[]>({
     queryKey: ["/api/site-evaluator/reviews"],
     enabled: showHistory,
   });
+
+  const clearResult = () => {
+    setResult(null);
+    saveResult(null);
+  };
 
   const handleEvaluate = async () => {
     const input = inputMode === "url" ? url.trim() : rawHtml.trim();
@@ -942,6 +970,15 @@ export function SiteEvaluatorPanel() {
           </Button>
           {result && (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearResult}
+                data-testid="button-new-analysis"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                New Analysis
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
