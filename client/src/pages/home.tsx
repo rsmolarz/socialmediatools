@@ -56,6 +56,10 @@ import {
   Mic,
   Globe,
   BarChart3,
+  Instagram,
+  Music,
+  Linkedin,
+  Rocket,
 } from "lucide-react";
 import type {
   ThumbnailConfig,
@@ -669,6 +673,36 @@ export default function Home() {
               <Button variant="outline" data-testid="button-youtube-analytics">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 YT Analytics
+              </Button>
+            </Link>
+            <Link href="/instagram-planner">
+              <Button variant="outline" data-testid="button-instagram">
+                <Instagram className="h-4 w-4 mr-2" />
+                Instagram
+              </Button>
+            </Link>
+            <Link href="/tiktok-optimizer">
+              <Button variant="outline" data-testid="button-tiktok">
+                <Music className="h-4 w-4 mr-2" />
+                TikTok
+              </Button>
+            </Link>
+            <Link href="/linkedin-suite">
+              <Button variant="outline" data-testid="button-linkedin">
+                <Linkedin className="h-4 w-4 mr-2" />
+                LinkedIn
+              </Button>
+            </Link>
+            <Link href="/podcast-tools">
+              <Button variant="outline" data-testid="button-podcast">
+                <Mic className="h-4 w-4 mr-2" />
+                Podcast
+              </Button>
+            </Link>
+            <Link href="/social-command-center">
+              <Button variant="outline" data-testid="button-command-center">
+                <Rocket className="h-4 w-4 mr-2" />
+                Command Center
               </Button>
             </Link>
             <Link href="/ai-team">

@@ -14,6 +14,11 @@ import TermsOfService from "@/pages/terms";
 import SpeakerKit from "@/pages/speaker-kit";
 import SiteEvaluator, { ProofViewer } from "@/pages/site-evaluator";
 import YouTubeAnalytics from "@/pages/youtube-analytics";
+import InstagramPlanner from "@/pages/instagram-planner";
+import TikTokOptimizer from "@/pages/tiktok-optimizer";
+import LinkedInSuite from "@/pages/linkedin-suite";
+import PodcastTools from "@/pages/podcast-tools";
+import SocialCommandCenter from "@/pages/social-command-center";
 import AiContentTeam from "@/pages/ai-content-team";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -40,6 +45,11 @@ function AuthenticatedRouter() {
       <Route path="/speaker-kit" component={SpeakerKit} />
       <Route path="/site-evaluator" component={SiteEvaluator} />
       <Route path="/youtube-analytics" component={YouTubeAnalytics} />
+      <Route path="/instagram-planner" component={InstagramPlanner} />
+      <Route path="/tiktok-optimizer" component={TikTokOptimizer} />
+      <Route path="/linkedin-suite" component={LinkedInSuite} />
+      <Route path="/podcast-tools" component={PodcastTools} />
+      <Route path="/social-command-center" component={SocialCommandCenter} />
       <Route path="/ai-team" component={AiContentTeam} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />

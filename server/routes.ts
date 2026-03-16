@@ -4569,5 +4569,852 @@ Generate at least 5-10 action plan items across all categories with a mix of pri
     }
   });
 
+  // ============================================
+  // INSTAGRAM CONTENT PLANNER
+  // ============================================
+
+  app.post("/api/instagram/hashtags", async (req, res) => {
+    try {
+      const { topic, niche } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an Instagram hashtag research expert. Return JSON only.` },
+          { role: "user", content: `Research Instagram hashtags for: "${topic}" in the ${niche || "general"} niche.
+
+Return JSON with:
+{
+  "primaryHashtags": ["array of 10 high-volume hashtags (100K+ posts)"],
+  "nicheHashtags": ["array of 10 medium-volume niche-specific hashtags (10K-100K posts)"],
+  "lowCompetition": ["array of 10 low-competition hashtags (<10K posts) for growth"],
+  "branded": ["array of 5 suggested branded hashtags"],
+  "hashtagSets": [
+    { "name": "Set 1 - Broad Reach", "tags": ["array of 30 mixed hashtags optimized for reach"] },
+    { "name": "Set 2 - Niche Focus", "tags": ["array of 30 hashtags optimized for niche engagement"] },
+    { "name": "Set 3 - Growth", "tags": ["array of 30 hashtags optimized for follower growth"] }
+  ],
+  "tips": ["array of 5 hashtag strategy tips"],
+  "bannedWarnings": ["array of any commonly banned hashtags to avoid in this niche"]
+}` }
+        ],
+        max_tokens: 2000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Instagram hashtag error:", error);
+      res.status(500).json({ error: "Failed to research hashtags" });
+    }
+  });
+
+  app.post("/api/instagram/caption", async (req, res) => {
+    try {
+      const { topic, tone, type, includeEmojis, includeCTA } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an Instagram caption writing expert who creates viral, engaging captions. Return JSON only.` },
+          { role: "user", content: `Write 5 Instagram caption variations for: "${topic}"
+Tone: ${tone || "professional"}
+Post type: ${type || "feed post"}
+Include emojis: ${includeEmojis !== false ? "yes" : "no"}
+Include CTA: ${includeCTA !== false ? "yes" : "no"}
+
+Return JSON:
+{
+  "captions": [
+    {
+      "style": "style name (e.g., Story-driven, Educational, Controversial, Inspirational, Listicle)",
+      "caption": "full caption text with line breaks",
+      "hook": "the opening line/hook",
+      "hashtags": ["10 relevant hashtags"],
+      "estimatedEngagement": "high/medium/low"
+    }
+  ],
+  "tips": ["3 caption optimization tips for this topic"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Instagram caption error:", error);
+      res.status(500).json({ error: "Failed to generate captions" });
+    }
+  });
+
+  app.post("/api/instagram/best-time", async (req, res) => {
+    try {
+      const { niche, timezone, audience } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a social media analytics expert specializing in Instagram posting optimization. Return JSON only.` },
+          { role: "user", content: `Recommend the best times to post on Instagram for:
+Niche: ${niche || "general"}
+Timezone: ${timezone || "EST"}
+Target audience: ${audience || "general"}
+
+Return JSON:
+{
+  "bestTimes": [
+    { "day": "Monday", "times": ["9:00 AM", "12:00 PM", "7:00 PM"], "engagement": "high/medium" }
+  ],
+  "peakDays": ["top 3 days ranked"],
+  "avoidTimes": ["times to avoid posting"],
+  "reelsbestTimes": [
+    { "day": "day", "times": ["best times for Reels specifically"] }
+  ],
+  "storiesBestTimes": ["best times for Stories"],
+  "weeklySchedule": {
+    "Monday": { "feed": "time", "reels": "time", "stories": "time" },
+    "Tuesday": { "feed": "time", "reels": "time", "stories": "time" },
+    "Wednesday": { "feed": "time", "reels": "time", "stories": "time" },
+    "Thursday": { "feed": "time", "reels": "time", "stories": "time" },
+    "Friday": { "feed": "time", "reels": "time", "stories": "time" },
+    "Saturday": { "feed": "time", "reels": "time", "stories": "time" },
+    "Sunday": { "feed": "time", "reels": "time", "stories": "time" }
+  },
+  "insights": ["5 timing strategy insights"]
+}` }
+        ],
+        max_tokens: 1500,
+        temperature: 0.6,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Instagram best time error:", error);
+      res.status(500).json({ error: "Failed to analyze best times" });
+    }
+  });
+
+  app.post("/api/instagram/content-calendar", async (req, res) => {
+    try {
+      const { niche, weeks, themes } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an Instagram content strategist. Create detailed content calendars. Return JSON only.` },
+          { role: "user", content: `Create a ${weeks || 2}-week Instagram content calendar for the "${niche || "business"}" niche.
+Content themes to include: ${themes || "educational, behind-the-scenes, promotional, engagement"}
+
+Return JSON:
+{
+  "calendar": [
+    {
+      "week": 1,
+      "days": [
+        {
+          "day": "Monday",
+          "contentType": "Carousel/Reel/Single Post/Story",
+          "topic": "specific topic",
+          "caption": "short caption preview (first 2 lines)",
+          "hashtags": ["5 key hashtags"],
+          "contentPillar": "educational/entertaining/inspirational/promotional",
+          "visualNotes": "brief description of what the visual should be"
+        }
+      ]
+    }
+  ],
+  "contentMix": { "educational": "40%", "entertaining": "20%", "inspirational": "20%", "promotional": "20%" },
+  "monthlyThemes": ["overarching themes for the month"],
+  "tips": ["3 content calendar execution tips"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Instagram calendar error:", error);
+      res.status(500).json({ error: "Failed to generate calendar" });
+    }
+  });
+
+  // ============================================
+  // TIKTOK CONTENT OPTIMIZER
+  // ============================================
+
+  app.post("/api/tiktok/hooks", async (req, res) => {
+    try {
+      const { topic, style } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a TikTok content expert who specializes in creating viral hooks that stop the scroll. Return JSON only.` },
+          { role: "user", content: `Generate viral TikTok hooks for: "${topic}"
+Style: ${style || "educational"}
+
+Return JSON:
+{
+  "hooks": [
+    {
+      "hook": "the opening hook text (first 3 seconds)",
+      "style": "controversial/curiosity/shock/relatable/educational",
+      "script": "full 30-60 second script following the hook",
+      "visualCues": "what should be shown on screen",
+      "estimatedViralPotential": "high/medium/low",
+      "bestFor": "what audience this hook works best for"
+    }
+  ],
+  "hookFormulas": [
+    { "formula": "hook formula template", "example": "filled in example", "why": "why this works" }
+  ],
+  "trendingFormats": ["5 trending TikTok formats that work for this topic"],
+  "tips": ["5 TikTok hook optimization tips"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("TikTok hooks error:", error);
+      res.status(500).json({ error: "Failed to generate hooks" });
+    }
+  });
+
+  app.post("/api/tiktok/trending", async (req, res) => {
+    try {
+      const { niche } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a TikTok trend analyst. Identify current trending topics, sounds, and content formats. Return JSON only.` },
+          { role: "user", content: `Analyze current TikTok trends for the "${niche || "general"}" niche.
+
+Return JSON:
+{
+  "trendingTopics": [
+    { "topic": "trending topic", "description": "why it's trending", "difficulty": "easy/medium/hard to create", "estimatedLifespan": "days/weeks", "contentIdea": "how to use this trend" }
+  ],
+  "trendingSounds": [
+    { "sound": "sound/audio name", "usage": "how it's being used", "adaptationIdea": "how to adapt for your niche" }
+  ],
+  "trendingFormats": [
+    { "format": "format name", "description": "how it works", "example": "example script", "tips": "tips for execution" }
+  ],
+  "hashtagTrends": ["10 trending hashtags in this niche"],
+  "emergingTrends": ["5 emerging trends to jump on early"],
+  "contentIdeas": [
+    { "idea": "content idea", "format": "suggested format", "hook": "opening hook", "estimatedReach": "high/medium/low" }
+  ]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("TikTok trending error:", error);
+      res.status(500).json({ error: "Failed to research trends" });
+    }
+  });
+
+  app.post("/api/tiktok/caption", async (req, res) => {
+    try {
+      const { topic, hook } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a TikTok caption expert. Write captions that boost engagement and reach. Return JSON only.` },
+          { role: "user", content: `Write TikTok captions for video about: "${topic}"
+Video hook: ${hook || "not specified"}
+
+Return JSON:
+{
+  "captions": [
+    {
+      "style": "style name",
+      "caption": "caption text (keep under 150 chars for best visibility)",
+      "hashtags": ["8-10 relevant hashtags"],
+      "cta": "call to action text",
+      "estimatedBoost": "how this caption style helps"
+    }
+  ],
+  "tips": ["5 TikTok caption tips"],
+  "avoidList": ["things to avoid in TikTok captions"]
+}` }
+        ],
+        max_tokens: 1500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("TikTok caption error:", error);
+      res.status(500).json({ error: "Failed to generate captions" });
+    }
+  });
+
+  app.post("/api/tiktok/script", async (req, res) => {
+    try {
+      const { topic, duration, style } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a TikTok video scriptwriter who creates viral, engaging scripts. Return JSON only.` },
+          { role: "user", content: `Write a TikTok video script about: "${topic}"
+Duration: ${duration || "60 seconds"}
+Style: ${style || "educational"}
+
+Return JSON:
+{
+  "scripts": [
+    {
+      "title": "script title",
+      "duration": "estimated duration",
+      "hook": "opening hook (first 3 seconds)",
+      "script": [
+        { "timestamp": "0:00-0:03", "dialogue": "what to say", "visual": "what's on screen", "text_overlay": "text to display" }
+      ],
+      "cta": "closing call to action",
+      "sound": "suggested sound/music type",
+      "tips": ["production tips"]
+    }
+  ],
+  "generalTips": ["5 TikTok scriptwriting tips"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("TikTok script error:", error);
+      res.status(500).json({ error: "Failed to generate scripts" });
+    }
+  });
+
+  app.post("/api/tiktok/hashtags", async (req, res) => {
+    try {
+      const { topic } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a TikTok hashtag strategist. Return JSON only.` },
+          { role: "user", content: `Research TikTok hashtags for: "${topic}"
+
+Return JSON:
+{
+  "viral": ["10 viral/high-volume hashtags"],
+  "niche": ["10 niche-specific hashtags"],
+  "trending": ["10 currently trending relevant hashtags"],
+  "fyp": ["5 FYP-boosting hashtags"],
+  "sets": [
+    { "name": "Maximum Reach", "tags": ["15 hashtags"] },
+    { "name": "Niche Authority", "tags": ["15 hashtags"] },
+    { "name": "Trending Mix", "tags": ["15 hashtags"] }
+  ],
+  "strategy": ["5 TikTok hashtag strategy tips"],
+  "avoid": ["hashtags to avoid"]
+}` }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("TikTok hashtags error:", error);
+      res.status(500).json({ error: "Failed to research hashtags" });
+    }
+  });
+
+  // ============================================
+  // LINKEDIN CONTENT SUITE
+  // ============================================
+
+  app.post("/api/linkedin/post", async (req, res) => {
+    try {
+      const { topic, tone, type, audience } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a LinkedIn content expert who creates posts that drive engagement and establish thought leadership. Return JSON only.` },
+          { role: "user", content: `Write LinkedIn posts about: "${topic}"
+Tone: ${tone || "professional"}
+Post type: ${type || "thought leadership"}
+Target audience: ${audience || "professionals"}
+
+Return JSON:
+{
+  "posts": [
+    {
+      "style": "style name (Story, Hot Take, Framework, Listicle, Personal Reflection)",
+      "post": "full post text with line breaks (use \\n). Include hook, body, CTA",
+      "hook": "the opening line that stops the scroll",
+      "hashtags": ["5-8 relevant hashtags"],
+      "estimatedReach": "high/medium/low",
+      "bestTimeToPost": "suggested posting time",
+      "engagementTip": "tip to boost this post's engagement"
+    }
+  ],
+  "formattingTips": ["5 LinkedIn formatting best practices"],
+  "contentStrategy": ["3 LinkedIn content strategy insights for this topic"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("LinkedIn post error:", error);
+      res.status(500).json({ error: "Failed to generate posts" });
+    }
+  });
+
+  app.post("/api/linkedin/carousel", async (req, res) => {
+    try {
+      const { topic, slides } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a LinkedIn carousel content expert. Create slide-by-slide carousel content. Return JSON only.` },
+          { role: "user", content: `Create a LinkedIn carousel about: "${topic}"
+Number of slides: ${slides || 10}
+
+Return JSON:
+{
+  "title": "carousel title",
+  "slides": [
+    {
+      "slideNumber": 1,
+      "headline": "slide headline (keep short)",
+      "body": "slide body text (2-3 lines max)",
+      "designNote": "visual suggestion for this slide",
+      "type": "cover/content/stat/quote/cta"
+    }
+  ],
+  "caption": "LinkedIn post caption to accompany the carousel",
+  "hashtags": ["8 relevant hashtags"],
+  "designTips": ["3 carousel design tips"],
+  "alternativeTitles": ["3 alternative carousel titles"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("LinkedIn carousel error:", error);
+      res.status(500).json({ error: "Failed to generate carousel" });
+    }
+  });
+
+  app.post("/api/linkedin/article", async (req, res) => {
+    try {
+      const { topic, length, audience } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a LinkedIn article optimization expert. Create well-structured, SEO-optimized articles. Return JSON only.` },
+          { role: "user", content: `Create a LinkedIn article about: "${topic}"
+Length: ${length || "medium (800-1200 words)"}
+Target audience: ${audience || "professionals"}
+
+Return JSON:
+{
+  "title": "article title",
+  "subtitle": "article subtitle",
+  "outline": [
+    { "section": "section title", "keyPoints": ["key points to cover"] }
+  ],
+  "article": "full article text with markdown formatting (## for headings, **bold**, etc.)",
+  "seoKeywords": ["10 SEO keywords"],
+  "metaDescription": "article meta description",
+  "promotionPost": "LinkedIn post to promote this article",
+  "hashtags": ["8 relevant hashtags"],
+  "tips": ["3 LinkedIn article optimization tips"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("LinkedIn article error:", error);
+      res.status(500).json({ error: "Failed to generate article" });
+    }
+  });
+
+  app.post("/api/linkedin/hashtags", async (req, res) => {
+    try {
+      const { topic } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a LinkedIn hashtag and engagement strategist. Return JSON only.` },
+          { role: "user", content: `Research LinkedIn hashtags and engagement strategies for: "${topic}"
+
+Return JSON:
+{
+  "topHashtags": ["15 most effective LinkedIn hashtags for this topic"],
+  "nicheHashtags": ["10 niche-specific hashtags"],
+  "trendingHashtags": ["10 currently trending LinkedIn hashtags"],
+  "hashtagSets": [
+    { "name": "Thought Leadership", "tags": ["5-8 hashtags"] },
+    { "name": "Industry Focus", "tags": ["5-8 hashtags"] },
+    { "name": "Growth & Reach", "tags": ["5-8 hashtags"] }
+  ],
+  "engagementTips": [
+    { "tip": "engagement tip", "impact": "high/medium/low", "effort": "easy/medium/hard" }
+  ],
+  "bestPractices": ["5 LinkedIn engagement best practices"],
+  "algorithmInsights": ["3 LinkedIn algorithm insights"]
+}` }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("LinkedIn hashtags error:", error);
+      res.status(500).json({ error: "Failed to research hashtags" });
+    }
+  });
+
+  // ============================================
+  // PODCAST SHOW NOTES GENERATOR
+  // ============================================
+
+  app.post("/api/podcast/show-notes", async (req, res) => {
+    try {
+      const { transcript, topic, guestName } = req.body;
+      if (!transcript && !topic) return res.status(400).json({ error: "Transcript or topic is required" });
+      const input = transcript ? transcript.substring(0, 5000) : topic;
+      const inputType = transcript ? "transcript" : "topic";
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a professional podcast producer who creates comprehensive show notes. Return JSON only.` },
+          { role: "user", content: `Generate podcast show notes from this ${inputType}: "${input}"
+${guestName ? `Guest: ${guestName}` : ""}
+
+Return JSON:
+{
+  "title": "episode title",
+  "summary": "2-3 sentence episode summary",
+  "description": "full episode description (200-300 words)",
+  "keyTakeaways": ["5-7 key takeaways from the episode"],
+  "timestamps": [
+    { "time": "0:00", "topic": "Introduction" },
+    { "time": "estimated time", "topic": "topic discussed" }
+  ],
+  "quotes": ["3-5 memorable quotes or key statements"],
+  "resources": ["5-8 resources/links to mention"],
+  "guestBio": "brief guest bio if applicable",
+  "keywords": ["10-15 SEO keywords"],
+  "callToAction": "suggested CTA for listeners"
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Show notes error:", error);
+      res.status(500).json({ error: "Failed to generate show notes" });
+    }
+  });
+
+  app.post("/api/podcast/blog-post", async (req, res) => {
+    try {
+      const { transcript, topic, showNotes } = req.body;
+      if (!transcript && !topic) return res.status(400).json({ error: "Transcript or topic is required" });
+      const input = transcript ? transcript.substring(0, 5000) : topic;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a content repurposing expert who turns podcast content into SEO-optimized blog posts. Return JSON only.` },
+          { role: "user", content: `Turn this podcast content into a blog post: "${input}"
+${showNotes ? `Show notes for reference: ${JSON.stringify(showNotes)}` : ""}
+
+Return JSON:
+{
+  "title": "SEO-optimized blog title",
+  "metaDescription": "meta description for SEO",
+  "blogPost": "full blog post in markdown format (1000-1500 words) with ## headings, **bold**, bullet points, etc.",
+  "seoKeywords": ["10 target keywords"],
+  "internalLinkSuggestions": ["5 topics to link to internally"],
+  "socialSnippets": {
+    "twitter": "tweet-length snippet to promote the post",
+    "linkedin": "LinkedIn post to promote the blog",
+    "instagram": "Instagram caption to promote the blog"
+  },
+  "featuredImagePrompt": "AI image generation prompt for the featured image"
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Blog post error:", error);
+      res.status(500).json({ error: "Failed to generate blog post" });
+    }
+  });
+
+  app.post("/api/podcast/social-clips", async (req, res) => {
+    try {
+      const { transcript, topic } = req.body;
+      if (!transcript && !topic) return res.status(400).json({ error: "Transcript or topic is required" });
+      const input = transcript ? transcript.substring(0, 5000) : topic;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a social media content strategist who identifies the best clip-worthy moments from podcasts. Return JSON only.` },
+          { role: "user", content: `Identify the best social media clip moments from: "${input}"
+
+Return JSON:
+{
+  "clips": [
+    {
+      "title": "clip title",
+      "quote": "the key quote or moment",
+      "platform": "best platform for this clip (TikTok/Instagram Reels/YouTube Shorts/LinkedIn)",
+      "caption": "social media caption",
+      "hashtags": ["5-8 relevant hashtags"],
+      "hook": "text overlay hook for the video",
+      "estimatedLength": "15s/30s/60s",
+      "viralPotential": "high/medium/low",
+      "why": "why this moment would perform well"
+    }
+  ],
+  "audiogramIdeas": [
+    { "quote": "pullout quote for audiogram", "background": "suggested visual background", "platform": "best platform" }
+  ],
+  "repurposingStrategy": ["5 ways to repurpose this episode across platforms"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Social clips error:", error);
+      res.status(500).json({ error: "Failed to generate social clips" });
+    }
+  });
+
+  app.post("/api/podcast/newsletter", async (req, res) => {
+    try {
+      const { transcript, topic, showNotes, audienceName } = req.body;
+      if (!transcript && !topic) return res.status(400).json({ error: "Transcript or topic is required" });
+      const input = transcript ? transcript.substring(0, 5000) : topic;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an email marketing expert who creates compelling newsletters from podcast content. Return JSON only.` },
+          { role: "user", content: `Create an email newsletter from this podcast content: "${input}"
+${showNotes ? `Show notes: ${JSON.stringify(showNotes)}` : ""}
+Audience name: ${audienceName || "subscribers"}
+
+Return JSON:
+{
+  "subjectLines": ["5 subject line options (A/B test ready)"],
+  "previewText": "email preview text",
+  "newsletter": "full newsletter in HTML-ready format with sections, bold text, bullet points, etc.",
+  "sections": [
+    { "title": "section title", "content": "section content", "type": "intro/highlight/takeaway/cta" }
+  ],
+  "cta": { "primary": "primary CTA text", "link": "suggested link text", "secondary": "secondary CTA" },
+  "sendTimeSuggestion": "best day/time to send",
+  "tips": ["3 email optimization tips"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Newsletter error:", error);
+      res.status(500).json({ error: "Failed to generate newsletter" });
+    }
+  });
+
+  // ============================================
+  // SOCIAL MEDIA COMMAND CENTER
+  // ============================================
+
+  app.post("/api/social/generate-all", async (req, res) => {
+    try {
+      const { topic, platforms, tone } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const targetPlatforms = platforms || ["youtube", "instagram", "tiktok", "linkedin", "twitter"];
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a cross-platform social media strategist. Create optimized content for each platform from a single topic. Return JSON only.` },
+          { role: "user", content: `Create platform-optimized content for ALL of these platforms: ${targetPlatforms.join(", ")}
+Topic: "${topic}"
+Tone: ${tone || "professional yet engaging"}
+
+Return JSON:
+{
+  "topic": "${topic}",
+  "platforms": {
+    ${targetPlatforms.includes("youtube") ? `"youtube": {
+      "title": "YouTube video title (50-70 chars)",
+      "description": "YouTube description (first 200 words)",
+      "tags": ["15 tags"],
+      "thumbnailText": "text for thumbnail (3-4 words)",
+      "contentOutline": ["5-7 video sections"]
+    },` : ""}
+    ${targetPlatforms.includes("instagram") ? `"instagram": {
+      "caption": "Instagram caption with emojis and line breaks",
+      "hashtags": ["30 hashtags"],
+      "storyIdeas": ["3 story ideas to promote"],
+      "reelHook": "Reel opening hook",
+      "contentType": "recommended content type (carousel/reel/single)"
+    },` : ""}
+    ${targetPlatforms.includes("tiktok") ? `"tiktok": {
+      "hook": "opening hook (3 seconds)",
+      "script": "60-second script",
+      "caption": "TikTok caption",
+      "hashtags": ["15 hashtags"],
+      "sound": "suggested sound type"
+    },` : ""}
+    ${targetPlatforms.includes("linkedin") ? `"linkedin": {
+      "post": "LinkedIn post with formatting",
+      "hashtags": ["8 hashtags"],
+      "articleIdea": "LinkedIn article title and outline",
+      "engagementQuestion": "question to drive comments"
+    },` : ""}
+    ${targetPlatforms.includes("twitter") ? `"twitter": {
+      "tweets": ["3 tweet variations (under 280 chars each)"],
+      "thread": ["5-tweet thread"],
+      "hashtags": ["5 hashtags"]
+    }` : ""}
+  },
+  "crossPlatformStrategy": {
+    "postingOrder": ["recommended order to post across platforms"],
+    "timingGap": "recommended time between cross-posts",
+    "adaptationNotes": ["how content was adapted for each platform"]
+  },
+  "contentCalendarSuggestion": "when to post and repurpose this content over the next week"
+}` }
+        ],
+        max_tokens: 4000,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Social generate-all error:", error);
+      res.status(500).json({ error: "Failed to generate cross-platform content" });
+    }
+  });
+
+  app.post("/api/social/content-calendar", async (req, res) => {
+    try {
+      const { niche, weeks, platforms } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a social media strategist creating cross-platform content calendars. Return JSON only.` },
+          { role: "user", content: `Create a ${weeks || 1}-week cross-platform content calendar.
+Niche: ${niche || "business"}
+Platforms: ${(platforms || ["YouTube", "Instagram", "TikTok", "LinkedIn", "Twitter"]).join(", ")}
+
+Return JSON:
+{
+  "calendar": [
+    {
+      "day": "Monday",
+      "posts": [
+        {
+          "platform": "platform name",
+          "time": "posting time",
+          "contentType": "type of content",
+          "topic": "content topic",
+          "caption": "brief caption preview",
+          "hashtags": ["3-5 key hashtags"],
+          "notes": "any production notes"
+        }
+      ]
+    }
+  ],
+  "weeklyTheme": "overarching weekly theme",
+  "contentPillars": ["4 content pillars used"],
+  "strategy": ["5 cross-platform strategy tips"],
+  "kpis": ["key metrics to track"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Social calendar error:", error);
+      res.status(500).json({ error: "Failed to generate content calendar" });
+    }
+  });
+
   return httpServer;
 }
