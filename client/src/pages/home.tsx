@@ -55,6 +55,7 @@ import {
   Loader2,
   Mic,
   Globe,
+  BarChart3,
 } from "lucide-react";
 import type {
   ThumbnailConfig,
@@ -662,6 +663,12 @@ export default function Home() {
               <Button variant="outline" data-testid="button-site-evaluator">
                 <Globe className="h-4 w-4 mr-2" />
                 Site Evaluator
+              </Button>
+            </Link>
+            <Link href="/youtube-analytics">
+              <Button variant="outline" data-testid="button-youtube-analytics">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                YT Analytics
               </Button>
             </Link>
             <Link href="/ai-team">

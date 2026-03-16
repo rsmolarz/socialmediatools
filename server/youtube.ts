@@ -271,3 +271,238 @@ export function getCachedVideos(): { videos: YouTubeVideo[]; totalFetched: numbe
   }
   return null;
 }
+
+export interface VideoStats {
+  videoId: string;
+  title: string;
+  description: string;
+  tags: string[];
+  publishedAt: string;
+  thumbnailUrl: string;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  duration: string;
+  engagementRate: number;
+}
+
+export interface ChannelStats {
+  channelId: string;
+  title: string;
+  description: string;
+  customUrl: string;
+  thumbnailUrl: string;
+  subscriberCount: number;
+  videoCount: number;
+  viewCount: number;
+  publishedAt: string;
+  country: string;
+}
+
+let statsCache: { stats: VideoStats[]; fetchedAt: number } | null = null;
+const STATS_CACHE_TTL = 15 * 60 * 1000;
+
+let channelCache: { stats: ChannelStats; fetchedAt: number } | null = null;
+const CHANNEL_CACHE_TTL = 15 * 60 * 1000;
+
+export async function fetchVideoStatistics(forceRefresh = false): Promise<VideoStats[]> {
+  if (quotaExceededAt && (Date.now() - quotaExceededAt) < QUOTA_COOLDOWN) {
+    if (statsCache) return statsCache.stats;
+    throw new Error("YouTube API quota exceeded. Please try again later.");
+  }
+
+  if (!forceRefresh && statsCache && (Date.now() - statsCache.fetchedAt) < STATS_CACHE_TTL) {
+    return statsCache.stats;
+  }
+
+  const youtube = await getUncachableYouTubeClient();
+
+  const channelResponse = await youtube.channels.list({
+    part: ["contentDetails"],
+    forHandle: TARGET_CHANNEL_HANDLE,
+  });
+
+  let uploadsPlaylistId = channelResponse.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploadsPlaylistId) {
+    const fallback = await youtube.channels.list({ part: ["contentDetails"], mine: true });
+    uploadsPlaylistId = fallback.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploadsPlaylistId) return [];
+  }
+
+  const allVideoIds: string[] = [];
+  let nextPageToken: string | undefined;
+
+  do {
+    const playlistResponse = await youtube.playlistItems.list({
+      part: ["contentDetails"],
+      playlistId: uploadsPlaylistId,
+      maxResults: 50,
+      pageToken: nextPageToken,
+    });
+
+    for (const item of playlistResponse.data.items || []) {
+      const videoId = item.contentDetails?.videoId;
+      if (videoId) allVideoIds.push(videoId);
+    }
+
+    nextPageToken = playlistResponse.data.nextPageToken || undefined;
+  } while (nextPageToken && allVideoIds.length < 200);
+
+  if (allVideoIds.length === 0) return [];
+
+  const allStats: VideoStats[] = [];
+
+  for (let i = 0; i < allVideoIds.length; i += 50) {
+    const batch = allVideoIds.slice(i, i + 50);
+    const videosResponse = await youtube.videos.list({
+      part: ["snippet", "statistics", "contentDetails"],
+      id: batch,
+    });
+
+    for (const video of videosResponse.data.items || []) {
+      const views = parseInt(video.statistics?.viewCount || "0", 10);
+      const likes = parseInt(video.statistics?.likeCount || "0", 10);
+      const comments = parseInt(video.statistics?.commentCount || "0", 10);
+      const engagementRate = views > 0 ? ((likes + comments) / views) * 100 : 0;
+
+      allStats.push({
+        videoId: video.id || "",
+        title: video.snippet?.title || "",
+        description: video.snippet?.description || "",
+        tags: video.snippet?.tags || [],
+        publishedAt: video.snippet?.publishedAt || "",
+        thumbnailUrl: video.snippet?.thumbnails?.medium?.url || video.snippet?.thumbnails?.default?.url || "",
+        viewCount: views,
+        likeCount: likes,
+        commentCount: comments,
+        duration: video.contentDetails?.duration || "",
+        engagementRate: Math.round(engagementRate * 100) / 100,
+      });
+    }
+  }
+
+  statsCache = { stats: allStats, fetchedAt: Date.now() };
+  return allStats;
+}
+
+export async function fetchChannelStats(handle?: string): Promise<ChannelStats> {
+  if (!handle && channelCache && (Date.now() - channelCache.fetchedAt) < CHANNEL_CACHE_TTL) {
+    return channelCache.stats;
+  }
+
+  if (quotaExceededAt && (Date.now() - quotaExceededAt) < QUOTA_COOLDOWN) {
+    if (!handle && channelCache) return channelCache.stats;
+    throw new Error("YouTube API quota exceeded. Please try again later.");
+  }
+
+  const youtube = await getUncachableYouTubeClient();
+  const targetHandle = handle || TARGET_CHANNEL_HANDLE;
+
+  const channelResponse = await youtube.channels.list({
+    part: ["snippet", "statistics", "brandingSettings"],
+    forHandle: targetHandle,
+  });
+
+  const channel = channelResponse.data.items?.[0];
+  if (!channel) {
+    throw new Error(`Channel not found: @${targetHandle}`);
+  }
+
+  const stats: ChannelStats = {
+    channelId: channel.id || "",
+    title: channel.snippet?.title || "",
+    description: channel.snippet?.description || "",
+    customUrl: channel.snippet?.customUrl || "",
+    thumbnailUrl: channel.snippet?.thumbnails?.medium?.url || channel.snippet?.thumbnails?.default?.url || "",
+    subscriberCount: parseInt(channel.statistics?.subscriberCount || "0", 10),
+    videoCount: parseInt(channel.statistics?.videoCount || "0", 10),
+    viewCount: parseInt(channel.statistics?.viewCount || "0", 10),
+    publishedAt: channel.snippet?.publishedAt || "",
+    country: channel.snippet?.country || "",
+  };
+
+  if (!handle) {
+    channelCache = { stats, fetchedAt: Date.now() };
+  }
+
+  return stats;
+}
+
+export async function fetchCompetitorData(handle: string): Promise<{
+  channel: ChannelStats;
+  recentVideos: VideoStats[];
+}> {
+  if (quotaExceededAt && (Date.now() - quotaExceededAt) < QUOTA_COOLDOWN) {
+    throw new Error("YouTube API quota exceeded. Please try again later.");
+  }
+
+  const youtube = await getUncachableYouTubeClient();
+
+  const channelResponse = await youtube.channels.list({
+    part: ["snippet", "statistics", "contentDetails"],
+    forHandle: handle,
+  });
+
+  const channel = channelResponse.data.items?.[0];
+  if (!channel) {
+    throw new Error(`Channel not found: @${handle}`);
+  }
+
+  const channelStats: ChannelStats = {
+    channelId: channel.id || "",
+    title: channel.snippet?.title || "",
+    description: channel.snippet?.description || "",
+    customUrl: channel.snippet?.customUrl || "",
+    thumbnailUrl: channel.snippet?.thumbnails?.medium?.url || "",
+    subscriberCount: parseInt(channel.statistics?.subscriberCount || "0", 10),
+    videoCount: parseInt(channel.statistics?.videoCount || "0", 10),
+    viewCount: parseInt(channel.statistics?.viewCount || "0", 10),
+    publishedAt: channel.snippet?.publishedAt || "",
+    country: channel.snippet?.country || "",
+  };
+
+  const uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads;
+  const recentVideos: VideoStats[] = [];
+
+  if (uploadsPlaylistId) {
+    const playlistResponse = await youtube.playlistItems.list({
+      part: ["contentDetails"],
+      playlistId: uploadsPlaylistId,
+      maxResults: 20,
+    });
+
+    const videoIds = (playlistResponse.data.items || [])
+      .map(item => item.contentDetails?.videoId)
+      .filter(Boolean) as string[];
+
+    if (videoIds.length > 0) {
+      const videosResponse = await youtube.videos.list({
+        part: ["snippet", "statistics", "contentDetails"],
+        id: videoIds,
+      });
+
+      for (const video of videosResponse.data.items || []) {
+        const views = parseInt(video.statistics?.viewCount || "0", 10);
+        const likes = parseInt(video.statistics?.likeCount || "0", 10);
+        const comments = parseInt(video.statistics?.commentCount || "0", 10);
+        const engagementRate = views > 0 ? ((likes + comments) / views) * 100 : 0;
+
+        recentVideos.push({
+          videoId: video.id || "",
+          title: video.snippet?.title || "",
+          description: video.snippet?.description || "",
+          tags: video.snippet?.tags || [],
+          publishedAt: video.snippet?.publishedAt || "",
+          thumbnailUrl: video.snippet?.thumbnails?.medium?.url || "",
+          viewCount: views,
+          likeCount: likes,
+          commentCount: comments,
+          duration: video.contentDetails?.duration || "",
+          engagementRate: Math.round(engagementRate * 100) / 100,
+        });
+      }
+    }
+  }
+
+  return { channel: channelStats, recentVideos };
+}

@@ -42,7 +42,7 @@ import { Readable } from "stream";
 import { viralAnalyzer } from "./lib/viral-analyzer";
 import { randomBytes } from "crypto";
 import archiver from "archiver";
-import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo, getCachedVideos, invalidateVideoCache } from "./youtube";
+import { checkYouTubeConnection, fetchYouTubeVideos, updateYouTubeVideo, getCachedVideos, invalidateVideoCache, fetchVideoStatistics, fetchChannelStats, fetchCompetitorData } from "./youtube";
 import { setupOAuthRoutes, seedDemoAccount } from "./auth/oauth-routes";
 import { publishToGHL, getGHLConnectionStatus } from "./ghl-service";
 import multer from "multer";
@@ -1837,6 +1837,213 @@ Return JSON:
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/youtube/analytics", async (req, res) => {
+    try {
+      const forceRefresh = req.query.refresh === "true";
+      const stats = await fetchVideoStatistics(forceRefresh);
+      res.json({ videos: stats, totalVideos: stats.length });
+    } catch (error: any) {
+      console.error("Error fetching video analytics:", error);
+      if (error.message?.includes("quota")) {
+        res.status(429).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: error.message || "Failed to fetch video analytics" });
+      }
+    }
+  });
+
+  app.get("/api/youtube/channel", async (_req, res) => {
+    try {
+      const stats = await fetchChannelStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching channel stats:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch channel stats" });
+    }
+  });
+
+  app.get("/api/youtube/seo-score/:videoId", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const stats = await fetchVideoStatistics();
+      const video = stats.find(v => v.videoId === videoId);
+      if (!video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+
+      const prompt = `You are a YouTube SEO expert. Score this video's metadata out of 100 and provide specific improvements.
+
+Video Title: "${video.title}"
+Description: "${video.description?.substring(0, 500)}"
+Tags: ${JSON.stringify(video.tags || [])}
+Views: ${video.viewCount}, Likes: ${video.likeCount}, Comments: ${video.commentCount}
+
+Return ONLY valid JSON:
+{
+  "overallScore": number (0-100),
+  "titleScore": number (0-100),
+  "titleAnalysis": "brief analysis",
+  "titleSuggestion": "improved title",
+  "descriptionScore": number (0-100),
+  "descriptionAnalysis": "brief analysis",
+  "descriptionSuggestions": ["suggestion1", "suggestion2"],
+  "tagsScore": number (0-100),
+  "tagsAnalysis": "brief analysis",
+  "suggestedTags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
+  "thumbnailTips": "thumbnail optimization tips",
+  "engagementAnalysis": "analysis of engagement metrics",
+  "topPriorities": ["priority1", "priority2", "priority3"]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 2000,
+      });
+
+      const seoResult = JSON.parse(response.choices[0].message.content || "{}");
+      res.json({ video, seo: seoResult });
+    } catch (error: any) {
+      console.error("Error scoring video SEO:", error);
+      res.status(500).json({ error: error.message || "Failed to score video SEO" });
+    }
+  });
+
+  app.post("/api/youtube/tag-research", async (req, res) => {
+    try {
+      const { topic, niche } = req.body;
+      if (!topic) {
+        return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const prompt = `You are a YouTube keyword and tag research expert specializing in the "${niche || 'physician finance, investing, and entrepreneurship'}" niche.
+
+Research topic: "${topic}"
+
+Provide comprehensive tag and keyword research. Return ONLY valid JSON:
+{
+  "primaryKeywords": [{"keyword": "term", "searchVolume": "high/medium/low", "competition": "high/medium/low", "relevance": number (1-10)}],
+  "longTailKeywords": [{"keyword": "longer phrase", "searchVolume": "low/medium", "competition": "low/medium", "relevance": number}],
+  "trendingTags": ["tag1", "tag2"],
+  "suggestedTags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11", "tag12", "tag13", "tag14", "tag15"],
+  "titleSuggestions": ["title 1", "title 2", "title 3"],
+  "hashTags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
+  "relatedTopics": ["topic1", "topic2", "topic3"],
+  "contentAngle": "suggested angle or hook for this topic",
+  "targetAudience": "who this content should target"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.4,
+        max_tokens: 3000,
+      });
+
+      const research = JSON.parse(response.choices[0].message.content || "{}");
+      res.json(research);
+    } catch (error: any) {
+      console.error("Error researching tags:", error);
+      res.status(500).json({ error: error.message || "Failed to research tags" });
+    }
+  });
+
+  app.get("/api/youtube/best-time", async (_req, res) => {
+    try {
+      const stats = await fetchVideoStatistics();
+      if (stats.length === 0) {
+        return res.json({ analysis: null, message: "No videos found to analyze" });
+      }
+
+      const videoData = stats.map(v => ({
+        publishedAt: v.publishedAt,
+        views: v.viewCount,
+        likes: v.likeCount,
+        comments: v.commentCount,
+        engagement: v.engagementRate,
+        title: v.title.substring(0, 60),
+      }));
+
+      const prompt = `You are a YouTube analytics expert. Analyze these video publishing times and performance to determine the best times to post.
+
+Video data (${videoData.length} videos):
+${JSON.stringify(videoData, null, 1)}
+
+Return ONLY valid JSON:
+{
+  "bestDays": [{"day": "Monday", "score": number (1-10), "reason": "why"}],
+  "bestHours": [{"hour": "2:00 PM EST", "score": number (1-10), "reason": "why"}],
+  "bestCombinations": [{"day": "Tuesday", "time": "3:00 PM EST", "confidence": "high/medium/low"}],
+  "worstTimes": [{"day": "Saturday", "time": "3:00 AM EST", "reason": "why"}],
+  "insights": ["insight1", "insight2", "insight3"],
+  "recommendation": "Your top recommendation for when to publish",
+  "publishingSchedule": {"monday": "time or null", "tuesday": "time or null", "wednesday": "time or null", "thursday": "time or null", "friday": "time or null", "saturday": "time or null", "sunday": "time or null"}
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 2000,
+      });
+
+      const analysis = JSON.parse(response.choices[0].message.content || "{}");
+      res.json({ analysis, videosAnalyzed: stats.length });
+    } catch (error: any) {
+      console.error("Error analyzing best time:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze best posting times" });
+    }
+  });
+
+  app.get("/api/youtube/competitor/:handle", async (req, res) => {
+    try {
+      const { handle } = req.params;
+      if (!handle) {
+        return res.status(400).json({ error: "Channel handle is required" });
+      }
+
+      const cleanHandle = handle.replace(/^@/, "");
+      const data = await fetchCompetitorData(cleanHandle);
+
+      const myChannel = await fetchChannelStats();
+      const myStats = await fetchVideoStatistics();
+
+      const myAvgViews = myStats.length > 0 ? Math.round(myStats.reduce((sum, v) => sum + v.viewCount, 0) / myStats.length) : 0;
+      const myAvgEngagement = myStats.length > 0 ? Math.round(myStats.reduce((sum, v) => sum + v.engagementRate, 0) / myStats.length * 100) / 100 : 0;
+
+      const compAvgViews = data.recentVideos.length > 0 ? Math.round(data.recentVideos.reduce((sum, v) => sum + v.viewCount, 0) / data.recentVideos.length) : 0;
+      const compAvgEngagement = data.recentVideos.length > 0 ? Math.round(data.recentVideos.reduce((sum, v) => sum + v.engagementRate, 0) / data.recentVideos.length * 100) / 100 : 0;
+
+      res.json({
+        competitor: data.channel,
+        competitorVideos: data.recentVideos,
+        comparison: {
+          you: {
+            subscribers: myChannel.subscriberCount,
+            totalViews: myChannel.viewCount,
+            videoCount: myChannel.videoCount,
+            avgViews: myAvgViews,
+            avgEngagement: myAvgEngagement,
+          },
+          competitor: {
+            subscribers: data.channel.subscriberCount,
+            totalViews: data.channel.viewCount,
+            videoCount: data.channel.videoCount,
+            avgViews: compAvgViews,
+            avgEngagement: compAvgEngagement,
+          },
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching competitor data:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch competitor data" });
     }
   });
 
