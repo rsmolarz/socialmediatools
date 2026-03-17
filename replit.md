@@ -49,9 +49,13 @@ Preferred communication style: Simple, everyday language.
 - **Content Management**: Auto-Save, Search & Organization (full-text search, tag filtering, folder management), Content Repurposing Engine, Social Media Command Center.
 - **Optimization & Testing**: A/B Testing for thumbnails and hooks, export optimization, keyboard shortcuts, undo/redo.
 - **Feature Documentation**: Self-contained, versioned knowledge base for platform features, available in the Admin section.
-- **Email Marketing**: Landing page, lead magnet, and email sequence builder.
-- **Influencer Collaboration**: AI-powered partner discovery and outreach tools.
-- **Viral Content Analysis**: Tool to analyze and learn from viral content.
+- **Email Marketing**: Landing page, lead magnet, and email sequence builder at `/funnel-builder`.
+- **Influencer Collaboration**: AI-powered partner discovery and outreach tools at `/collab-finder`.
+- **Viral Content Analysis**: Tool to analyze and learn from viral content at `/viral-analyzer`.
+- **X/Twitter Growth Suite**: Thread writer, viral tweet generator, growth strategy, trend hijacker at `/twitter-suite`.
+- **Content Repurposing Engine**: Transform one piece of content into 20+ pieces across platforms at `/content-repurposer`.
+- **AI A/B Tester**: Thumbnail/title/hook variation scoring and comparison at `/ab-tester`.
+- **BBG Bot Hub**: 30+ AI chatbots across 5 categories (BrandDNA, Captivating Content, WCPC, Rev Engine, Other). Email-gated access, real-time AI chat. Route: `/bots`. API: POST `/api/bots/verify-email`, GET `/api/bots/list`, POST `/api/bots/chat`.
 
 ## External Dependencies
 

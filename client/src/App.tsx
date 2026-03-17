@@ -27,6 +27,7 @@ import CollabFinder from "@/pages/collab-finder";
 import ViralAnalyzer from "@/pages/viral-analyzer";
 import FunnelBuilder from "@/pages/funnel-builder";
 import NotFound from "@/pages/not-found";
+import BotsPage from "@/pages/bots";
 import { Loader2 } from "lucide-react";
 
 function AuthenticatedRouter() {
@@ -63,6 +64,7 @@ function AuthenticatedRouter() {
       <Route path="/collab-finder" component={CollabFinder} />
       <Route path="/viral-analyzer" component={ViralAnalyzer} />
       <Route path="/funnel-builder" component={FunnelBuilder} />
+      <Route path="/bots" component={BotsPage} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>

@@ -65,6 +65,7 @@ import {
   Handshake,
   Flame,
   Megaphone,
+  Bot,
 } from "lucide-react";
 import { SiX } from "react-icons/si";
 import type {
@@ -751,6 +752,12 @@ export default function Home() {
               <Button variant="outline" data-testid="button-funnel-builder">
                 <Megaphone className="h-4 w-4 mr-2" />
                 Funnels
+              </Button>
+            </Link>
+            <Link href="/bots">
+              <Button variant="outline" data-testid="button-bots">
+                <Bot className="h-4 w-4 mr-2" />
+                AI Bots
               </Button>
             </Link>
             <Link href="/admin">
