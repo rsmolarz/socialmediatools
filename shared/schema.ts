@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, timestamp, serial, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, serial, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -743,6 +743,35 @@ export const insertSiteReviewSchema = createInsertSchema(siteReviewsTable).omit(
     id: true,
     createdAt: true,
 });
+
+export const botChats = pgTable("bot_chats", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  botId: text("bot_id").notNull(),
+  messages: jsonb("messages").notNull().default([]),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("bot_chats_email_botid_idx").on(table.email, table.botId),
+]);
+
+export type BotChat = typeof botChats.$inferSelect;
+export const insertBotChatSchema = createInsertSchema(botChats).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const botFavorites = pgTable("bot_favorites", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  botId: text("bot_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("bot_favorites_email_botid_idx").on(table.email, table.botId),
+]);
+
+export type BotFavorite = typeof botFavorites.$inferSelect;
 
 // Auth models
 export * from "./models/auth";

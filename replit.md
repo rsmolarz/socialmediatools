@@ -55,7 +55,7 @@ Preferred communication style: Simple, everyday language.
 - **X/Twitter Growth Suite**: Thread writer, viral tweet generator, growth strategy, trend hijacker at `/twitter-suite`.
 - **Content Repurposing Engine**: Transform one piece of content into 20+ pieces across platforms at `/content-repurposer`.
 - **AI A/B Tester**: Thumbnail/title/hook variation scoring and comparison at `/ab-tester`.
-- **BBG Bot Hub**: 30+ AI chatbots across 5 categories (BrandDNA, Captivating Content, WCPC, Rev Engine, Other). Email-gated access, real-time AI chat. Route: `/bots`. API: POST `/api/bots/verify-email`, GET `/api/bots/list`, POST `/api/bots/chat`.
+- **BBG Bot Hub**: 30+ AI chatbots across 5 categories (BrandDNA, Captivating Content, WCPC, Rev Engine, Other). Email-gated access, real-time AI chat with persistent chat history (DB-backed via `bot_chats` table), starter prompts per bot, chat export (download as .txt), and favorite bots (DB-backed via `bot_favorites` table with unique constraints). Route: `/bots`. API: POST `/api/bots/verify-email`, GET `/api/bots/list`, POST `/api/bots/chat`, GET `/api/bots/history`, GET/DELETE `/api/bots/history/:botId`, GET/POST `/api/bots/favorites`.
 
 ## External Dependencies
 

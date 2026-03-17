@@ -32,6 +32,8 @@ import {
   speakerKitsTable,
   speakerOpportunitiesTable,
   siteReviewsTable,
+  botChats,
+  botFavorites,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, gte, and, count, sum } from "drizzle-orm";
@@ -6223,79 +6225,159 @@ Return JSON:
       };
 
   const BOT_LIST = [
-    { id: "audience-avatar", name: "Audience & Avatar Bot", category: "BrandDNA Bots" },
-    { id: "problem-cause", name: "Problem-Cause Bot", category: "BrandDNA Bots" },
-    { id: "message-uniqueness", name: "Message & Uniqueness Bot", category: "BrandDNA Bots" },
-    { id: "payoffs", name: "Payoffs Bot", category: "BrandDNA Bots" },
-    { id: "title", name: "Title Bot", category: "BrandDNA Bots" },
-    { id: "bps-grader", name: "BPS Grader", category: "BrandDNA Bots" },
-    { id: "golden-grid", name: "Golden Grid Bot", category: "BrandDNA Bots" },
-    { id: "business-model", name: "Business Model Bot", category: "BrandDNA Bots" },
-    { id: "elevator-pitch", name: "Elevator Pitch Bot", category: "BrandDNA Bots" },
-    { id: "expert-bio", name: "Expert Bio Bot", category: "BrandDNA Bots" },
-    { id: "tone-of-voice", name: "Tone of Voice Bot", category: "BrandDNA Bots" },
-    { id: "captivating-content", name: "Captivating Content Bot", category: "Captivating Content Bots" },
-    { id: "pillar-point", name: "Pillar Point Bot", category: "Captivating Content Bots" },
-    { id: "story", name: "Story Bot", category: "Captivating Content Bots" },
-    { id: "framework", name: "Framework Bot", category: "Captivating Content Bots" },
-    { id: "behavior-driver", name: "Behavior Driver Bot", category: "Captivating Content Bots" },
-    { id: "exercise", name: "Exercise Bot", category: "Captivating Content Bots" },
-    { id: "wc-presentation", name: "WC Presentation Bot", category: "WCPC Bots" },
-    { id: "presentation-outline", name: "Presentation Outline Bot", category: "WCPC Bots" },
-    { id: "opening", name: "Opening Bot", category: "WCPC Bots" },
-    { id: "storytelling", name: "Storytelling Bot", category: "WCPC Bots" },
-    { id: "sell-from-stage", name: "Sell From Stage Bot", category: "WCPC Bots" },
-    { id: "closing", name: "Closing Bot", category: "WCPC Bots" },
-    { id: "entertainment", name: "Entertainment Bot", category: "WCPC Bots" },
-    { id: "humor", name: "Humor Bot", category: "WCPC Bots" },
-    { id: "keynote-grader", name: "Keynote Grader", category: "WCPC Bots" },
-    { id: "offer", name: "Offer Bot", category: "Rev Engine Bots" },
-    { id: "price-anchor", name: "Price Anchor Bot", category: "Rev Engine Bots" },
-    { id: "copy", name: "Copy Bot", category: "Rev Engine Bots" },
-    { id: "long-form-video", name: "Long Form Video Topic Bot", category: "Rev Engine Bots" },
-    { id: "short-form-video", name: "Short Form Video Topic Bot", category: "Rev Engine Bots" },
-    { id: "clip", name: "ClipBot", category: "Rev Engine Bots" },
-    { id: "video-ads", name: "Video Ads Bot", category: "Other Bots" },
-    { id: "referral-template", name: "Referral Template Bot", category: "Other Bots" },
-    { id: "sales-script", name: "Sales Script Bot", category: "Other Bots" },
-    { id: "sales-call-grader", name: "Sales Call Grader", category: "Other Bots" },
-    { id: "program-description", name: "Program Description Bot", category: "Other Bots" },
-      ];
+    { id: "audience-avatar", name: "Audience & Avatar Bot", category: "BrandDNA Bots", starters: ["Help me define my ideal customer avatar", "What questions should I ask to understand my audience?", "Create an audience profile for a health coaching business"] },
+    { id: "problem-cause", name: "Problem-Cause Bot", category: "BrandDNA Bots", starters: ["What's the core problem my audience faces?", "Help me dig into the root cause of my customer's struggles", "My audience struggles with time management — go deeper"] },
+    { id: "message-uniqueness", name: "Message & Uniqueness Bot", category: "BrandDNA Bots", starters: ["Help me find what makes my brand unique", "How do I differentiate from competitors?", "Craft a unique brand message for my coaching business"] },
+    { id: "payoffs", name: "Payoffs Bot", category: "BrandDNA Bots", starters: ["What transformation do my clients experience?", "Generate compelling payoff statements for my program", "Help me articulate the results I deliver"] },
+    { id: "title", name: "Title Bot", category: "BrandDNA Bots", starters: ["Generate title ideas for my keynote about leadership", "I need a book title about financial freedom", "Create 10 course title options for my program"] },
+    { id: "bps-grader", name: "BPS Grader", category: "BrandDNA Bots", starters: ["Grade my brand positioning statement", "Is my BPS clear and compelling enough?", "Help me improve: 'I help entrepreneurs scale their business'"] },
+    { id: "golden-grid", name: "Golden Grid Bot", category: "BrandDNA Bots", starters: ["Walk me through building my Golden Grid", "How do I map my expertise to my audience?", "Help me create my offer ecosystem"] },
+    { id: "business-model", name: "Business Model Bot", category: "BrandDNA Bots", starters: ["Help me design my revenue streams", "What business model works best for speakers?", "Create an offer ladder for my coaching business"] },
+    { id: "elevator-pitch", name: "Elevator Pitch Bot", category: "BrandDNA Bots", starters: ["Help me craft a 30-second elevator pitch", "I'm a financial advisor — create my pitch", "Make my pitch more compelling and memorable"] },
+    { id: "expert-bio", name: "Expert Bio Bot", category: "BrandDNA Bots", starters: ["Write a professional bio for my speaker page", "I need short, medium, and long bio versions", "Make my bio sound more authoritative"] },
+    { id: "tone-of-voice", name: "Tone of Voice Bot", category: "BrandDNA Bots", starters: ["Help me define my brand voice", "I want to sound professional but approachable", "Create tone guidelines for my content team"] },
+    { id: "captivating-content", name: "Captivating Content Bot", category: "Captivating Content Bots", starters: ["How do I make my content more engaging?", "Help me create a captivating blog post opening", "What makes content go viral?"] },
+    { id: "pillar-point", name: "Pillar Point Bot", category: "Captivating Content Bots", starters: ["Help me identify my content pillars", "What are the key talking points for my niche?", "Create 5 content pillars for a wellness brand"] },
+    { id: "story", name: "Story Bot", category: "Captivating Content Bots", starters: ["Help me find my origin story", "Structure my biggest failure into a powerful story", "What stories should I tell in my presentations?"] },
+    { id: "framework", name: "Framework Bot", category: "Captivating Content Bots", starters: ["Help me create a signature framework", "I need a memorable methodology name", "Turn my 5-step process into a branded framework"] },
+    { id: "behavior-driver", name: "Behavior Driver Bot", category: "Captivating Content Bots", starters: ["What behaviors drive success for my audience?", "Help me create content around habit change", "Identify the key actions my clients need to take"] },
+    { id: "exercise", name: "Exercise Bot", category: "Captivating Content Bots", starters: ["Design an interactive exercise for my workshop", "Create a self-assessment worksheet", "What activities keep audiences engaged?"] },
+    { id: "wc-presentation", name: "WC Presentation Bot", category: "WCPC Bots", starters: ["Guide me through building a keynote from scratch", "I have a 45-minute slot — help me plan", "What makes a world-class presentation?"] },
+    { id: "presentation-outline", name: "Presentation Outline Bot", category: "WCPC Bots", starters: ["Create an outline for my TEDx talk", "I need a 60-minute workshop outline", "Outline a presentation about personal branding"] },
+    { id: "opening", name: "Opening Bot", category: "WCPC Bots", starters: ["Craft a powerful opening for my keynote", "Give me 5 attention-grabbing openers", "How should I start a talk about innovation?"] },
+    { id: "storytelling", name: "Storytelling Bot", category: "WCPC Bots", starters: ["Help me structure my signature story", "How do I use the hero's journey in my talk?", "Make my personal story more compelling"] },
+    { id: "sell-from-stage", name: "Sell From Stage Bot", category: "WCPC Bots", starters: ["How do I transition to my offer naturally?", "Build a close sequence for my presentation", "Help me sell without being salesy"] },
+    { id: "closing", name: "Closing Bot", category: "WCPC Bots", starters: ["Craft a memorable closing for my keynote", "How do I end with a powerful call to action?", "Create an emotional and inspiring close"] },
+    { id: "entertainment", name: "Entertainment Bot", category: "WCPC Bots", starters: ["How do I keep my audience engaged for 60 minutes?", "Add more energy to my presentation", "What interaction techniques work best?"] },
+    { id: "humor", name: "Humor Bot", category: "WCPC Bots", starters: ["Help me add humor to my talk about finance", "What kind of jokes work in professional settings?", "I'm not naturally funny — help me be entertaining"] },
+    { id: "keynote-grader", name: "Keynote Grader", category: "WCPC Bots", starters: ["Grade my presentation outline", "Evaluate my keynote structure", "Score my talk and give me feedback"] },
+    { id: "offer", name: "Offer Bot", category: "Rev Engine Bots", starters: ["Help me design an irresistible offer", "What bonuses should I include in my program?", "Build my offer stack from scratch"] },
+    { id: "price-anchor", name: "Price Anchor Bot", category: "Rev Engine Bots", starters: ["How should I price my coaching program?", "Help me communicate my value to justify premium pricing", "What pricing strategy works for digital courses?"] },
+    { id: "copy", name: "Copy Bot", category: "Rev Engine Bots", starters: ["Write sales copy for my landing page", "Help me craft a compelling email sequence", "Create ad copy for my coaching program"] },
+    { id: "long-form-video", name: "Long Form Video Topic Bot", category: "Rev Engine Bots", starters: ["Generate 10 YouTube video ideas for my niche", "What long-form topics attract high-value clients?", "Create a video content plan for the next month"] },
+    { id: "short-form-video", name: "Short Form Video Topic Bot", category: "Rev Engine Bots", starters: ["Give me 20 short-form video ideas", "What Reels/TikTok topics work for my niche?", "Create viral short-form content ideas"] },
+    { id: "clip", name: "ClipBot", category: "Rev Engine Bots", starters: ["Help me find the best clips from my podcast", "What moments make great short-form content?", "How do I identify viral-worthy clips?"] },
+    { id: "video-ads", name: "Video Ads Bot", category: "Other Bots", starters: ["Script a video ad for my program", "Create a 60-second video ad structure", "What makes video ads convert?"] },
+    { id: "referral-template", name: "Referral Template Bot", category: "Other Bots", starters: ["Create referral scripts for my business", "How do I ask for referrals naturally?", "Build a referral system template"] },
+    { id: "sales-script", name: "Sales Script Bot", category: "Other Bots", starters: ["Build a discovery call script", "Create a sales conversation framework", "Help me handle the most common objections"] },
+    { id: "sales-call-grader", name: "Sales Call Grader", category: "Other Bots", starters: ["Grade my sales call transcript", "Evaluate my discovery call performance", "What did I do well and what can I improve?"] },
+    { id: "program-description", name: "Program Description Bot", category: "Other Bots", starters: ["Write a compelling program description", "Help me describe my coaching package", "Create a course description that sells"] },
+  ];
 
   app.post("/api/bots/verify-email", (req: Request, res: Response) => {
-        const { email } = req.body;
-        if (!email || !email.includes("@")) {
-                return res.status(400).json({ error: "Invalid email" });
-        }
-        verifiedBotEmails.add(email.toLowerCase());
-        res.json({ success: true });
+    const { email } = req.body;
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Invalid email" });
+    }
+    verifiedBotEmails.add(email.toLowerCase());
+    res.json({ success: true });
   });
 
   app.get("/api/bots/list", (_req: Request, res: Response) => {
-        res.json(BOT_LIST);
+    res.json(BOT_LIST);
   });
 
   app.post("/api/bots/chat", async (req: Request, res: Response) => {
-        const { email, botId, messages } = req.body;
-        if (!verifiedBotEmails.has(email?.toLowerCase())) {
-                return res.status(401).json({ error: "Email not verified" });
-        }
-        const systemPrompt = BOT_PROMPTS[botId];
-        if (!systemPrompt) {
-                return res.status(404).json({ error: "Bot not found" });
-        }
-        try {
-                const OpenAI = (await import("openai")).default;
-                const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-                const completion = await openai.chat.completions.create({
-                          model: "gpt-4o",
-                          messages: [{ role: "system", content: systemPrompt }, ...messages],
-                });
-                res.json({ reply: completion.choices[0].message.content });
-        } catch (err) {
-                console.error("Bot chat error:", err);
-                res.status(500).json({ error: "AI error" });
-        }
+    const { email, botId, messages } = req.body;
+    if (!verifiedBotEmails.has(email?.toLowerCase())) {
+      return res.status(401).json({ error: "Email not verified" });
+    }
+    const systemPrompt = BOT_PROMPTS[botId];
+    if (!systemPrompt) {
+      return res.status(404).json({ error: "Bot not found" });
+    }
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+      });
+      const reply = completion.choices[0].message.content;
+      const updatedMessages = [...messages, { role: "assistant", content: reply }];
+      const emailLower = email.toLowerCase();
+      const existing = await db.select().from(botChats).where(and(eq(botChats.email, emailLower), eq(botChats.botId, botId))).limit(1);
+      if (existing.length > 0) {
+        await db.update(botChats).set({ messages: updatedMessages, updatedAt: new Date() }).where(eq(botChats.id, existing[0].id));
+      } else {
+        await db.insert(botChats).values({ email: emailLower, botId, messages: updatedMessages });
+      }
+      res.json({ reply });
+    } catch (err) {
+      console.error("Bot chat error:", err);
+      res.status(500).json({ error: "AI error" });
+    }
+  });
+
+  app.get("/api/bots/history", async (req: Request, res: Response) => {
+    const email = (req.query.email as string)?.toLowerCase();
+    if (!email || !verifiedBotEmails.has(email)) {
+      return res.status(401).json({ error: "Email not verified" });
+    }
+    try {
+      const chats = await db.select().from(botChats).where(eq(botChats.email, email)).orderBy(botChats.updatedAt);
+      res.json(chats);
+    } catch (err) {
+      console.error("Bot history error:", err);
+      res.status(500).json({ error: "Failed to fetch history" });
+    }
+  });
+
+  app.get("/api/bots/history/:botId", async (req: Request, res: Response) => {
+    const email = (req.query.email as string)?.toLowerCase();
+    const { botId } = req.params;
+    if (!email || !verifiedBotEmails.has(email)) {
+      return res.status(401).json({ error: "Email not verified" });
+    }
+    try {
+      const chat = await db.select().from(botChats).where(and(eq(botChats.email, email), eq(botChats.botId, botId))).limit(1);
+      res.json(chat[0] || null);
+    } catch (err) {
+      console.error("Bot history error:", err);
+      res.status(500).json({ error: "Failed to fetch chat history" });
+    }
+  });
+
+  app.delete("/api/bots/history/:botId", async (req: Request, res: Response) => {
+    const email = (req.query.email as string)?.toLowerCase();
+    const { botId } = req.params;
+    if (!email || !verifiedBotEmails.has(email)) return res.status(401).json({ error: "Email not verified" });
+    try {
+      await db.delete(botChats).where(and(eq(botChats.email, email), eq(botChats.botId, botId)));
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Bot delete history error:", err);
+      res.status(500).json({ error: "Failed to delete history" });
+    }
+  });
+
+  app.get("/api/bots/favorites", async (req: Request, res: Response) => {
+    const email = (req.query.email as string)?.toLowerCase();
+    if (!email || !verifiedBotEmails.has(email)) return res.status(401).json({ error: "Email not verified" });
+    try {
+      const favs = await db.select().from(botFavorites).where(eq(botFavorites.email, email));
+      res.json(favs.map(f => f.botId));
+    } catch (err) {
+      console.error("Bot favorites error:", err);
+      res.status(500).json({ error: "Failed to fetch favorites" });
+    }
+  });
+
+  app.post("/api/bots/favorites", async (req: Request, res: Response) => {
+    const { email, botId } = req.body;
+    const emailLower = email?.toLowerCase();
+    if (!emailLower || !botId || !verifiedBotEmails.has(emailLower)) return res.status(401).json({ error: "Email not verified" });
+    try {
+      const existing = await db.select().from(botFavorites).where(and(eq(botFavorites.email, emailLower), eq(botFavorites.botId, botId))).limit(1);
+      if (existing.length > 0) {
+        await db.delete(botFavorites).where(eq(botFavorites.id, existing[0].id));
+        res.json({ favorited: false });
+      } else {
+        await db.insert(botFavorites).values({ email: emailLower, botId });
+        res.json({ favorited: true });
+      }
+    } catch (err) {
+      console.error("Bot favorite toggle error:", err);
+      res.status(500).json({ error: "Failed to toggle favorite" });
+    }
   });
   // ===== END BBG BOT SYSTEM =====
   return httpServer;
