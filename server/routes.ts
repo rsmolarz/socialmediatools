@@ -5416,5 +5416,767 @@ Return JSON:
     }
   });
 
+  // ============================================
+  // X/TWITTER GROWTH SUITE
+  // ============================================
+
+  app.post("/api/twitter/thread", async (req, res) => {
+    try {
+      const { topic, tweetCount, style } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a Twitter/X thread writing expert who creates viral threads. Return JSON only.` },
+          { role: "user", content: `Write a viral X/Twitter thread about: "${topic}"
+Number of tweets: ${tweetCount || 7}
+Style: ${style || "educational"}
+
+Return JSON:
+{
+  "hookTweet": "the opening tweet that stops the scroll (under 280 chars)",
+  "thread": [
+    { "number": 1, "tweet": "tweet text (under 280 chars)", "mediaNote": "suggested media if any" }
+  ],
+  "closingCTA": "final tweet with CTA (under 280 chars)",
+  "hashtags": ["5 relevant hashtags"],
+  "alternativeHooks": ["3 alternative opening tweets"],
+  "tips": ["5 thread optimization tips"],
+  "bestTimeToPost": "suggested posting time"
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Twitter thread error:", error);
+      res.status(500).json({ error: "Failed to generate thread" });
+    }
+  });
+
+  app.post("/api/twitter/viral-tweets", async (req, res) => {
+    try {
+      const { topic, count, style } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a viral tweet expert. Create tweets optimized for maximum engagement. Return JSON only.` },
+          { role: "user", content: `Generate ${count || 10} viral tweet variations about: "${topic}"
+Style: ${style || "mixed"}
+
+Return JSON:
+{
+  "tweets": [
+    {
+      "tweet": "tweet text (under 280 chars)",
+      "style": "hot take/controversial/educational/humorous/inspirational/story/stat",
+      "estimatedEngagement": "high/medium/low",
+      "replyBait": "why people will reply to this",
+      "bestFormat": "text only/with image/with poll/with video"
+    }
+  ],
+  "tweetFormulas": [
+    { "formula": "tweet formula template", "example": "filled example", "whyItWorks": "explanation" }
+  ],
+  "engagementTips": ["5 tips to boost tweet engagement"],
+  "avoidList": ["things to avoid for algorithm reach"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Twitter viral tweets error:", error);
+      res.status(500).json({ error: "Failed to generate tweets" });
+    }
+  });
+
+  app.post("/api/twitter/engagement", async (req, res) => {
+    try {
+      const { niche, goals } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an X/Twitter growth strategist. Return JSON only.` },
+          { role: "user", content: `Create a comprehensive X/Twitter engagement and growth strategy for:
+Niche: ${niche || "general"}
+Goals: ${goals || "grow followers and engagement"}
+
+Return JSON:
+{
+  "dailyRoutine": [
+    { "time": "time of day", "action": "what to do", "duration": "how long", "impact": "high/medium/low" }
+  ],
+  "contentMix": {
+    "threads": "percentage and frequency",
+    "singleTweets": "percentage and frequency",
+    "replies": "percentage and frequency",
+    "quotes": "percentage and frequency"
+  },
+  "growthTactics": [
+    { "tactic": "growth tactic", "description": "how to execute", "expectedResult": "what to expect", "effort": "easy/medium/hard" }
+  ],
+  "engagementBoosters": ["10 specific engagement tactics"],
+  "hashtagStrategy": ["best hashtags and how to use them"],
+  "profileOptimization": {
+    "bio": "suggested bio text",
+    "pinnedTweet": "suggested pinned tweet idea",
+    "headerIdea": "suggested header image concept"
+  },
+  "weeklySchedule": [
+    { "day": "Monday", "content": "what to post", "engagement": "engagement activities" }
+  ],
+  "metricsToTrack": ["key metrics and benchmarks"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Twitter engagement error:", error);
+      res.status(500).json({ error: "Failed to generate strategy" });
+    }
+  });
+
+  app.post("/api/twitter/trending-hijack", async (req, res) => {
+    try {
+      const { niche, trendTopic } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a Twitter trend-jacking expert who helps creators ride trending topics for visibility. Return JSON only.` },
+          { role: "user", content: `${trendTopic ? `Create tweets to hijack/ride this trending topic: "${trendTopic}"` : `Identify trending topics to hijack`} for the ${niche || "general"} niche.
+
+Return JSON:
+{
+  "trendingTopics": [
+    { "topic": "trending topic or hashtag", "relevance": "how it connects to your niche", "urgency": "post now/today/this week" }
+  ],
+  "hijackTweets": [
+    {
+      "trend": "the trend being hijacked",
+      "tweet": "tweet text riding the trend (under 280 chars)",
+      "angle": "how it connects to your brand/niche",
+      "viralPotential": "high/medium/low",
+      "hashtags": ["relevant hashtags"]
+    }
+  ],
+  "tips": ["5 trend-jacking best practices"],
+  "warnings": ["things to avoid when trend-jacking"]
+}` }
+        ],
+        max_tokens: 2000,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Twitter trending error:", error);
+      res.status(500).json({ error: "Failed to generate trend-jacking content" });
+    }
+  });
+
+  // ============================================
+  // CONTENT REPURPOSING ENGINE
+  // ============================================
+
+  app.post("/api/repurpose/generate", async (req, res) => {
+    try {
+      const { content, contentType, platforms } = req.body;
+      if (!content) return res.status(400).json({ error: "Content is required" });
+      const truncated = content.substring(0, 5000);
+      const targetPlatforms = platforms || ["twitter", "linkedin", "instagram", "tiktok", "email", "blog"];
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a content repurposing expert who transforms one piece of content into 20+ pieces across platforms. Return JSON only.` },
+          { role: "user", content: `Repurpose this ${contentType || "content"} into multiple formats for these platforms: ${targetPlatforms.join(", ")}
+
+Original content:
+"${truncated}"
+
+Return JSON:
+{
+  "summary": "brief summary of the original content",
+  "pieces": {
+    ${targetPlatforms.includes("twitter") ? `"twitter": {
+      "tweets": ["5 standalone tweets (under 280 chars each)"],
+      "thread": ["7-tweet thread"],
+      "quoteCards": ["3 quotable one-liners for graphics"]
+    },` : ""}
+    ${targetPlatforms.includes("linkedin") ? `"linkedin": {
+      "post": "full LinkedIn post with formatting",
+      "carouselSlides": [
+        { "headline": "slide headline", "body": "slide body" }
+      ],
+      "articleOutline": { "title": "article title", "sections": ["section titles"] }
+    },` : ""}
+    ${targetPlatforms.includes("instagram") ? `"instagram": {
+      "caption": "Instagram caption with emojis",
+      "carouselSlides": [{ "headline": "slide text", "body": "supporting text" }],
+      "reelScript": "30-second Reel script",
+      "storySlides": ["5 story slide texts"],
+      "hashtags": ["30 hashtags"]
+    },` : ""}
+    ${targetPlatforms.includes("tiktok") ? `"tiktok": {
+      "script60s": "60-second TikTok script",
+      "script15s": "15-second TikTok script",
+      "hooks": ["3 different hooks for the same content"],
+      "caption": "TikTok caption",
+      "hashtags": ["15 hashtags"]
+    },` : ""}
+    ${targetPlatforms.includes("email") ? `"email": {
+      "subjectLine": "email subject line",
+      "newsletter": "full newsletter text",
+      "previewText": "email preview text"
+    },` : ""}
+    ${targetPlatforms.includes("blog") ? `"blog": {
+      "title": "blog post title",
+      "outline": ["blog post sections"],
+      "intro": "blog post introduction paragraph",
+      "conclusion": "blog post conclusion"
+    }` : ""}
+  },
+  "bonusContent": {
+    "podcastEpisodeIdea": "podcast episode title and talking points",
+    "youtubeVideoIdea": "YouTube video title and outline",
+    "quoteGraphics": ["5 one-liner quotes for shareable graphics"],
+    "pollIdeas": ["3 poll questions derived from the content"]
+  },
+  "repurposingSchedule": "suggested schedule for posting all pieces over 2 weeks"
+}` }
+        ],
+        max_tokens: 4000,
+        temperature: 0.7,
+      });
+      const content2 = response.choices[0]?.message?.content || "";
+      const jsonMatch = content2.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Repurpose error:", error);
+      res.status(500).json({ error: "Failed to repurpose content" });
+    }
+  });
+
+  // ============================================
+  // AI THUMBNAIL & HOOK A/B TESTER
+  // ============================================
+
+  app.post("/api/ab-test/thumbnails", async (req, res) => {
+    try {
+      const { topic, currentTitle, currentDescription } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a YouTube CTR optimization expert who specializes in thumbnails and titles. Score and compare variations. Return JSON only.` },
+          { role: "user", content: `Generate and score thumbnail/title/hook A/B test variations for: "${topic}"
+${currentTitle ? `Current title: "${currentTitle}"` : ""}
+${currentDescription ? `Current description: "${currentDescription}"` : ""}
+
+Return JSON:
+{
+  "variations": [
+    {
+      "label": "Variation A/B/C/D/E",
+      "title": "video title variation",
+      "thumbnailText": "text for thumbnail (3-4 words, ALL CAPS)",
+      "thumbnailConcept": "visual concept description for the thumbnail",
+      "hookLine": "first line of the video (opening hook)",
+      "scores": {
+        "curiosityGap": 8,
+        "emotionalTrigger": 7,
+        "clarityOfValue": 9,
+        "urgency": 6,
+        "clickPotential": 8,
+        "overall": 7.6
+      },
+      "strengths": ["what works well"],
+      "weaknesses": ["what could be better"],
+      "targetAudience": "who this appeals to most"
+    }
+  ],
+  "winner": {
+    "label": "which variation wins",
+    "reason": "why this variation is predicted to perform best"
+  },
+  "ctrPredictions": {
+    "bestCase": "estimated CTR range for the winner",
+    "worstCase": "estimated CTR for the weakest variation"
+  },
+  "optimizationTips": ["5 thumbnail/title optimization tips"],
+  "psychologyInsights": ["3 psychology principles being applied"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("AB test error:", error);
+      res.status(500).json({ error: "Failed to generate A/B test" });
+    }
+  });
+
+  app.post("/api/ab-test/hooks", async (req, res) => {
+    try {
+      const { topic, platform } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a content hook optimization expert. Generate and score hooks for maximum retention. Return JSON only.` },
+          { role: "user", content: `Generate and A/B test hook variations for: "${topic}"
+Platform: ${platform || "YouTube"}
+
+Return JSON:
+{
+  "hooks": [
+    {
+      "label": "Hook A/B/C/D/E",
+      "hookText": "the opening hook line",
+      "hookType": "question/bold claim/story/statistic/controversy/fear/curiosity",
+      "script": "first 15 seconds of script following the hook",
+      "scores": {
+        "attentionGrab": 8,
+        "curiosityFactor": 7,
+        "relatability": 9,
+        "retentionPotential": 8,
+        "overall": 8.0
+      },
+      "whyItWorks": "psychology behind this hook",
+      "bestFor": "what type of content/audience this works best for"
+    }
+  ],
+  "winner": { "label": "winning hook", "reason": "why it wins" },
+  "retentionTips": ["5 tips to keep viewers after the hook"],
+  "hookFormulas": [
+    { "formula": "template", "example": "filled in example" }
+  ]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.8,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("AB hooks error:", error);
+      res.status(500).json({ error: "Failed to generate hook tests" });
+    }
+  });
+
+  // ============================================
+  // INFLUENCER COLLABORATION FINDER
+  // ============================================
+
+  app.post("/api/collab/find", async (req, res) => {
+    try {
+      const { niche, platform, audienceSize, goals } = req.body;
+      if (!niche) return res.status(400).json({ error: "Niche is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an influencer marketing and collaboration expert. Help creators find and approach collaboration partners. Return JSON only.` },
+          { role: "user", content: `Find ideal collaboration partners and create outreach strategy for:
+Niche: ${niche}
+Platform: ${platform || "all platforms"}
+Audience size range: ${audienceSize || "any"}
+Collab goals: ${goals || "grow audience and cross-promote"}
+
+Return JSON:
+{
+  "idealPartnerProfile": {
+    "niches": ["complementary niches to look for"],
+    "audienceSizeRange": "recommended partner audience size",
+    "engagementRate": "minimum engagement rate to look for",
+    "contentStyle": "compatible content styles",
+    "redFlags": ["red flags to avoid in potential partners"]
+  },
+  "collabIdeas": [
+    {
+      "type": "collab type (guest appearance/challenge/series/giveaway/takeover/etc.)",
+      "description": "detailed description",
+      "platforms": ["best platforms for this collab"],
+      "expectedReach": "expected audience reach",
+      "effort": "easy/medium/hard",
+      "contentPlan": "brief content plan for the collab"
+    }
+  ],
+  "outreachTemplates": {
+    "dm": {
+      "cold": "cold DM template for someone you don't know",
+      "warm": "warm DM template for someone you've engaged with",
+      "followUp": "follow-up DM if no response"
+    },
+    "email": {
+      "initial": "professional email outreach template",
+      "followUp": "follow-up email template",
+      "proposal": "formal collaboration proposal template"
+    }
+  },
+  "searchStrategy": {
+    "whereToFind": ["5 specific places to find collab partners"],
+    "howToVet": ["5 criteria for vetting potential partners"],
+    "howToApproach": ["5 tips for successful outreach"]
+  },
+  "negotiationTips": ["5 tips for negotiating collab terms"],
+  "trackingMetrics": ["metrics to track collab success"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Collab finder error:", error);
+      res.status(500).json({ error: "Failed to find collaboration opportunities" });
+    }
+  });
+
+  app.post("/api/collab/outreach", async (req, res) => {
+    try {
+      const { creatorName, platform, yourNiche, collabType, tone } = req.body;
+      if (!creatorName) return res.status(400).json({ error: "Creator name is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an expert at crafting personalized influencer outreach messages that get responses. Return JSON only.` },
+          { role: "user", content: `Write personalized outreach messages to collaborate with: "${creatorName}"
+Platform: ${platform || "Instagram"}
+Your niche: ${yourNiche || "not specified"}
+Collaboration type: ${collabType || "content collaboration"}
+Tone: ${tone || "professional but friendly"}
+
+Return JSON:
+{
+  "messages": [
+    {
+      "type": "DM/Email/Comment",
+      "subject": "subject line if email",
+      "message": "full message text",
+      "tone": "tone description",
+      "personalizationTips": "how to personalize further"
+    }
+  ],
+  "followUpSequence": [
+    { "day": "Day 3/7/14", "message": "follow up message", "channel": "DM/Email" }
+  ],
+  "tips": ["5 outreach tips for higher response rates"]
+}` }
+        ],
+        max_tokens: 2000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Collab outreach error:", error);
+      res.status(500).json({ error: "Failed to generate outreach messages" });
+    }
+  });
+
+  // ============================================
+  // VIRAL CONTENT ANALYZER
+  // ============================================
+
+  app.post("/api/viral-analyzer/analyze", async (req, res) => {
+    try {
+      const { content, contentType, platform } = req.body;
+      if (!content) return res.status(400).json({ error: "Content is required" });
+      const truncated = content.substring(0, 3000);
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a viral content analysis expert who can break down exactly why content goes viral. Analyze patterns, psychology, and structure. Return JSON only.` },
+          { role: "user", content: `Analyze this ${contentType || "content"} from ${platform || "social media"} and explain exactly why it went viral (or has viral potential):
+
+"${truncated}"
+
+Return JSON:
+{
+  "viralScore": 85,
+  "breakdown": {
+    "hookStrength": { "score": 9, "analysis": "why the hook works or doesn't" },
+    "emotionalTriggers": { "score": 8, "triggers": ["specific emotions triggered"], "analysis": "how emotions drive sharing" },
+    "curiosityGap": { "score": 7, "analysis": "how curiosity is created" },
+    "relatability": { "score": 8, "analysis": "why people relate to this" },
+    "shareability": { "score": 9, "analysis": "why people share this" },
+    "timing": { "score": 7, "analysis": "timing relevance" },
+    "format": { "score": 8, "analysis": "how the format contributes" },
+    "controversy": { "score": 6, "analysis": "controversy/debate element" }
+  },
+  "whyItWentViral": ["5 specific reasons this content performs well"],
+  "psychologyPrinciples": [
+    { "principle": "psychology principle used", "howItsApplied": "how it's applied in this content" }
+  ],
+  "contentStructure": {
+    "hook": "the hook used",
+    "body": "how the body maintains attention",
+    "cta": "the call to action or payoff",
+    "pacing": "how pacing contributes to engagement"
+  },
+  "replicateIdeas": [
+    {
+      "idea": "content idea inspired by this viral piece",
+      "title": "suggested title",
+      "hook": "opening hook",
+      "angle": "your unique angle",
+      "platform": "best platform for this"
+    }
+  ],
+  "mistakes": ["what could have been done better"],
+  "lessonsLearned": ["5 key takeaways for your own content"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content2 = response.choices[0]?.message?.content || "";
+      const jsonMatch = content2.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Viral analyzer error:", error);
+      res.status(500).json({ error: "Failed to analyze content" });
+    }
+  });
+
+  app.post("/api/viral-analyzer/formula", async (req, res) => {
+    try {
+      const { niche, platform } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a viral content formula expert. Identify proven viral content formulas and patterns. Return JSON only.` },
+          { role: "user", content: `Provide proven viral content formulas for:
+Niche: ${niche || "general"}
+Platform: ${platform || "all platforms"}
+
+Return JSON:
+{
+  "formulas": [
+    {
+      "name": "formula name",
+      "template": "the formula template/structure",
+      "example": "filled-in example",
+      "whyItWorks": "psychology behind it",
+      "bestPlatform": "best platform for this formula",
+      "difficulty": "easy/medium/hard",
+      "viralPotential": "high/medium"
+    }
+  ],
+  "universalPrinciples": [
+    { "principle": "viral principle", "explanation": "how to apply it", "example": "real-world example" }
+  ],
+  "contentFrameworks": [
+    { "framework": "framework name", "steps": ["step-by-step process"], "example": "example application" }
+  ],
+  "mistakesToAvoid": ["10 common mistakes that kill virality"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Viral formula error:", error);
+      res.status(500).json({ error: "Failed to generate viral formulas" });
+    }
+  });
+
+  // ============================================
+  // EMAIL LIST & FUNNEL BUILDER
+  // ============================================
+
+  app.post("/api/funnel/landing-page", async (req, res) => {
+    try {
+      const { product, audience, goal } = req.body;
+      if (!product) return res.status(400).json({ error: "Product/offer is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a conversion copywriting expert who creates high-converting landing page copy. Return JSON only.` },
+          { role: "user", content: `Create landing page copy for:
+Product/Offer: ${product}
+Target audience: ${audience || "general"}
+Goal: ${goal || "email signups"}
+
+Return JSON:
+{
+  "headline": "main headline (attention-grabbing)",
+  "subheadline": "supporting subheadline",
+  "heroSection": {
+    "headline": "hero headline",
+    "subtext": "hero supporting text",
+    "ctaButton": "CTA button text",
+    "socialProof": "social proof line (e.g., 'Join 10,000+ subscribers')"
+  },
+  "painPoints": [
+    { "pain": "pain point", "agitation": "why it's urgent", "solution": "how you solve it" }
+  ],
+  "benefits": [
+    { "benefit": "key benefit", "description": "supporting description", "icon": "suggested icon" }
+  ],
+  "testimonials": [
+    { "quote": "testimonial text", "name": "fictional name", "title": "their title/role" }
+  ],
+  "faq": [
+    { "question": "common question", "answer": "answer" }
+  ],
+  "ctaSections": [
+    { "headline": "CTA section headline", "body": "supporting text", "buttonText": "button text" }
+  ],
+  "urgencyElement": "urgency/scarcity element",
+  "seoMeta": { "title": "page title", "description": "meta description" },
+  "tips": ["5 landing page optimization tips"]
+}` }
+        ],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Landing page error:", error);
+      res.status(500).json({ error: "Failed to generate landing page copy" });
+    }
+  });
+
+  app.post("/api/funnel/lead-magnet", async (req, res) => {
+    try {
+      const { niche, audience } = req.body;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a lead generation expert who creates irresistible lead magnets. Return JSON only.` },
+          { role: "user", content: `Generate lead magnet ideas for:
+Niche: ${niche || "business"}
+Target audience: ${audience || "professionals"}
+
+Return JSON:
+{
+  "leadMagnets": [
+    {
+      "type": "ebook/checklist/template/toolkit/quiz/webinar/cheatsheet/swipefile/calculator",
+      "title": "lead magnet title",
+      "description": "what it contains",
+      "outline": ["content outline/sections"],
+      "landingPageHeadline": "headline to promote this lead magnet",
+      "ctaText": "download button text",
+      "expectedConversionRate": "estimated opt-in rate",
+      "effort": "easy/medium/hard to create"
+    }
+  ],
+  "optInFormCopy": [
+    {
+      "headline": "form headline",
+      "subtext": "supporting text",
+      "buttonText": "submit button text",
+      "privacyText": "privacy assurance text"
+    }
+  ],
+  "deliverySequence": {
+    "immediate": "what to send immediately after signup",
+    "day1": "follow-up email day 1",
+    "day3": "follow-up email day 3",
+    "day7": "follow-up email day 7"
+  },
+  "tips": ["5 lead magnet optimization tips"]
+}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Lead magnet error:", error);
+      res.status(500).json({ error: "Failed to generate lead magnet ideas" });
+    }
+  });
+
+  app.post("/api/funnel/email-sequence", async (req, res) => {
+    try {
+      const { product, audience, sequenceType, emails } = req.body;
+      if (!product) return res.status(400).json({ error: "Product/offer is required" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are an email marketing expert who writes high-converting email sequences. Return JSON only.` },
+          { role: "user", content: `Create a ${sequenceType || "welcome"} email sequence for:
+Product/Offer: ${product}
+Target audience: ${audience || "new subscribers"}
+Number of emails: ${emails || 7}
+
+Return JSON:
+{
+  "sequenceName": "sequence name",
+  "goal": "sequence goal",
+  "emails": [
+    {
+      "day": "Day 0/1/2/3/etc.",
+      "subjectLine": "email subject line",
+      "previewText": "email preview text",
+      "purpose": "email purpose (welcome/value/story/pitch/etc.)",
+      "body": "full email body text",
+      "cta": { "text": "CTA text", "action": "what the CTA does" },
+      "tips": "tips for this specific email"
+    }
+  ],
+  "sequenceStrategy": "overall strategy explanation",
+  "abTestIdeas": [
+    { "element": "what to test", "variationA": "option A", "variationB": "option B" }
+  ],
+  "metrics": ["key metrics to track for this sequence"],
+  "tips": ["5 email sequence optimization tips"]
+}` }
+        ],
+        max_tokens: 4000,
+        temperature: 0.7,
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(500).json({ error: "Failed to parse response" });
+      res.json(JSON.parse(jsonMatch[0]));
+    } catch (error: any) {
+      console.error("Email sequence error:", error);
+      res.status(500).json({ error: "Failed to generate email sequence" });
+    }
+  });
+
   return httpServer;
 }

@@ -20,6 +20,12 @@ import LinkedInSuite from "@/pages/linkedin-suite";
 import PodcastTools from "@/pages/podcast-tools";
 import SocialCommandCenter from "@/pages/social-command-center";
 import AiContentTeam from "@/pages/ai-content-team";
+import TwitterSuite from "@/pages/twitter-suite";
+import ContentRepurposer from "@/pages/content-repurposer";
+import ABTester from "@/pages/ab-tester";
+import CollabFinder from "@/pages/collab-finder";
+import ViralAnalyzer from "@/pages/viral-analyzer";
+import FunnelBuilder from "@/pages/funnel-builder";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -51,6 +57,12 @@ function AuthenticatedRouter() {
       <Route path="/podcast-tools" component={PodcastTools} />
       <Route path="/social-command-center" component={SocialCommandCenter} />
       <Route path="/ai-team" component={AiContentTeam} />
+      <Route path="/twitter-suite" component={TwitterSuite} />
+      <Route path="/content-repurposer" component={ContentRepurposer} />
+      <Route path="/ab-tester" component={ABTester} />
+      <Route path="/collab-finder" component={CollabFinder} />
+      <Route path="/viral-analyzer" component={ViralAnalyzer} />
+      <Route path="/funnel-builder" component={FunnelBuilder} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>

@@ -60,7 +60,13 @@ import {
   Music,
   Linkedin,
   Rocket,
+  Recycle,
+  Target,
+  Handshake,
+  Flame,
+  Megaphone,
 } from "lucide-react";
+import { SiX } from "react-icons/si";
 import type {
   ThumbnailConfig,
   TextOverlay,
@@ -709,6 +715,42 @@ export default function Home() {
               <Button variant="outline" data-testid="button-ai-team">
                 <Users className="h-4 w-4 mr-2" />
                 AI Team
+              </Button>
+            </Link>
+            <Link href="/twitter-suite">
+              <Button variant="outline" data-testid="button-twitter-suite">
+                <SiX className="h-4 w-4 mr-2" />
+                X/Twitter
+              </Button>
+            </Link>
+            <Link href="/content-repurposer">
+              <Button variant="outline" data-testid="button-repurposer">
+                <Recycle className="h-4 w-4 mr-2" />
+                Repurpose
+              </Button>
+            </Link>
+            <Link href="/ab-tester">
+              <Button variant="outline" data-testid="button-ab-tester">
+                <Target className="h-4 w-4 mr-2" />
+                A/B Tester
+              </Button>
+            </Link>
+            <Link href="/collab-finder">
+              <Button variant="outline" data-testid="button-collab-finder">
+                <Handshake className="h-4 w-4 mr-2" />
+                Collabs
+              </Button>
+            </Link>
+            <Link href="/viral-analyzer">
+              <Button variant="outline" data-testid="button-viral-analyzer">
+                <Flame className="h-4 w-4 mr-2" />
+                Viral Analyzer
+              </Button>
+            </Link>
+            <Link href="/funnel-builder">
+              <Button variant="outline" data-testid="button-funnel-builder">
+                <Megaphone className="h-4 w-4 mr-2" />
+                Funnels
               </Button>
             </Link>
             <Link href="/admin">
