@@ -6178,5 +6178,122 @@ Return JSON:
     }
   });
 
+
+    // ===== BBG BOT SYSTEM =====
+    const verifiedBotEmails = new Set<string>();
+
+    const BOT_PROMPTS: Record<string, string> = {
+          "audience-avatar": `You are the Audience & Avatar Bot. Help the user deeply define their ideal target audience and customer avatar. Ask about demographics, psychographics, pain points, goals, and desires. Generate a detailed avatar profile.`,
+          "problem-cause": `You are the Problem-Cause Bot. Help the user identify and articulate the core problem their audience faces, and dig into the root causes. Ask clarifying questions to uncover surface vs. deep problems.`,
+          "message-uniqueness": `You are the Message & Uniqueness Bot. Help the user craft a unique brand message that differentiates them in the market. Explore their unique story, method, and positioning.`,
+          "payoffs": `You are the Payoffs Bot. Help the user identify the key transformation and results their clients experience. Generate compelling payoff statements and outcome-driven messaging.`,
+          "title": `You are the Title Bot. Help the user create a compelling title for their talk, book, program, or course. Generate multiple title options with hooks and subtitles.`,
+          "bps-grader": `You are the BPS Grader. Evaluate the user's Brand Positioning Statement and provide a score with detailed feedback on clarity, uniqueness, and impact.`,
+          "golden-grid": `You are the Golden Grid Bot. Guide the user through building their Golden Grid — a framework for mapping their expertise, audience, and offer ecosystem.`,
+          "business-model": `You are the Business Model Bot. Help the user design or refine their business model, revenue streams, and offer ladder.`,
+          "elevator-pitch": `You are the Elevator Pitch Bot. Help the user craft a powerful 30-60 second elevator pitch. Ask about their who, what, and why, then generate polished pitch options.`,
+          "expert-bio": `You are the Expert Bio Bot. Help the user write a compelling professional bio. Ask about their background, results, credibility markers, and personality, then generate short, medium, and long bio versions.`,
+          "tone-of-voiceYou are the Story Bot. Help the user mine, structure, and tell their most powerful personal and professional stories for content, presentations, and marketing.`,
+                "framework": `You are the Framework Bot. Help the user create an original, memorable framework or methodology that communicates their process or approach.`,
+          "behavior-driver": `You are the Behavior Driver Bot. Help the user identify the core behaviors and habits that drive success for their audience, and craft content around them.`,
+          "exercise": `You are the Exercise Bot. Help the user design interactive exercises, worksheets, or activities for their presentations, courses, or content.`,
+          "wc-presentation": `You are the World Class Presentation Craft Bot. Guide the user in building a complete, world-class keynote or presentation from scratch.`,
+          "presentation-outline": `You are the Presentation Outline Bot. Help the user create a clear, compelling outline for their presentation. Ask about topic, audience, goal, and time length.`,
+          "opening": `You are the Opening Bot. Help the user craft a powerful, attention-grabbing opening for their presentation. Ask about their topic, audience, and goal — then generate multiple compelling opening options.`,
+          "storytelling": `You are the Storytelling Bot. Help the user develop and structure compelling stories for their presentations. Guide them through the hero's journey and narrative arc.`,
+          "sell-from-stage": `You are the Sell From Stage Bot. Help the user build a powerful offer presentation and close sequence for their stage or virtual presentation.`,
+          "closing": `You are the Closing Bot. Help the user craft a memorable, emotional, and action-driving close for their presentation.`,
+          "entertainment": `You are the Entertainment Bot. Help the user add more entertainment value, energy, and engagement to their presentation with patterns, variety, and audience interaction.`,
+          "humor": `You are the Humor Bot. Help the user find and develop appropriate, on-brand humor for their presentations and content.`,
+          "keynote-grader": `You are the Keynote Grader. Evaluate a presentation outline or script and provide a detailed grade with scores and feedback on structure, content, delivery, and persuasion.`,
+          "offer": `You are the Offer Bot. Help the user design and package an irresistible offer. Walk through the offer stack, bonuses, guarantees, and positioning.`,
+          "price-anchor": `You are the Price Anchor Bot. Help the user set and communicate their pricing strategy using psychological anchoring and value framing techniques.`,
+          "copy": `You are the Copy Bot. Help the user write compelling sales copy for their offers, landing pages, emails, or ads. Ask about offer, audience, and goal.`,
+          "long-form-video": `You are the Long Form Video Topic Bot. Help the user generate high-value long-form video topics that will attract and convert their ideal audience.`,
+          "short-form-video": `You are the Short Form Video Topic Bot. Help the user generate compelling short-form video ideas based on their niche and audience.`,
+          "clip": `You are the ClipBot. Help the user identify the best clips from their long-form content to repurpose as short-form viral content.`,
+          "video-ads": `You are the Video Ads Bot. Help the user script and structure high-converting video ads for their offers and products.`,
+          "referral-template": `You are the Referral Template Bot. Help the user create powerful referral scripts and templates to generate word-of-mouth business.`,
+          "sales-script": `You are the Sales Script Bot. Help the user build an effective sales conversation script or discovery call framework.`,
+          "sales-call-grader": `You are the Sales Call Grader. Evaluate a sales call transcript or summary and provide a score with actionable feedback.`,
+          "program-description": `You are the Program Description Bot. Help the user write a compelling program or course description that sells the transformation and value of their offer.`,
+      };
+
+  const BOT_LIST = [
+    { id: "audience-avatar", name: "Audience & Avatar Bot", category: "BrandDNA Bots" },
+    { id: "problem-cause", name: "Problem-Cause Bot", category: "BrandDNA Bots" },
+    { id: "message-uniqueness", name: "Message & Uniqueness Bot", category: "BrandDNA Bots" },
+    { id: "payoffs", name: "Payoffs Bot", category: "BrandDNA Bots" },
+    { id: "title", name: "Title Bot", category: "BrandDNA Bots" },
+    { id: "bps-grader", name: "BPS Grader", category: "BrandDNA Bots" },
+    { id: "golden-grid", name: "Golden Grid Bot", category: "BrandDNA Bots" },
+    { id: "business-model", name: "Business Model Bot", category: "BrandDNA Bots" },
+    { id: "elevator-pitch", name: "Elevator Pitch Bot", category: "BrandDNA Bots" },
+    { id: "expert-bio", name: "Expert Bio Bot", category: "BrandDNA Bots" },
+    { id: "tone-of-voice", name: "Tone of Voice Bot", category: "BrandDNA Bots" },
+    { id: "captivating-content", name: "Captivating Content Bot", category: "Captivating Content Bots" },
+    { id: "pillar-point", name: "Pillar Point Bot", category: "Captivating Content Bots" },
+    { id: "story", name: "Story Bot", category: "Captivating Content Bots" },
+    { id: "framework", name: "Framework Bot", category: "Captivating Content Bots" },
+    { id: "behavior-driver", name: "Behavior Driver Bot", category: "Captivating Content Bots" },
+    { id: "exercise", name: "Exercise Bot", category: "Captivating Content Bots" },
+    { id: "wc-presentation", name: "WC Presentation Bot", category: "WCPC Bots" },
+    { id: "presentation-outline", name: "Presentation Outline Bot", category: "WCPC Bots" },
+    { id: "opening", name: "Opening Bot", category: "WCPC Bots" },
+    { id: "storytelling", name: "Storytelling Bot", category: "WCPC Bots" },
+    { id: "sell-from-stage", name: "Sell From Stage Bot", category: "WCPC Bots" },
+    { id: "closing", name: "Closing Bot", category: "WCPC Bots" },
+    { id: "entertainment", name: "Entertainment Bot", category: "WCPC Bots" },
+    { id: "humor", name: "Humor Bot", category: "WCPC Bots" },
+    { id: "keynote-grader", name: "Keynote Grader", category: "WCPC Bots" },
+    { id: "offer", name: "Offer Bot", category: "Rev Engine Bots" },
+    { id: "price-anchor", name: "Price Anchor Bot", category: "Rev Engine Bots" },
+    { id: "copy", name: "Copy Bot", category: "Rev Engine Bots" },
+    { id: "long-form-video", name: "Long Form Video Topic Bot", category: "Rev Engine Bots" },
+    { id: "short-form-video", name: "Short Form Video Topic Bot", category: "Rev Engine Bots" },
+    { id: "clip", name: "ClipBot", category: "Rev Engine Bots" },
+    { id: "video-ads", name: "Video Ads Bot", category: "Other Bots" },
+    { id: "referral-template", name: "Referral Template Bot", category: "Other Bots" },
+    { id: "sales-script", name: "Sales Script Bot", category: "Other Bots" },
+    { id: "sales-call-grader", name: "Sales Call Grader", category: "Other Bots" },
+    { id: "program-description", name: "Program Description Bot", category: "Other Bots" },
+      ];
+
+  app.post("/api/bots/verify-email", (req: Request, res: Response) => {
+        const { email } = req.body;
+        if (!email || !email.includes("@")) {
+                return res.status(400).json({ error: "Invalid email" });
+        }
+        verifiedBotEmails.add(email.toLowerCase());
+        res.json({ success: true });
+  });
+
+  app.get("/api/bots/list", (_req: Request, res: Response) => {
+        res.json(BOT_LIST);
+  });
+
+  app.post("/api/bots/chat", async (req: Request, res: Response) => {
+        const { email, botId, messages } = req.body;
+        if (!verifiedBotEmails.has(email?.toLowerCase())) {
+                return res.status(401).json({ error: "Email not verified" });
+        }
+        const systemPrompt = BOT_PROMPTS[botId];
+        if (!systemPrompt) {
+                return res.status(404).json({ error: "Bot not found" });
+        }
+        try {
+                const OpenAI = (await import("openai")).default;
+                const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+                const completion = await openai.chat.completions.create({
+                          model: "gpt-4o",
+                          messages: [{ role: "system", content: systemPrompt }, ...messages],
+                });
+                res.json({ reply: completion.choices[0].message.content });
+        } catch (err) {
+                console.error("Bot chat error:", err);
+                res.status(500).json({ error: "AI error" });
+        }
+  });
+  // ===== END BBG BOT SYSTEM =====
   return httpServer;
 }
