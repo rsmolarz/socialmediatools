@@ -549,6 +549,132 @@ export function setupOAuthRoutes(app: Express) {
     }
   });
 
+  // MedInvest DID OAuth routes
+  const DID_BASE_URL = "https://did-login.replit.app";
+  const medinvestClientId = (process.env.MEDINVEST_CLIENT_ID || "").trim();
+  const medinvestClientSecret = (process.env.MEDINVEST_CLIENT_SECRET || "").trim();
+  const medinvestRedirectUri = (process.env.MEDINVEST_REDIRECT_URI || `${APP_URL}/api/auth/medinvest/callback`).trim();
+
+  app.get("/api/auth/medinvest/login", (req, res) => {
+    console.log("[oauth] Starting MedInvest DID OAuth flow");
+    if (!medinvestClientId || !medinvestClientSecret) {
+      console.error("[oauth] MedInvest credentials not configured");
+      return res.redirect("/?error=medinvest_auth_failed&detail=not_configured");
+    }
+    const { randomBytes } = require("crypto");
+    const state = randomBytes(32).toString("hex");
+    (req.session as any).medinvestOAuthState = state;
+    req.session.save((err: any) => {
+      if (err) {
+        console.error("[oauth] MedInvest session save error:", err);
+        return res.redirect("/?error=medinvest_auth_failed&detail=session_error");
+      }
+      const params = new URLSearchParams({
+        client_id: medinvestClientId,
+        redirect_uri: medinvestRedirectUri,
+        response_type: "code",
+        scope: "openid profile email",
+        state,
+      });
+      res.redirect(`${DID_BASE_URL}/oauth/authorize?${params.toString()}`);
+    });
+  });
+
+  app.get("/api/auth/medinvest/callback", async (req, res) => {
+    console.log("[oauth] MedInvest callback received, query:", JSON.stringify(req.query));
+
+    if (req.query.error) {
+      console.error("[oauth] MedInvest returned error:", req.query.error);
+      return res.redirect(`/?error=medinvest_auth_failed&detail=${encodeURIComponent(String(req.query.error_description || req.query.error))}`);
+    }
+
+    const { code, state } = req.query;
+
+    if (!code || typeof code !== "string") {
+      return res.redirect("/?error=medinvest_auth_failed&detail=missing_code");
+    }
+
+    if (!state || state !== (req.session as any).medinvestOAuthState) {
+      console.error("[oauth] MedInvest state mismatch");
+      return res.redirect("/?error=medinvest_auth_failed&detail=invalid_state");
+    }
+    delete (req.session as any).medinvestOAuthState;
+
+    try {
+      const tokenResponse = await fetch(`${DID_BASE_URL}/api/oauth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "authorization_code",
+          code,
+          client_id: medinvestClientId,
+          client_secret: medinvestClientSecret,
+          redirect_uri: medinvestRedirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errText = await tokenResponse.text();
+        console.error("[oauth] MedInvest token exchange failed:", tokenResponse.status, errText);
+        return res.redirect("/?error=medinvest_auth_failed&detail=token_exchange_failed");
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      if (!accessToken) {
+        console.error("[oauth] MedInvest no access token in response");
+        return res.redirect("/?error=medinvest_auth_failed&detail=no_access_token");
+      }
+
+      const userInfoResponse = await fetch(`${DID_BASE_URL}/api/oauth/userinfo`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!userInfoResponse.ok) {
+        console.error("[oauth] MedInvest userinfo failed:", userInfoResponse.status);
+        return res.redirect("/?error=medinvest_auth_failed&detail=userinfo_failed");
+      }
+
+      const userInfo = await userInfoResponse.json();
+      const did = userInfo.sub;
+
+      if (!did) {
+        console.error("[oauth] MedInvest missing DID in response");
+        return res.redirect("/?error=medinvest_auth_failed&detail=missing_did");
+      }
+
+      console.log("[oauth] MedInvest user info - DID:", did, "email:", userInfo.email, "name:", userInfo.name);
+
+      const nameParts = (userInfo.name || "").split(" ");
+      const user = await findOrCreateUser({
+        id: did,
+        provider: "medinvest",
+        email: userInfo.email || undefined,
+        firstName: nameParts[0] || userInfo.preferred_username || "MedInvest",
+        lastName: nameParts.slice(1).join(" ") || "User",
+        profileImageUrl: undefined,
+      });
+
+      req.login(user, (err) => {
+        if (err) {
+          console.error("[oauth] MedInvest login error:", err);
+          return res.redirect("/?error=medinvest_auth_failed&detail=login_error");
+        }
+        console.log("[oauth] MedInvest auth successful, user:", user.id);
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[oauth] MedInvest session save error:", saveErr);
+          }
+          res.redirect("/");
+        });
+      });
+    } catch (err) {
+      console.error("[oauth] MedInvest OAuth error:", err);
+      res.redirect("/?error=medinvest_auth_failed&detail=server_error");
+    }
+  });
+
   // Get current user
   app.get("/api/auth/user", (req, res) => {
     if (req.isAuthenticated() && req.user) {

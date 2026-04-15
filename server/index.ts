@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction, type Express } from "express";
 import { registerRoutes } from "./routes";
+import studioRouter from "./routes/studio";
 import { serveStatic } from "./static";
 import { type Server } from "http";
 import { setupSwagger } from "./swagger";
@@ -83,6 +84,7 @@ export async function initApp(httpServer: Server, app: Express) {
 
   setupSwagger(app);
   await registerRoutes(httpServer, app);
+  app.use("/api/studio", studioRouter);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

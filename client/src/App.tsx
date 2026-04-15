@@ -29,6 +29,7 @@ import FunnelBuilder from "@/pages/funnel-builder";
 import NotFound from "@/pages/not-found";
 import BotsPage from "@/pages/bots";
 import { Loader2 } from "lucide-react";
+import StudioPage from "@/pages/studio";
 
 function AuthenticatedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -66,6 +67,8 @@ function AuthenticatedRouter() {
       <Route path="/funnel-builder" component={FunnelBuilder} />
       <Route path="/bots" component={BotsPage} />
       <Route path="/admin" component={Admin} />
+      <Route path="/studio" component={StudioPage} />
+      <Route path="/studio/:id" component={StudioPage} />
       <Route component={NotFound} />
     </Switch>
   );

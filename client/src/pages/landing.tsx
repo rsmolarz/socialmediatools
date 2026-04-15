@@ -17,7 +17,8 @@ import {
   Stethoscope,
   DollarSign,
   LogIn,
-  Loader2
+  Loader2,
+  Shield
 } from "lucide-react";
 import { SiGoogle, SiFacebook, SiGithub, SiApple } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
@@ -209,6 +210,13 @@ export default function LandingPage() {
       icon: <SiApple className="w-5 h-5" />,
       href: "/api/auth/apple",
       color: "hover:bg-gray-500/10 hover:border-gray-500/50"
+    },
+    { 
+      id: "medinvest", 
+      name: "MedInvest DID", 
+      icon: <Shield className="w-5 h-5" />,
+      href: "/api/auth/medinvest/login",
+      color: "hover:bg-emerald-500/10 hover:border-emerald-500/50"
     }
   ];
 

@@ -221,5 +221,6 @@ export function getConfiguredProviders(): string[] {
   if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) providers.push("facebook");
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) providers.push("github");
   if (getAppleClientId() && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY) providers.push("apple");
+  if (process.env.MEDINVEST_CLIENT_ID && process.env.MEDINVEST_CLIENT_SECRET) providers.push("medinvest");
   return providers;
 }

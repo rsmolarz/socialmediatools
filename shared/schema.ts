@@ -775,3 +775,5 @@ export type BotFavorite = typeof botFavorites.$inferSelect;
 
 // Auth models
 export * from "./models/auth";
+
+export * from "./studio-schema";
