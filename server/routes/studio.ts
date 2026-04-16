@@ -23,6 +23,9 @@ function getUserId(req: Request): string {
 }
 
 // Sessions
+import { db } from "../db";
+import { transcriptionQueue } from "../workers/index";
+
 router.post("/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const schema = z.object({
@@ -132,6 +135,77 @@ router.get("/sessions/:id/transcript", requireAuth, async (req: Request, res: Re
 router.get("/sessions/:id/clips", requireAuth, async (req: Request, res: Response) => {
   const clips = await getClipsBySession(req.params.id);
   res.json(clips);
+});
+
+
+//  Asset bridge 
+
+router.post("/sessions/:id/clips/:clipId/send-to-builder", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const session = await getSessionById(req.params.id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (session.hostUserId !== getUserId(req)) return res.status(403).json({ error: "Forbidden" });
+    const { pushClipToBuilder } = await import("../services/assetBridge");
+    const clips = await getClipsBySession(req.params.id);
+    const clip = clips.find((c: any) => c.id === req.params.clipId);
+    if (!clip) return res.status(404).json({ error: "Clip not found" });
+    const assetId = await pushClipToBuilder(clip);
+    res.json({ ok: true, assetId });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post("/sessions/:id/clips/:clipId/thumbnails", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { generateThumbnailVariants } = await import("../services/thumbnailPipeline");
+    const clips = await getClipsBySession(req.params.id);
+    const clip = clips.find((c: any) => c.id === req.params.clipId);
+    if (!clip) return res.status(404).json({ error: "Clip not found" });
+    if (!clip.thumbnailUrl) return res.status(400).json({ error: "Clip has no thumbnail yet" });
+    const storageKey = (clip as any).storageKey?.replace(/\.[^.]+$/, "") + "-thumb.jpg";
+    const variants = await generateThumbnailVariants(clip.id, req.params.id, storageKey);
+    res.json({ variants });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.get("/sessions/:id/ready-clips", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { getReadyClipsForSession } = await import("../services/assetBridge");
+    const clips = await getReadyClipsForSession(req.params.id);
+    res.json(clips);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+
+//  Health check 
+router.get("/health", async (_req: Request, res: Response) => {
+  const checks: Record<string, string> = {};
+  try {
+    if (transcriptionQueue) {
+      await (transcriptionQueue as any).client.ping();
+      checks.redis = "ok";
+    } else {
+      checks.redis = "not configured";
+    }
+  } catch (e: any) {
+    checks.redis = "error: " + e.message;
+  }
+  try {
+    await db.execute("select 1" as any);
+    checks.database = "ok";
+  } catch (e: any) {
+    checks.database = "error: " + e.message;
+  }
+  checks.livekit  = process.env.LIVEKIT_API_KEY     ? "configured" : "missing";
+  checks.openai   = process.env.OPENAI_API_KEY      ? "configured" : "missing";
+  checks.r2       = process.env.CLOUDFLARE_R2_BUCKET ? "configured" : "missing";
+  const allOk = Object.values(checks).every(v => v === "ok" || v === "configured" || v === "not configured");
+  res.status(allOk ? 200 : 503).json({ status: allOk ? "ready" : "degraded", checks });
 });
 
 export default router;

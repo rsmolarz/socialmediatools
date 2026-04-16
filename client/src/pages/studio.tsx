@@ -38,7 +38,7 @@ export default function StudioPage() {
     setOpen(false);
     setTitle("");
     setDescription("");
-    navigate(`/studio/${result.session.id}`);
+    navigate(`/studio/${result.session.id}/edit`);
   };
 
   return (
@@ -101,7 +101,7 @@ export default function StudioPage() {
             <Card
               key={s.id}
               className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate(`/studio/${s.id}`)}
+              onClick={() => navigate(`/studio/${s.id}/edit`)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">

@@ -9,6 +9,7 @@ import { useSession, useSessionTranscript, useSessionClips } from "@/hooks/useSt
 import { useEditor } from "@/hooks/useEditor";
 import { useTranscript } from "@/hooks/useTranscript";
 import { useToast } from "@/hooks/use-toast";
+import { SendToBuilder } from "@/components/studio/SendToBuilder";
 
 export default function EditorPage() {
   const params = useParams<{ id: string }>();
@@ -36,14 +37,12 @@ export default function EditorPage() {
     }
   };
 
-  const handleSendToBuilder = async () => {
-    toast({ title: "Coming in Phase 6", description: "Asset bridge integration is next!" });
-  };
+  const handleSendToBuilder = () => {}; // handled by SendToBuilder component
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
       <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
-        <a href="/studio" className="text-sm text-muted-foreground hover:text-foreground">!ê Studio</a>
+        <a href="/studio" className="text-sm text-muted-foreground hover:text-foreground">!ÔøΩ Studio</a>
         <span className="text-muted-foreground">/</span>
         <h1 className="text-sm font-medium truncate">{session?.title || "Loading..."}</h1>
       </div>
@@ -77,6 +76,7 @@ export default function EditorPage() {
               <TabsTrigger value="transcript">Transcript</TabsTrigger>
               <TabsTrigger value="clips">Clips</TabsTrigger>
               <TabsTrigger value="export">Export</TabsTrigger>
+              <TabsTrigger value="publish">Publish</TabsTrigger>
             </TabsList>
 
             <TabsContent value="transcript" className="flex-1 overflow-hidden mt-0">
@@ -104,6 +104,14 @@ export default function EditorPage() {
                 selectionEnd={editor.selectionEnd}
                 onCreateClip={handleCreateClip}
                 isCreating={editor.createClip.isPending}
+              />
+            </TabsContent>
+
+            <TabsContent value="publish" className="flex-1 overflow-y-auto px-4 py-3">
+              <SendToBuilder
+                sessionId={sessionId}
+                clips={clips}
+                onRefresh={() => {}}
               />
             </TabsContent>
 

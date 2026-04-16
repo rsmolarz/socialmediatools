@@ -30,6 +30,7 @@ import NotFound from "@/pages/not-found";
 import BotsPage from "@/pages/bots";
 import { Loader2 } from "lucide-react";
 import StudioPage from "@/pages/studio";
+import EditorPage from "@/pages/editor";
 
 function AuthenticatedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -68,6 +69,7 @@ function AuthenticatedRouter() {
       <Route path="/bots" component={BotsPage} />
       <Route path="/admin" component={Admin} />
       <Route path="/studio" component={StudioPage} />
+        <Route path="/studio/:id/edit" component={EditorPage} />
       <Route path="/studio/:id" component={StudioPage} />
       <Route component={NotFound} />
     </Switch>
