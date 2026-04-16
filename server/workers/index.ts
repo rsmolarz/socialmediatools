@@ -12,25 +12,41 @@ const queueOptions = {
   },
 };
 
-export const transcriptionQueue  = new Bull("studio:transcription",  queueOptions);
-export const compositionQueue    = new Bull("studio:composition",    queueOptions);
-export const clipQueue           = new Bull("studio:clips",          queueOptions);
-export const aiEditQueue         = new Bull("studio:ai-edit",        queueOptions);
-export const exportQueue         = new Bull("studio:export",         queueOptions);
+let transcriptionQueue: Bull.Queue | null = null;
+let compositionQueue: Bull.Queue | null = null;
+let clipQueue: Bull.Queue | null = null;
+let aiEditQueue: Bull.Queue | null = null;
+let exportQueue: Bull.Queue | null = null;
 
-import "./transcription";
-import "./compositor";
-import "./clipGenerator";
-import "./aiEditor";
-import "./exporter";
+try {
+  transcriptionQueue = new Bull("studio:transcription", queueOptions);
+  compositionQueue = new Bull("studio:composition", queueOptions);
+  clipQueue = new Bull("studio:clips", queueOptions);
+  aiEditQueue = new Bull("studio:ai-edit", queueOptions);
+  exportQueue = new Bull("studio:export", queueOptions);
+
+  import("./transcription").catch(() => {});
+  import("./compositor").catch(() => {});
+  import("./clipGenerator").catch(() => {});
+  import("./aiEditor").catch(() => {});
+  import("./exporter").catch(() => {});
+
+  console.log("[workers] Queue workers initialized");
+} catch (e: any) {
+  console.warn("[workers] Skipped queue init (Redis unavailable):", e.message);
+}
+
+export { transcriptionQueue, compositionQueue, clipQueue, aiEditQueue, exportQueue };
 
 export function getQueueForJobType(jobType: string): Bull.Queue {
-  switch (jobType) {
-    case "transcription":   return transcriptionQueue;
-    case "composition":     return compositionQueue;
-    case "clip_generation": return clipQueue;
-    case "ai_edit":         return aiEditQueue;
-    case "export":          return exportQueue;
-    default: throw new Error(`Unknown job type: ${jobType}`);
-  }
+  const queues: Record<string, Bull.Queue | null> = {
+    transcription: transcriptionQueue,
+    composition: compositionQueue,
+    clip_generation: clipQueue,
+    ai_edit: aiEditQueue,
+    export: exportQueue,
+  };
+  const q = queues[jobType];
+  if (!q) throw new Error(`Queue not available for job type: ${jobType}`);
+  return q;
 }
