@@ -60,3 +60,7 @@ APPLE_TEAM_ID = "AG4PQ9Y5GY"
 APPLE_KEY_ID = "LLYUTW9V3K"
 APP_URL = "https://medmoneyviralcontent.com"
 APPLE_BUNDLE_ID = "com.medicineandmoneyshow.webapp"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
